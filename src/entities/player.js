@@ -48,7 +48,7 @@ export class Player {
   equip(slot) { this.slot = slot; while (this.weaponGroup.children.length) this.weaponGroup.remove(this.weaponGroup.children[0]); this.weaponGroup.add(this.weapon.model); this.reloadT = -1; audio.play('weapon_swap', { volume: 0.6 }); events.emit('player:weapon', this.weapon); }
   spawnAt(p, yaw = 0) { this.position.copy(p); this.yaw = yaw; this.cam.yaw = yaw; this.velocity.set(0, 0, 0); this.model.root.position.copy(p); }
   get eyeHeight() { return this.crouching || (this.state === 'cover' && this.cover?.height === 'low' && !this.aiming) ? 1.15 : 1.55; }
-  get moveSpeedMax() { const w = this.weapon.def.moveMult || 1; if (this.aiming) return 3.1 * w; if (this.crouching) return 2.7; if (this.sprinting) return 7.8 * w; return 5.1 * w; }
+  get moveSpeedMax() { const w = this.weapon.def.moveMult || 1; if (this.aiming) return (this.weapon.def.kind === 'sniper' ? 1.6 : 3.1) * w; if (this.crouching) return 2.9; if (this.sprinting) return 9.4 * w; return 6.3 * w; }
 
   update(dt) {
     this.stateT += dt; this.spawnT += dt;
@@ -76,11 +76,11 @@ export class Player {
     this.transformT = Math.max(0, (this.transformT || 0) - dt);
     this.hitCenter.copy(this.position).add(new THREE.Vector3(0, 1.0, 0));
     // animation state
-    const speedN = clamp(this.velocity.length() / 7.8, 0, 1);
+    const speedN = clamp(this.velocity.length() / 9.4, 0, 1);
     const local = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), -this.yaw);
     const s = {
       speed: this.state === 'cover' ? speedN * 0.6 : speedN, strafe: clamp(local.x / 4, -1, 1), forward: local.z >= -0.3 ? 1 : -1,
-      sprint: this.sprinting && speedN > 0.3 ? 1 : 0, crouch: this.crouching ? 1 : 0, aim: this.aiming ? 1 : 0,
+      sprint: this.sprinting && speedN > 0.3 ? 1 : (speedN > 0.35 && !this.aiming && !this.crouching && this.state === 'normal' ? 0.55 : 0), crouch: this.crouching ? 1 : 0, aim: this.aiming ? 1 : 0,
       cover: this.state === 'cover' ? { high: this.cover.height === 'high', peek: this.peek, over: this.cover.height === 'low', blind: this.blindFiring } : null,
       roll: this.state === 'roll' ? this.stateT / 0.62 : null, transform: (this.state === 'cover' && this.stateT < 0.42) ? this.stateT / 0.42 : (this.transformT > 0 ? 1 - this.transformT / 0.42 : null), vault: this.state === 'vault' ? this.stateT / 0.7 : null,
       dead: this.dead, aimPitch: clamp(-this.cam.pitch / 1.1, -1, 1) * -1, weaponLow: 0, reload: this.reloadT >= 0 ? this.reloadT / this.weapon.def.reloadTime : null,
@@ -92,7 +92,10 @@ export class Player {
     this.anim.update(dt, s);
     this.model.root.position.copy(this.position);
     this.model.root.rotation.y = this.yaw + Math.PI;
-    this.cam.update(dt, { position: this.position, height: this.eyeHeight, aim: this.aiming, sprint: this.sprinting && speedN > 0.3, crouch: this.crouching, cover: s.cover, dead: this.dead });
+    this.cam.update(dt, { position: this.position, height: this.eyeHeight, aim: this.aiming, sprint: this.sprinting && speedN > 0.3, crouch: this.crouching, cover: s.cover, dead: this.dead, zoom: this.weapon.def.zoom });
+    this.scoped = this.aiming && this.weapon.def.kind === 'sniper' && this.cam.aim > 0.85;
+    for (const m of this.model.meshes) m.visible = !this.scoped;
+    this.weaponGroup.visible = !this.scoped;
   }
   faceCamera(dt, rate = 14) { this.yaw = angleDamp(this.yaw, this.cam.yaw, rate, dt); }
   updateNormal(dt, wish, ax, aimNow) {

@@ -16,6 +16,7 @@ const WEAPON_ICONS = {
   rifle: '<svg viewBox="0 0 120 40"><path d="M2 22h30l4-6h14l3 6h40l6-3h18v6H92l-6 4H60l-2 6h-8l-2-6H34l-4-4H2z" fill="currentColor" opacity=".9"/><path d="M40 14h10v-6H40z" fill="currentColor" opacity=".6"/></svg>',
   shotgun: '<svg viewBox="0 0 120 40"><path d="M2 20h34l4-5h12l3 5h58v5H56l-3 6h-8l-3-6H40l-4 5H2z" fill="currentColor" opacity=".9"/><rect x="60" y="26" width="30" height="4" fill="currentColor" opacity=".6"/></svg>',
   lmg: '<svg viewBox="0 0 120 40"><path d="M2 20h28l3-7h20l3 7h50l8-3h4v7H98l-5 4H60l-2 6h-8l-3-6H35l-5 4H2z" fill="currentColor" opacity=".9"/><rect x="40" y="27" width="14" height="10" fill="currentColor" opacity=".7"/><path d="M84 27l-4 10M92 27l4 10" stroke="currentColor" stroke-width="2"/></svg>',
+  sniper: '<svg viewBox="0 0 120 40"><path d="M2 21h26l3-5h10l2 5h70v4H50l-2 6h-8l-2-6H31l-3 4H2z" fill="currentColor" opacity=".9"/><rect x="36" y="8" width="26" height="5" rx="2" fill="currentColor" opacity=".7"/><path d="M40 13v3M58 13v3" stroke="currentColor" stroke-width="2"/></svg>',
   pistol: '<svg viewBox="0 0 120 40"><path d="M30 12h60v9H50l-4 14h-14l4-14h-6z" fill="currentColor" opacity=".9"/><rect x="62" y="21" width="20" height="3" fill="currentColor" opacity=".6"/></svg>',
 };
 
@@ -25,7 +26,7 @@ export class Hud {
     this.el.innerHTML = `
       <div class="xhair"><i></i><i></i><i></i><i></i><b></b><div class="hitm"><i></i><i></i><i></i><i></i></div></div>
       <div class="dmgdir"></div>
-      <div class="hud-top"><div class="obj"><span class="diamond"></span><div><div class="objtext">SURVEY BLACKSITE MERIDIAN</div><div class="objdist"></div></div></div></div>
+      <div class="hud-top"><div class="obj"><span class="diamond"></span><div><div class="objtext">SURVEY BLACKSITE MERIDIAN</div><div class="objdist"></div></div></div><div class="side"></div></div>
       <div class="compass"><div class="strip"></div><div class="tick"></div><div class="objtick"></div></div>
       <div class="boss"><div class="name">WARDEN</div><div class="bar"><i></i></div><div class="plates"></div></div>
       <div class="hud-bl">
@@ -35,6 +36,7 @@ export class Hud {
       <div class="abilities"></div>
       <div class="hud-br"><div class="ammo"><div class="wicon"></div><div class="wname"></div><div class="count"><b class="mag">30</b><span class="res">/ 180</span></div><div class="pips"></div></div><div class="kit"><span class="gren"><i class="ico g"></i><b>4</b></span><span class="inj"><i class="ico h"></i><b>4</b></span></div></div>
       <div class="marked">TARGET MARKED — REINFORCEMENTS INBOUND</div>
+      <div class="sniperscope"><div class="hole"></div><div class="ring"></div><div class="h"></div><div class="v"></div><div class="rl">LONGSHOT // 4.2x</div></div>
       <div class="godmode">GOD MODE</div>`;
     root.appendChild(this.el);
     const css = document.createElement('style');
@@ -62,6 +64,9 @@ export class Hud {
       #hud .obj{display:flex;align-items:center;gap:14px;background:linear-gradient(90deg,rgba(0,229,255,.16),rgba(4,12,18,.6) 40%,rgba(4,12,18,.3));border-left:3px solid var(--cyan);padding:9px 20px 9px 16px;min-width:300px;clip-path:polygon(0 0,100% 0,calc(100% - 14px) 100%,0 100%)}
       #hud .objtext{font-size:16px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
       #hud .objdist{font-size:11px;letter-spacing:.3em;color:var(--cyan);margin-top:2px;font-family:var(--mono)}
+      #hud .side{margin-top:6px;display:flex;flex-direction:column;gap:3px}
+      #hud .side div{font-size:11px;letter-spacing:.22em;color:rgba(255,200,120,.85);background:rgba(4,12,18,.5);border-left:2px solid var(--amber);padding:3px 10px;display:inline-flex;gap:10px;width:max-content;clip-path:polygon(0 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+      #hud .side div b{font-family:var(--mono);color:#fff} #hud .side div.done{opacity:.45;text-decoration:line-through}
       #hud .diamond{width:12px;height:12px;border:2px solid var(--cyan);transform:rotate(45deg);box-shadow:0 0 8px var(--cyan);animation:dpulse 1.6s ease-in-out infinite}
       @keyframes dpulse{50%{box-shadow:0 0 16px var(--cyan)}}
       #hud .compass{position:absolute;left:50%;top:14px;width:380px;height:24px;transform:translateX(-50%) scale(var(--hs));overflow:hidden;opacity:.9;-webkit-mask-image:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent);border-bottom:1px solid rgba(0,229,255,.25)}
@@ -128,6 +133,13 @@ export class Hud {
       #hud .marked.on{opacity:1;animation:tpulse 1s infinite}
       #hud .godmode{position:absolute;right:16px;top:12px;font-size:11px;letter-spacing:.3em;color:var(--amber);opacity:.7;display:none}
       #hud.god .godmode{display:block}
+      #hud .sniperscope{position:absolute;left:0;top:0;width:100%;height:100%;display:none;pointer-events:none;overflow:hidden}
+      #hud .sniperscope .hole{position:absolute;left:50%;top:50%;width:52vmin;height:52vmin;transform:translate(-50%,-50%);border-radius:50%;box-shadow:0 0 0 300vmax rgba(0,4,8,.97),inset 0 0 40px rgba(0,0,0,.8)}
+      #hud.scoped .sniperscope{display:block} #hud.scoped .xhair{opacity:0!important}
+      #hud .sniperscope .ring{position:absolute;left:50%;top:50%;width:52vmin;height:52vmin;transform:translate(-50%,-50%);border-radius:50%;border:2px solid rgba(0,229,255,.55);box-shadow:0 0 30px rgba(0,229,255,.25),inset 0 0 40px rgba(0,229,255,.12)}
+      #hud .sniperscope .h{position:absolute;left:50%;top:50%;width:52vmin;height:1px;transform:translate(-50%,-50%);background:linear-gradient(90deg,transparent,var(--cyan) 30%,transparent 48%,transparent 52%,var(--cyan) 70%,transparent)}
+      #hud .sniperscope .v{position:absolute;left:50%;top:50%;width:1px;height:52vmin;transform:translate(-50%,-50%);background:linear-gradient(180deg,transparent,var(--cyan) 30%,transparent 48%,transparent 52%,var(--cyan) 70%,transparent)}
+      #hud .sniperscope .rl{position:absolute;left:50%;top:calc(50% + 28vmin);transform:translateX(-50%);font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--cyan)}
       #hud.dead .xhair,#hud.dead .abilities,#hud.dead .hud-br{opacity:0}
     `;
     document.head.appendChild(css);
@@ -141,6 +153,7 @@ export class Hud {
       events.on('player:damaged', ({ from }) => this.damageDir(from)),
       events.on('objective:update', (t) => this.setObjective(t)),
       events.on('objective:marker', (m) => { this.objMarker = m; }),
+      events.on('objective:side', (side) => this.setSide(side)),
       events.on('alert:level', (l) => { this.alertLevel = l; const r = this.el.querySelector('.radar'); r.className = 'radar' + (l > 0 ? ' t' + l : ''); }),
       events.on('hud:abilities', (cd, unlocked) => this.updateAbilities(cd, unlocked)),
       events.on('boss:spawn', (b) => this.setBoss(b)), events.on('boss:health', (b) => this.setBoss(b)), events.on('boss:died', () => this.setBoss(null)),
@@ -162,6 +175,7 @@ export class Hud {
   hitMarker({ headshot, kill }) { const h = this.el.querySelector('.hitm'); h.classList.remove('show', 'head', 'kill'); void h.offsetWidth; h.classList.add('show'); if (headshot) h.classList.add('head'); if (kill) h.classList.add('kill'); }
   damageDir(from) { if (!from || !this.player) return; const dx = from.x - this.player.position.x, dz = from.z - this.player.position.z; const a = Math.atan2(dx, -dz) - this.player.cam.yaw; const i = document.createElement('i'); i.style.transform = `rotate(${-a}rad)`; this.el.querySelector('.dmgdir').appendChild(i); setTimeout(() => i.remove(), 1000); }
   setObjective(t) { this.el.querySelector('.objtext').textContent = t; }
+  setSide(side) { this.side = side; const c = this.el.querySelector('.side'); c.innerHTML = Object.values(side).filter(o => o.total > 0).map(o => `<div class="${o.done >= o.total ? 'done' : ''}">${o.name} <b>${o.done}/${o.total}</b></div>`).join(''); }
   setSources(enemies, players) { this.enemiesRef = enemies; this.playersRef = players; }
   update(player, game, dt = 0.016) {
     this.player = player;
@@ -181,6 +195,7 @@ export class Hud {
     this.el.classList.toggle('lowammo', w.ammo <= Math.ceil(w.def.mag * 0.2) && player.reloadT < 0);
     this.el.classList.toggle('dead', !!player.dead);
     this.el.classList.toggle('god', !!game?.god);
+    this.el.classList.toggle('scoped', !!player.scoped);
     const spread = (player.aiming ? 4 : 8) + player.bloom * 400 + Math.min(14, player.velocity.length() * 2.5) + (player.state === 'cover' && !player.aiming ? 12 : 0);
     this.el.style.setProperty('--sp', spread + 'px');
     // compass
@@ -235,6 +250,8 @@ export class Hud {
     // rescued allies / teammates
     for (const e of enemies) if (e.type?.ally && !e.dead) { const p = toRadar(e.position.x, e.position.z); if (p.d > range) continue; c.fillStyle = '#3dff9a'; c.beginPath(); c.arc(p.x, p.y, 3.5, 0, Math.PI * 2); c.fill(); }
     for (const pl of (game?.players || [])) { if (pl === player) continue; const p = toRadar(pl.position.x, pl.position.z); const col = pl.color || '#ffb020'; c.fillStyle = col; c.shadowColor = col; c.shadowBlur = 6; const cl = Math.min(p.d, range - 2) / (p.d || 1); const x = R + (p.x - R) * cl, y = R + (p.y - R) * cl; c.beginPath(); c.arc(x, y, 4, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0; }
+    // side operation markers (amber squares)
+    if (this.side) { c.fillStyle = '#ffb020'; c.shadowColor = '#ffb020'; c.shadowBlur = 6; for (const o of Object.values(this.side)) for (const sp of (o.positions || [])) { const p = toRadar(sp.x, sp.z); if (p.d > range) continue; c.save(); c.translate(p.x, p.y); c.rotate(Math.PI / 4); c.fillRect(-3.5, -3.5, 7, 7); c.restore(); } c.shadowBlur = 0; }
     // objective diamond (clamped to edge)
     if (this.objMarker?.pos) { const p = toRadar(this.objMarker.pos.x, this.objMarker.pos.z); const cl = Math.min(p.d, range - 4) / (p.d || 1); const x = R + (p.x - R) * cl, y = R + (p.y - R) * cl; c.strokeStyle = this.objMarker.color || '#00e5ff'; c.lineWidth = 2; c.shadowColor = c.strokeStyle; c.shadowBlur = 8; c.beginPath(); c.moveTo(x, y - 6); c.lineTo(x + 6, y); c.lineTo(x, y + 6); c.lineTo(x - 6, y); c.closePath(); c.stroke(); c.shadowBlur = 0; }
     // player arrow

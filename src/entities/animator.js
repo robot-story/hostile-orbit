@@ -167,8 +167,8 @@ export class CharacterAnimator {
     this.speed = damp(this.speed, s.speed, 10, dt);
     this.strafe = damp(this.strafe, s.strafe || 0, 10, dt);
     this.forward = damp(this.forward, s.forward ?? 1, 10, dt);
-    const stride = s.sprint > 0.5 ? 1.55 : (s.crouch > 0.5 ? 1.0 : 1.25);
-    const freq = (s.sprint > 0.5 ? 10.5 : 8.5) * (s.crouch > 0.5 ? 0.85 : 1);
+    const stride = s.sprint > 0.8 ? 1.6 : (s.sprint > 0.3 ? 1.4 : (s.crouch > 0.5 ? 1.0 : 1.25));
+    const freq = (s.sprint > 0.8 ? 11.5 : s.sprint > 0.3 ? 9.8 : 8.5) * (s.crouch > 0.5 ? 0.85 : 1);
     if (this.speed > 0.02 && !s.dead && s.roll == null && s.vault == null) this.phase += dt * freq * clamp(this.speed, 0.35, 1);
     // servo gait: sharpened sine so legs snap between poses like actuators, with a short dwell
     const rawSw = Math.sin(this.phase);

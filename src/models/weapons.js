@@ -117,7 +117,28 @@ export function buildLegionHeavy() {
   return finish(g, 1.04, 0.07);
 }
 
-export const WEAPON_BUILDERS = { viper: buildViper, hammer: buildHammer, atlas: buildAtlas, sidearm: buildSidearm, legion_rifle: buildLegionRifle, legion_shotgun: buildLegionShotgun, legion_heavy: buildLegionHeavy };
+export function buildLongshot(neon = COLORS.cyan) {
+  const g = new THREE.Group(); g.name = 'weapon:longshot';
+  const gm = Mat.gunMetal(), gw = Mat.gunWhite(), n = Mat.neon(neon, 2.2);
+  g.add(at(B(0.05, 0.09, 0.50, gw), 0, 0.06, 0.14));
+  g.add(at(B(0.05, 0.05, 0.40, gm), 0, 0.03, 0.44));
+  g.add(at(C(0.013, 0.013, 0.62, gm), 0, 0.06, 0.82));
+  g.add(at(B(0.035, 0.035, 0.10, gm), 0, 0.06, 1.16));
+  g.add(at(B(0.04, 0.09, 0.05, gm), 0, -0.03, 0.06));
+  g.add(at(B(0.05, 0.16, 0.05, gm), 0, -0.09, 0.16));
+  g.add(at(B(0.045, 0.07, 0.30, gw), 0, 0.055, -0.24));
+  g.add(at(B(0.05, 0.10, 0.05, gm), 0, 0.01, -0.40));
+  g.add(at(C(0.028, 0.028, 0.26, gm), 0, 0.15, 0.10));
+  g.add(at(C(0.034, 0.034, 0.05, gm), 0, 0.15, 0.24));
+  g.add(at(C(0.02, 0.02, 0.01, n), 0, 0.15, 0.27));
+  g.add(at(B(0.014, 0.014, 0.28, n), 0.03, 0.09, 0.30));
+  g.add(at(B(0.014, 0.014, 0.28, n), -0.03, 0.09, 0.30));
+  g.add(at(B(0.02, 0.10, 0.02, gm), 0.05, -0.07, 0.62));
+  g.add(at(B(0.02, 0.10, 0.02, gm), -0.05, -0.07, 0.62));
+  return finish(g, 1.22, 0.06, { r: [0.02, -0.02, 0.05], l: [-0.02, 0.0, 0.42] });
+}
+
+export const WEAPON_BUILDERS = { viper: buildViper, hammer: buildHammer, atlas: buildAtlas, sidearm: buildSidearm, longshot: buildLongshot, legion_rifle: buildLegionRifle, legion_shotgun: buildLegionShotgun, legion_heavy: buildLegionHeavy };
 
 /** Frag grenade model */
 export function buildGrenade() {

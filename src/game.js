@@ -270,7 +270,7 @@ export class Game {
     const p = cp.position ? new THREE.Vector3(...cp.position) : this.dropPositionFor(config);
     p.y = this.world.groundHeight(p.x, p.z);
     this.session.mission.active = true;
-    this.session.mission.setupInteractables(); this.session.mission.setupGarrisons();
+    this.session.mission.setupInteractables(); this.session.mission.setupGarrisons(); this.session.mission.setupSideMissions();
     this.dropSequence(p, () => { this.session.mission.restore(cp); this.session.hud.setLives(this.session.mission.lives, this.session.difficulty.lives); audio.say('ship_welcome', { priority: 2 }); });
   }
   showLoading(text) {

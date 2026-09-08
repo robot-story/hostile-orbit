@@ -9,6 +9,7 @@ import { v3 } from '../net/protocol.js';
 import { Dropship } from './pods.js';
 import { M } from '../world/terrain.js';
 import { clamp, rand, pick, formatTime } from '../core/mathx.js';
+import { Mat } from '../render/materials.js';
 
 export const STAGES = ['land', 'canyon', 'jammer', 'jammer_armed', 'orbital', 'comms', 'download', 'extract_move', 'extract_hold', 'warden', 'board', 'complete', 'failed'];
 
@@ -26,11 +27,40 @@ export class Mission {
     this.active = false; this.result = null;
     this.interactHold = 0; this.currentInteract = null;
     this.musicT = 0;
+    this.side = { propaganda: { name: 'CORRECT PROPAGANDA', done: 0, total: 3, positions: [] }, caches: { name: 'RECOVER SUPPLY CACHES', done: 0, total: 3, positions: [] }, drones: { name: 'DESTROY RECON DRONES', done: 0, total: 3, positions: [] } };
     this._bind();
+  }
+  /** Optional side operations: pointed out on the war table, radar and HUD. */
+  setupSideMissions() {
+    const lv = this.level; const posters = (lv.posters || []).filter(m => m && m.isMesh);
+    // pick 3 billboards spread along the route (by distance from the drop zone)
+    const dz = this.L.dropZone.pos; const scored = posters.map(m => ({ m, p: m.getWorldPosition(new THREE.Vector3()) })).sort((a, b) => a.p.distanceTo(dz) - b.p.distanceTo(dz));
+    const picks = []; for (const c of scored) { if (picks.length >= 3) break; if (picks.every(x => x.p.distanceTo(c.p) > 30)) picks.push(c); }
+    this.side.propaganda.total = picks.length;
+    picks.forEach((c, i) => {
+      const pos = c.p.clone(); pos.y = this.world.groundHeight(pos.x, pos.z);
+      this.side.propaganda.positions.push(pos);
+      this.addInteractable({ id: 'prop' + i, position: pos, radius: 3.2, label: 'CORRECT UNAUTHORISED MESSAGING', holdTime: 1.6, marker: '#ffb020', condition: () => !c.done, onComplete: () => { c.done = true; this.sideProgress('propaganda', pos); try { c.m.material = Mat.poster('Messaging Corrected. Thank You For Your Compliance.', 'APPROVED BY ORBITAL COMMAND', '#00e5ff', 42 + i); } catch { /* ignore */ } } });
+    });
+    // supply caches: reuse level caches
+    const caches = (lv.supplyCaches || []).slice(0, 3); this.side.caches.total = caches.length;
+    for (const c of caches) { const pos = c.position.clone(); pos.y = this.world.groundHeight(pos.x, pos.z); this.side.caches.positions.push(pos); }
+    this._cacheSet = new Set(caches.map(c => c.position));
+    // drones: counted from kills
+    events.emit('objective:side', this.side);
+  }
+  sideProgress(key, pos) {
+    const so = this.side[key]; if (!so || so.done >= so.total) return;
+    so.done++;
+    if (pos) so.positions = so.positions.filter(p => p.distanceTo(pos) > 0.5);
+    audio.play('objective_new', { volume: 0.7 });
+    events.emit('toast', `${so.name} ${so.done}/${so.total}`, so.done >= so.total ? 'unlock' : 'info');
+    if (so.done >= so.total) { events.emit('objective:banner', { title: 'SIDE OPERATION COMPLETE', sub: so.name }); save.addRewards({ xp: 150, requisition: 60 }); this.game.combat.stats.sideOps = (this.game.combat.stats.sideOps || 0) + 1; if (key === 'propaganda') audio.say('ship_violence_target', { priority: 1 }); }
+    events.emit('objective:side', this.side);
   }
   _bind() {
     this._offs = [
-      events.on('enemy:died', (e) => this.onEnemyDied(e)),
+      events.on('enemy:died', (e) => { this.onEnemyDied(e); if (e.typeId === 'drone') this.sideProgress('drones'); }),
       events.on('boss:died', () => { this.flags.wardenDead = true; if (this.stage === 'warden') this.setStage('board'); }),
       events.on('player:died', (p) => this.onPlayerDied(p)),
       events.on('player:kill', () => { this.killsSinceLine++; if (this.killsSinceLine === 12) audio.say('ship_violence_target', { priority: 1 }); if (Math.random() < 0.18) audio.say(pick(['vg_compliance', 'vg_liberated', 'vg_refund', 'vg_democratic', 'vg_exceeding', 'vg_dental']), { priority: 1 }); }),
@@ -138,6 +168,7 @@ export class Mission {
     this.active = true; this.time = 0;
     this.setupInteractables();
     this.setupGarrisons();
+    this.setupSideMissions();
     this.setObjective('SURVEY THE LANDING ZONE');
     events.emit('objective:update', this.objectiveText);
     audio.setMusicState('explore');
@@ -168,7 +199,7 @@ export class Mission {
     this.addInteractable({ id: 'terminal', position: lv.terminal.position, radius: 2.8, label: 'ACCESS COMMAND TERMINAL', holdTime: 2, condition: () => this.stage === 'comms', onComplete: () => this.requestInteract('terminal') });
     (lv.cells || []).forEach((c, i) => this.addInteractable({ id: 'cell' + i, position: c.consolePosition, radius: 2.6, label: 'RELEASE CAPTURED OPERATIVE', holdTime: 2.5, condition: () => !c.rescued && ['comms', 'download', 'extract_move', 'extract_hold', 'warden', 'board'].includes(this.stage), onComplete: () => this.requestInteract('cell' + i) }));
     this.addInteractable({ id: 'board', position: this.L.extractionCenter.pos, radius: 7, label: 'BOARD THE DROPSHIP', holdTime: 1.5, condition: () => this.stage === 'board' && this.dropship?.landed, onComplete: () => this.requestInteract('board') });
-    for (const cache of (lv.supplyCaches || [])) { const used = new Set(); this.addInteractable({ id: 'cache' + (cache.collider?.id || Math.random()), position: cache.position, radius: 2.2, label: 'TAKE SUPPLIES', holdTime: 0.8, condition: (p) => !used.has(p.id), onComplete: (p) => { used.add(p.id); p.resupply(0.5); audio.play('pickup', { volume: 1 }); events.emit('toast', 'SUPPLY CACHE: AMMUNITION RESTOCKED', 'unlock'); if (cache.weapon) { if (save.unlockWeapon(cache.weapon)) events.emit('toast', `${cache.weapon.toUpperCase()} RECOVERED — AVAILABLE IN THE ARMOURY`, 'unlock'); p.pickupWeapon(cache.weapon); } } }); }
+    for (const cache of (lv.supplyCaches || [])) { const used = new Set(); this.addInteractable({ id: 'cache' + (cache.collider?.id || Math.random()), position: cache.position, radius: 2.2, label: 'TAKE SUPPLIES', holdTime: 0.8, condition: (p) => !used.has(p.id), onComplete: (p) => { used.add(p.id); p.resupply(0.5); audio.play('pickup', { volume: 1 }); events.emit('toast', 'SUPPLY CACHE: AMMUNITION RESTOCKED', 'unlock'); if (this._cacheSet?.has(cache.position) && p === this.game.localPlayer) { this._cacheSet.delete(cache.position); this.sideProgress('caches', cache.position); } if (cache.weapon) { if (save.unlockWeapon(cache.weapon)) events.emit('toast', `${cache.weapon.toUpperCase()} RECOVERED — AVAILABLE IN THE ARMOURY`, 'unlock'); p.pickupWeapon(cache.weapon); } } }); }
     // field weapon pickups: Hammer at the jammer outpost, Atlas at the comms base
     this.addInteractable({ id: 'pickup_hammer', position: this.L.jammerCenter.pos.clone().add(new THREE.Vector3(6, 0, 4)), radius: 2.2, label: 'TAKE HAMMER SHOTGUN', holdTime: 1, condition: (p) => !p.pickedHammer, onComplete: (p) => { p.pickedHammer = true; p.pickupWeapon('hammer'); if (save.unlockWeapon('hammer')) events.emit('toast', 'HAMMER SHOTGUN RECOVERED — UNLOCKED IN ARMOURY', 'unlock'); else events.emit('toast', 'HAMMER SHOTGUN EQUIPPED', 'info'); audio.play('weapon_pickup', { volume: 1 }); }, marker: '#ffb020' });
     this.addInteractable({ id: 'pickup_atlas', position: this.L.commsPlaza.pos.clone().add(new THREE.Vector3(-5, 0, 3)), radius: 2.2, label: 'TAKE ATLAS LMG', holdTime: 1, condition: (p) => !p.pickedAtlas, onComplete: (p) => { p.pickedAtlas = true; p.pickupWeapon('atlas'); if (save.unlockWeapon('atlas')) events.emit('toast', 'ATLAS LMG RECOVERED — UNLOCKED IN ARMOURY', 'unlock'); else events.emit('toast', 'ATLAS LMG EQUIPPED', 'info'); audio.play('weapon_pickup', { volume: 1 }); }, marker: '#ffb020' });

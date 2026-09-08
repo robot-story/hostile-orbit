@@ -5,6 +5,9 @@ const MARKERS = [
   { x: 200, y: 335, label: 'COMMUNICATIONS BASE', kind: 'primary' },
   { x: 292, y: 355, label: 'DETENTION', kind: 'secondary' },
   { x: 330, y: 250, label: 'EXTRACTION', kind: 'primary' },
+  { x: 200, y: 190, label: 'SIDE OP: PROPAGANDA', kind: 'side' },
+  { x: 108, y: 205, label: 'SIDE OP: SUPPLY CACHES', kind: 'side' },
+  { x: 200, y: 130, label: 'SIDE OP: RECON DRONES', kind: 'side' },
 ];
 const ENEMY_MARKERS = [
   { x: 30, y: 210 }, { x: 105, y: 375 }, { x: 350, y: 375 }, { x: 340, y: 130 }, { x: 220, y: 90 },

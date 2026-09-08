@@ -9,8 +9,8 @@ const DEFAULT_PROFILE = {
   level: 1,
   requisition: 0,
   intel: 0,
-  unlockedWeapons: ['viper', 'sidearm'],
-  loadout: { primary: 'viper', secondary: 'sidearm', grenade: 'frag', armour: 'orbital_assault', difficulty: 'veteran', dropZone: 'main' },
+  unlockedWeapons: ['viper', 'longshot'],
+  loadout: { primary: 'viper', secondary: 'longshot', grenade: 'frag', armour: 'orbital_assault', difficulty: 'veteran', dropZone: 'main' },
   missions: {
     silent_meridian: { completed: 0, attempts: 0, bestTime: null, bestStars: 0, bestAccuracy: 0, lastResult: null },
   },
@@ -33,7 +33,9 @@ class SaveSystem {
         this.profile.record = { ...DEFAULT_PROFILE.record, ...(p.record || {}) };
         this.profile.missions = { ...structuredClone(DEFAULT_PROFILE.missions), ...(p.missions || {}) };
         this.profile.loadout = { ...DEFAULT_PROFILE.loadout, ...(p.loadout || {}) };
-        if (!Array.isArray(this.profile.unlockedWeapons)) this.profile.unlockedWeapons = ['viper', 'sidearm'];
+        if (!Array.isArray(this.profile.unlockedWeapons)) this.profile.unlockedWeapons = ['viper', 'longshot'];
+        if (!this.profile.unlockedWeapons.includes('longshot')) this.profile.unlockedWeapons.push('longshot');
+        if (this.profile.loadout.secondary === 'sidearm') this.profile.loadout.secondary = 'longshot';
       }
     } catch (e) { console.warn('[save] load failed', e); }
   }
