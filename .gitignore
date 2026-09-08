@@ -1,0 +1,6 @@
+node_modules/
+dist/
+api.md
+.env
+.env.*
+*.log

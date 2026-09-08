@@ -1,0 +1,23 @@
+{
+  "name": "hostile-orbit",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HOSTILE ORBIT - neon military sci-fi third-person shooter",
+  "scripts": {
+    "dev": "vite --port 5173 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 4173",
+    "gen:audio": "node tools/generate-audio.mjs",
+    "gen:voice": "node tools/generate-voice.mjs",
+    "gen:all": "node tools/generate-audio.mjs && node tools/generate-voice.mjs"
+  },
+  "dependencies": {
+    "peerjs": "^1.5.4",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "lamejs": "^1.2.1",
+    "vite": "^5.4.21"
+  }
+}

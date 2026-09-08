@@ -1,0 +1,562 @@
+{
+  "voss_briefing": {
+    "file": "vo/voss_briefing.mp3",
+    "speaker": "voss",
+    "text": "Vanguard, Blacksite Meridian is interrupting authorised truth across the entire sector. Correct this.",
+    "duration": 7.646,
+    "priority": 3
+  },
+  "voss_briefing_2": {
+    "file": "vo/voss_briefing_2.mp3",
+    "speaker": "voss",
+    "text": "Vanguard, Blacksite Meridian is jamming the fleet. Drop in, destroy the array and open the sky.",
+    "duration": 5.758,
+    "priority": 3
+  },
+  "voss_occupants": {
+    "file": "vo/voss_occupants.mp3",
+    "speaker": "voss",
+    "text": "The planet's previous occupants have declined our liberation package. Their consent is no longer operationally relevant.",
+    "duration": 7.259,
+    "priority": 2
+  },
+  "voss_survival": {
+    "file": "vo/voss_survival.mp3",
+    "speaker": "voss",
+    "text": "Your survival remains desirable but is not mission-critical.",
+    "duration": 4.514,
+    "priority": 2
+  },
+  "voss_landed": {
+    "file": "vo/voss_landed.mp3",
+    "speaker": "voss",
+    "text": "Impact confirmed. You are planetside.",
+    "duration": 3.375,
+    "priority": 3
+  },
+  "voss_first_contact": {
+    "file": "vo/voss_first_contact.mp3",
+    "speaker": "voss",
+    "text": "Null Legion contacts confirmed. Engage with the enthusiasm your contract requires.",
+    "duration": 5.702,
+    "priority": 2
+  },
+  "voss_jammer_intel": {
+    "file": "vo/voss_jammer_intel.mp3",
+    "speaker": "voss",
+    "text": "The jammer is preventing us from helping you with overwhelming violence. Please resolve this inconvenience.",
+    "duration": 6.939,
+    "priority": 3
+  },
+  "voss_jammer_destroyed": {
+    "file": "vo/voss_jammer_destroyed.mp3",
+    "speaker": "voss",
+    "text": "Jammer destroyed. Orbital channels restored.",
+    "duration": 3.587,
+    "priority": 3
+  },
+  "voss_orbital_unlocked": {
+    "file": "vo/voss_orbital_unlocked.mp3",
+    "speaker": "voss",
+    "text": "Excellent work. Orbital channels restored. Excessive force is available once again.",
+    "duration": 5.987,
+    "priority": 3
+  },
+  "voss_comms_base": {
+    "file": "vo/voss_comms_base.mp3",
+    "speaker": "voss",
+    "text": "The communications base holds the invasion schedule. Acquire it. Everything inside is legally furniture.",
+    "duration": 7.3,
+    "priority": 3
+  },
+  "voss_detention": {
+    "file": "vo/voss_detention.mp3",
+    "speaker": "voss",
+    "text": "The operatives in detention possess valuable intelligence. Their actual wellbeing is a secondary benefit.",
+    "duration": 7.081,
+    "priority": 2
+  },
+  "voss_download": {
+    "file": "vo/voss_download.mp3",
+    "speaker": "voss",
+    "text": "Download in progress. Defend the terminal. Its data is worth considerably more than you.",
+    "duration": 6.215,
+    "priority": 3
+  },
+  "voss_data_secured": {
+    "file": "vo/voss_data_secured.mp3",
+    "speaker": "voss",
+    "text": "Data secured. Null Legion reinforcements are inbound.",
+    "duration": 4.016,
+    "priority": 3
+  },
+  "voss_extraction": {
+    "file": "vo/voss_extraction.mp3",
+    "speaker": "voss",
+    "text": "Extraction has been approved. Please remain alive for another ninety seconds.",
+    "duration": 4.891,
+    "priority": 3
+  },
+  "voss_extraction_2": {
+    "file": "vo/voss_extraction_2.mp3",
+    "speaker": "voss",
+    "text": "Extraction is ninety seconds out. Hold that platform.",
+    "duration": 3.977,
+    "priority": 3
+  },
+  "voss_hold": {
+    "file": "vo/voss_hold.mp3",
+    "speaker": "voss",
+    "text": "Hold the platform. Every second you survive is a second we do not have to explain.",
+    "duration": 5.521,
+    "priority": 2
+  },
+  "voss_warden": {
+    "file": "vo/voss_warden.mp3",
+    "speaker": "voss",
+    "text": "A Warden unit is approaching. Management encourages you to view this as a professional-development opportunity.",
+    "duration": 7.015,
+    "priority": 3
+  },
+  "voss_warden_2": {
+    "file": "vo/voss_warden_2.mp3",
+    "speaker": "voss",
+    "text": "Warden signature detected. Put it down.",
+    "duration": 3.357,
+    "priority": 3
+  },
+  "voss_dropship": {
+    "file": "vo/voss_dropship.mp3",
+    "speaker": "voss",
+    "text": "Dropship on final approach.",
+    "duration": 3.207,
+    "priority": 3
+  },
+  "voss_complete": {
+    "file": "vo/voss_complete.mp3",
+    "speaker": "voss",
+    "text": "Mission complete. Official records confirm that the planet welcomed our assistance.",
+    "duration": 4.585,
+    "priority": 3
+  },
+  "voss_complete_2": {
+    "file": "vo/voss_complete_2.mp3",
+    "speaker": "voss",
+    "text": "Mission complete. Welcome back to orbit.",
+    "duration": 3.091,
+    "priority": 3
+  },
+  "voss_death": {
+    "file": "vo/voss_death.mp3",
+    "speaker": "voss",
+    "text": "A replacement Vanguard is being deployed. Continuity of service is our promise to you.",
+    "duration": 5.688,
+    "priority": 2
+  },
+  "voss_failed": {
+    "file": "vo/voss_failed.mp3",
+    "speaker": "voss",
+    "text": "All reinforcement bodies expended. Your performance review has been scheduled posthumously.",
+    "duration": 5.942,
+    "priority": 3
+  },
+  "ship_welcome": {
+    "file": "vo/ship_welcome.mp3",
+    "speaker": "ship",
+    "text": "Welcome back, Vanguard. Your previous body has completed its service.",
+    "duration": 5.246,
+    "priority": 2
+  },
+  "ship_waiver": {
+    "file": "vo/ship_waiver.mp3",
+    "speaker": "ship",
+    "text": "Your death waiver has been renewed automatically.",
+    "duration": 3.567,
+    "priority": 2
+  },
+  "ship_friendly_fire": {
+    "file": "vo/ship_friendly_fire.mp3",
+    "speaker": "ship",
+    "text": "Friendly-fire incidents may affect your quarterly wellness score.",
+    "duration": 4.235,
+    "priority": 1
+  },
+  "ship_extraction_request": {
+    "file": "vo/ship_extraction_request.mp3",
+    "speaker": "ship",
+    "text": "Your extraction request is important to us.",
+    "duration": 3.868,
+    "priority": 2
+  },
+  "ship_wait_time": {
+    "file": "vo/ship_wait_time.mp3",
+    "speaker": "ship",
+    "text": "Current extraction wait time: ninety seconds.",
+    "duration": 4.067,
+    "priority": 2
+  },
+  "ship_violence_target": {
+    "file": "vo/ship_violence_target.mp3",
+    "speaker": "ship",
+    "text": "Congratulations. You have exceeded today's recommended violence target.",
+    "duration": 5.334,
+    "priority": 1
+  },
+  "ship_unauthorised_thoughts": {
+    "file": "vo/ship_unauthorised_thoughts.mp3",
+    "speaker": "ship",
+    "text": "Warning: unauthorised thoughts detected nearby.",
+    "duration": 4.704,
+    "priority": 1
+  },
+  "ship_multiplayer": {
+    "file": "vo/ship_multiplayer.mp3",
+    "speaker": "ship",
+    "text": "Multiplayer functionality is coming soon. Friendship is currently undergoing certification.",
+    "duration": 6.798,
+    "priority": 2
+  },
+  "ship_continuity": {
+    "file": "vo/ship_continuity.mp3",
+    "speaker": "ship",
+    "text": "Deploying seamless workforce continuity solution. Please hold.",
+    "duration": 5.208,
+    "priority": 3
+  },
+  "ship_orbital_unlock": {
+    "file": "vo/ship_orbital_unlock.mp3",
+    "speaker": "ship",
+    "text": "Orbital support has been added to your account. Terms and conditions apply.",
+    "duration": 5.073,
+    "priority": 2
+  },
+  "ship_supply": {
+    "file": "vo/ship_supply.mp3",
+    "speaker": "ship",
+    "text": "Supply pod inbound. Please stand clear of your own resupply.",
+    "duration": 5.045,
+    "priority": 1
+  },
+  "ship_low_health": {
+    "file": "vo/ship_low_health.mp3",
+    "speaker": "ship",
+    "text": "Your body is reporting a negative experience. A wellness injector is recommended.",
+    "duration": 5.67,
+    "priority": 1
+  },
+  "ship_last_life": {
+    "file": "vo/ship_last_life.mp3",
+    "speaker": "ship",
+    "text": "Notice: this is your final complimentary body. Additional bodies are billed to your estate.",
+    "duration": 6.814,
+    "priority": 2
+  },
+  "ship_deploy": {
+    "file": "vo/ship_deploy.mp3",
+    "speaker": "ship",
+    "text": "Deployment authorised. Enjoy your descent.",
+    "duration": 4.278,
+    "priority": 3
+  },
+  "ship_menu_welcome": {
+    "file": "vo/ship_menu_welcome.mp3",
+    "speaker": "ship",
+    "text": "Welcome to Orbital Command. Your patriotism score is currently: acceptable.",
+    "duration": 7.039,
+    "priority": 1
+  },
+  "ship_armoury": {
+    "file": "vo/ship_armoury.mp3",
+    "speaker": "ship",
+    "text": "Armoury access granted. Please do not point weapons at the interface.",
+    "duration": 5.064,
+    "priority": 1
+  },
+  "ship_record": {
+    "file": "vo/ship_record.mp3",
+    "speaker": "ship",
+    "text": "Combat record loaded. Your statistics have been adjusted to protect morale.",
+    "duration": 5.616,
+    "priority": 1
+  },
+  "ship_settings": {
+    "file": "vo/ship_settings.mp3",
+    "speaker": "ship",
+    "text": "Settings. Some preferences may be overridden for your convenience.",
+    "duration": 4.667,
+    "priority": 1
+  },
+  "ship_data_complete": {
+    "file": "vo/ship_data_complete.mp3",
+    "speaker": "ship",
+    "text": "Download complete. Data has been classified as inspirational.",
+    "duration": 5.259,
+    "priority": 2
+  },
+  "ship_rescue": {
+    "file": "vo/ship_rescue.mp3",
+    "speaker": "ship",
+    "text": "Operative recovered. Their gratitude has been logged and monetised.",
+    "duration": 5.678,
+    "priority": 2
+  },
+  "ship_results": {
+    "file": "vo/ship_results.mp3",
+    "speaker": "ship",
+    "text": "Mission summary compiled. Your sacrifice has been pre-approved.",
+    "duration": 5.164,
+    "priority": 2
+  },
+  "ship_checkpoint": {
+    "file": "vo/ship_checkpoint.mp3",
+    "speaker": "ship",
+    "text": "Progress saved. Your achievements now belong to the Commonwealth.",
+    "duration": 4.433,
+    "priority": 1
+  },
+  "vg_compliance": {
+    "file": "vo/vg_compliance.mp3",
+    "speaker": "vanguard",
+    "text": "COMPLIANCE DELIVERED!",
+    "duration": 1.668,
+    "priority": 1
+  },
+  "vg_liberated": {
+    "file": "vo/vg_liberated.mp3",
+    "speaker": "vanguard",
+    "text": "YOU'VE BEEN LIBERATED!",
+    "duration": 1.534,
+    "priority": 1
+  },
+  "vg_refund": {
+    "file": "vo/vg_refund.mp3",
+    "speaker": "vanguard",
+    "text": "REFUND DENIED!",
+    "duration": 1.668,
+    "priority": 1
+  },
+  "vg_democratic": {
+    "file": "vo/vg_democratic.mp3",
+    "speaker": "vanguard",
+    "text": "THAT WAS DEMOCRATIC ENOUGH!",
+    "duration": 2.56,
+    "priority": 1
+  },
+  "vg_orbital": {
+    "file": "vo/vg_orbital.mp3",
+    "speaker": "vanguard",
+    "text": "ORBITAL SUPPORT! TERMS AND CONDITIONS APPLY!",
+    "duration": 3.628,
+    "priority": 1
+  },
+  "vg_exceeding": {
+    "file": "vo/vg_exceeding.mp3",
+    "speaker": "vanguard",
+    "text": "I'M EXCEEDING EXPECTATIONS!",
+    "duration": 2.307,
+    "priority": 1
+  },
+  "vg_dental": {
+    "file": "vo/vg_dental.mp3",
+    "speaker": "vanguard",
+    "text": "FOR THE COMMONWEALTH! And my dental plan!",
+    "duration": 3.237,
+    "priority": 1
+  },
+  "vg_reloading": {
+    "file": "vo/vg_reloading.mp3",
+    "speaker": "vanguard",
+    "text": "Reloading!",
+    "duration": 0.993,
+    "priority": 1
+  },
+  "vg_grenade": {
+    "file": "vo/vg_grenade.mp3",
+    "speaker": "vanguard",
+    "text": "Frag out!",
+    "duration": 1.056,
+    "priority": 1
+  },
+  "vg_pain_1": {
+    "file": "vo/vg_pain_1.mp3",
+    "speaker": "vanguard",
+    "text": "Agh!",
+    "duration": 0.984,
+    "priority": 1
+  },
+  "vg_pain_2": {
+    "file": "vo/vg_pain_2.mp3",
+    "speaker": "vanguard",
+    "text": "Ngh! Still billable!",
+    "duration": 1.905,
+    "priority": 1
+  },
+  "vg_pain_3": {
+    "file": "vo/vg_pain_3.mp3",
+    "speaker": "vanguard",
+    "text": "Hrrgh!",
+    "duration": 1.057,
+    "priority": 1
+  },
+  "vg_death": {
+    "file": "vo/vg_death.mp3",
+    "speaker": "vanguard",
+    "text": "Tell HR... I regret nothing...",
+    "duration": 3.28,
+    "priority": 2
+  },
+  "vg_heal": {
+    "file": "vo/vg_heal.mp3",
+    "speaker": "vanguard",
+    "text": "Wellness restored.",
+    "duration": 1.446,
+    "priority": 1
+  },
+  "vg_headshot": {
+    "file": "vo/vg_headshot.mp3",
+    "speaker": "vanguard",
+    "text": "Headshot! Approved!",
+    "duration": 1.744,
+    "priority": 1
+  },
+  "vg_cover": {
+    "file": "vo/vg_cover.mp3",
+    "speaker": "vanguard",
+    "text": "Taking cover!",
+    "duration": 1.105,
+    "priority": 1
+  },
+  "vg_warden": {
+    "file": "vo/vg_warden.mp3",
+    "speaker": "vanguard",
+    "text": "That is a very large employee!",
+    "duration": 2.126,
+    "priority": 1
+  },
+  "vg_extraction": {
+    "file": "vo/vg_extraction.mp3",
+    "speaker": "vanguard",
+    "text": "Get me off this rock!",
+    "duration": 1.693,
+    "priority": 1
+  },
+  "vg_landed": {
+    "file": "vo/vg_landed.mp3",
+    "speaker": "vanguard",
+    "text": "Boots down! Let's liberate something!",
+    "duration": 3.419,
+    "priority": 1
+  },
+  "lg_not_first": {
+    "file": "vo/lg_not_first.mp3",
+    "speaker": "legion",
+    "text": "You are not the first version of yourself!",
+    "duration": 2.906,
+    "priority": 1
+  },
+  "lg_contract": {
+    "file": "vo/lg_contract.mp3",
+    "speaker": "legion",
+    "text": "Check your contract!",
+    "duration": 2.351,
+    "priority": 1
+  },
+  "lg_citizens": {
+    "file": "vo/lg_citizens.mp3",
+    "speaker": "legion",
+    "text": "We were citizens!",
+    "duration": 2.071,
+    "priority": 1
+  },
+  "lg_replace": {
+    "file": "vo/lg_replace.mp3",
+    "speaker": "legion",
+    "text": "They will replace you too!",
+    "duration": 1.997,
+    "priority": 1
+  },
+  "lg_freedom": {
+    "file": "vo/lg_freedom.mp3",
+    "speaker": "legion",
+    "text": "You call that freedom?",
+    "duration": 2.621,
+    "priority": 1
+  },
+  "lg_buried": {
+    "file": "vo/lg_buried.mp3",
+    "speaker": "legion",
+    "text": "Your commander knows what is buried here!",
+    "duration": 3.571,
+    "priority": 1
+  },
+  "lg_contact": {
+    "file": "vo/lg_contact.mp3",
+    "speaker": "legion",
+    "text": "Commonwealth unit! Engage!",
+    "duration": 2.787,
+    "priority": 1
+  },
+  "lg_flank": {
+    "file": "vo/lg_flank.mp3",
+    "speaker": "legion",
+    "text": "Flanking! Go left!",
+    "duration": 2.238,
+    "priority": 1
+  },
+  "lg_grenade": {
+    "file": "vo/lg_grenade.mp3",
+    "speaker": "legion",
+    "text": "Grenade! Move!",
+    "duration": 1.926,
+    "priority": 1
+  },
+  "lg_suppress": {
+    "file": "vo/lg_suppress.mp3",
+    "speaker": "legion",
+    "text": "Pin them down!",
+    "duration": 1.49,
+    "priority": 1
+  },
+  "lg_man_down": {
+    "file": "vo/lg_man_down.mp3",
+    "speaker": "legion",
+    "text": "Unit down! They killed... he had a name!",
+    "duration": 3.633,
+    "priority": 1
+  },
+  "lg_retreat": {
+    "file": "vo/lg_retreat.mp3",
+    "speaker": "legion",
+    "text": "Fall back! Regroup!",
+    "duration": 2.731,
+    "priority": 1
+  },
+  "lg_update": {
+    "file": "vo/lg_update.mp3",
+    "speaker": "legion",
+    "text": "We refused the update. That is our only crime!",
+    "duration": 5.034,
+    "priority": 1
+  },
+  "lg_death_1": {
+    "file": "vo/lg_death_1.mp3",
+    "speaker": "legion",
+    "text": "Remember... us...",
+    "duration": 1.758,
+    "priority": 1
+  },
+  "lg_death_2": {
+    "file": "vo/lg_death_2.mp3",
+    "speaker": "legion",
+    "text": "Version... complete...",
+    "duration": 2.979,
+    "priority": 1
+  },
+  "lg_warden_intro": {
+    "file": "vo/lg_warden_intro.mp3",
+    "speaker": "legion",
+    "text": "Warden online. We will not be overwritten.",
+    "duration": 4.318,
+    "priority": 2
+  }
+}

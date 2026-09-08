@@ -1,0 +1,46 @@
+I want you to set up this project's model routing so I stop
+overpaying, and I want you to work out the specifics rather
+than me prescribing them.
+
+Context:
+- Solo dev building a Helldivers 2 style co-op shooter
+- 4 player horde survival, extraction based, stratagem call-ins
+- I'm on Claude Code with access to Fable 5.1, Opus 5, Sonnet 5, Haiku 4.5
+- Fable is too expensive to run as my default
+- My lead thread will sit on Opus 5, and I'll manually switch to
+  Fable for genuinely architectural sessions
+
+What I want you to do:
+
+1. Read the codebase and tell me what's actually here, what stage
+   it's at and where the complexity sits.
+
+2. Identify the recurring task types in this project that are
+   separable, briefable in a paragraph and fine to receive back as
+   a summary. Exploration, triage, test writing, that kind of thing.
+   Be specific to this codebase, not generic.
+
+3. Propose a set of subagents for those tasks. Three to five, not
+   more. For each one give me the name, the description field
+   (written as "use this when...", since that's what drives
+   selection), the tool list and a model pin with your reasoning
+   for that tier.
+
+4. Tell me explicitly which parts of this project should NOT be
+   delegated, and why. I expect netcode and the horde simulation to
+   be on that list but check that against what you find.
+
+5. Write the agent files to .claude/agents/ and tell me what to set
+   CLAUDE_CODE_SUBAGENT_MODEL to as a backstop.
+
+6. Draft or update CLAUDE.md with the architectural constraints and
+   invariants a cheaper model would need to not break things,
+   particularly anything crossing the network boundary.
+
+Constraints:
+- Pin a model explicitly on every agent. Never leave it inheriting.
+- Don't propose agents for work that isn't actually recurring here.
+- If you think delegation is the wrong lever for part of this, say so.
+
+Ask me questions before you start if anything about the project
+direction is unclear.
