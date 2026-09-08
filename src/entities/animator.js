@@ -150,6 +150,10 @@ export class CharacterAnimator {
     if (s.roll != null) { CharacterAnimator.mix(T, POSE.roll, Math.sin(Math.min(1, s.roll) * Math.PI) ** 0.5, T); rootTarget = -0.5; blend = 20; }
     if (s.transform != null) { const k = Math.min(1, s.transform); CharacterAnimator.mix(T, POSE.roll, Math.sin(k * Math.PI) ** 0.4, T); rootTarget = -0.55 * Math.sin(k * Math.PI); blend = 26; }
     if (s.vault != null) { const t = s.vault; CharacterAnimator.mix(T, POSE.vault, Math.sin(Math.min(1, t) * Math.PI) ** 0.7, T); rootTarget = 0.15 * Math.sin(t * Math.PI); blend = 18; }
+    if (s.jet) { const k = s.jet; // flight: legs tucked and trailing, torso leaning back, weapon still aimed
+      T.thighL = [lerp(T.thighL[0], 0.55, k), T.thighL[1], T.thighL[2]]; T.thighR = [lerp(T.thighR[0], 0.45, k), T.thighR[1], T.thighR[2]];
+      T.shinL = [lerp(T.shinL[0], 1.1, k), 0, 0]; T.shinR = [lerp(T.shinR[0], 1.2, k), 0, 0]; T.footL = [-0.4 * k, 0, 0]; T.footR = [-0.4 * k, 0, 0];
+      T.spine = [lerp(T.spine[0], 0.22, k), T.spine[1], T.spine[2]]; rootTarget += 0.05 * k; }
     if (s.dead) { CharacterAnimator.mix(T, POSE.dead, 1, T); rootTarget = -0.85; blend = 6; }
     if (s.reload != null) {
       // left hand goes to magazine and back

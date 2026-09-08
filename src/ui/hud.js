@@ -31,7 +31,7 @@ export class Hud {
       <div class="boss"><div class="name">WARDEN</div><div class="bar"><i></i></div><div class="plates"></div></div>
       <div class="hud-bl">
         <div class="radar"><canvas width="220" height="220"></canvas><div class="ring"></div><div class="rlabel">TAC-SCAN</div><div class="rn">N</div><div class="threat"></div></div>
-        <div class="vitals"><div class="hpname">INTEGRITY</div><div class="hp"><div class="bar"><i></i><em></em></div><b class="hpnum">100</b></div><div class="lives"></div></div>
+        <div class="vitals"><div class="hpname">INTEGRITY</div><div class="hp"><div class="bar"><i></i><em></em></div><b class="hpnum">100</b></div><div class="fuel"><span>THRUST</span><div class="bar"><i></i></div></div><div class="lives"></div></div>
       </div>
       <div class="abilities"></div>
       <div class="hud-br"><div class="ammo"><div class="wicon"></div><div class="wname"></div><div class="count"><b class="mag">30</b><span class="res">/ 180</span></div><div class="pips"></div></div><div class="kit"><span class="gren"><i class="ico g"></i><b>4</b></span><span class="inj"><i class="ico h"></i><b>4</b></span></div></div>
@@ -100,6 +100,7 @@ export class Hud {
       #hud .hp .bar em{position:absolute;left:0;top:0;height:100%;width:0;background:rgba(255,80,40,.6);transition:width .6s;z-index:-1}
       #hud .hpnum{font-size:22px;font-weight:700;min-width:34px;text-align:right;font-family:var(--mono)}
       #hud .hp.low .bar i{background:repeating-linear-gradient(90deg,#ff6a4a 0 12px,#ff3b1f 12px 14px);box-shadow:0 0 12px rgba(255,59,31,.9)}
+      #hud .fuel{display:flex;align-items:center;gap:10px;margin-top:6px} #hud .fuel span{font-size:9px;letter-spacing:.35em;color:var(--cyan)} #hud .fuel .bar{width:150px;height:5px;background:rgba(255,255,255,.08);border:1px solid rgba(0,229,255,.3)} #hud .fuel .bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#7fe9ff,#00e5ff);box-shadow:0 0 8px rgba(0,229,255,.7);transition:width .1s} #hud .fuel.burn .bar i{background:linear-gradient(90deg,#ffb020,#ff7a1a);box-shadow:0 0 8px rgba(255,150,40,.8)}
       #hud .lives{display:flex;gap:6px;margin-top:8px;align-items:center}
       #hud .lives em{width:22px;height:22px;background:rgba(255,255,255,.85);clip-path:polygon(20% 0,80% 0,100% 40%,100% 100%,0 100%,0 40%);opacity:.9;transition:opacity .3s}
       #hud .lives em.used{opacity:.15} #hud .lives .lt{font-size:9px;letter-spacing:.3em;color:var(--muted);margin-left:6px}
@@ -154,6 +155,7 @@ export class Hud {
       events.on('objective:update', (t) => this.setObjective(t)),
       events.on('objective:marker', (m) => { this.objMarker = m; }),
       events.on('objective:side', (side) => this.setSide(side)),
+      events.on('hud:fuel', (f, burning) => { const el = this.el.querySelector('.fuel'); el.classList.toggle('burn', !!burning); el.querySelector('.bar i').style.width = `${f * 100}%`; }),
       events.on('alert:level', (l) => { this.alertLevel = l; const r = this.el.querySelector('.radar'); r.className = 'radar' + (l > 0 ? ' t' + l : ''); }),
       events.on('hud:abilities', (cd, unlocked) => this.updateAbilities(cd, unlocked)),
       events.on('boss:spawn', (b) => this.setBoss(b)), events.on('boss:health', (b) => this.setBoss(b)), events.on('boss:died', () => this.setBoss(null)),

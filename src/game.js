@@ -336,6 +336,7 @@ export class Game {
   updateLockHint() {
     if (!this.lockHint) { this.lockHint = document.createElement('div'); this.lockHint.id = 'lockhint'; this.lockHint.textContent = 'CLICK TO ENGAGE CONTROLS'; this.ui.appendChild(this.lockHint); }
     const need = this.mode === 'play' && !input.locked && !input.lockUnavailable;
+    if (!need && this.lockHint.classList.contains('on')) this.lockHint.classList.remove('on');
     this.lockHint.classList.toggle('on', need);
   }
   // ---------------- pause / end ----------------
@@ -346,7 +347,7 @@ export class Game {
   }
   pause() {
     if (this.mode !== 'play') return;
-    this.mode = 'pause'; this.paused = true; input.setGameplay(false);
+    this.mode = 'pause'; this.paused = true; input.setGameplay(false); this.lockHint?.classList.remove('on');
     audio.setMuffle(0.7);
     const m = this.session.mission;
     this.menus.openPause({ objective: m.objectiveText, time: formatTime(m.time) });
@@ -374,7 +375,7 @@ export class Game {
   endMission(result) {
     this.lastResults = result;
     if (net.isHost && net.transport?.peerCount) { net.send(MSG.EV_MISSION, { result: result.success ? 'complete' : 'failed', stats: result }, { reliable: true }); this.transport?.setPhase('results'); }
-    input.setGameplay(false); this.mode = 'results';
+    input.setGameplay(false); this.mode = 'results'; this.lockHint?.classList.remove('on');
     this.session?.hud.show(false);
     this.menus.hideInteract?.();
     const succeeded = result.success;
