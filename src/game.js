@@ -290,7 +290,7 @@ export class Game {
     const overlay = this.menus.showDropSequence(['DEPLOYMENT AUTHORISED', 'POD SEPARATION', 'ATMOSPHERIC ENTRY', 'IMPACT IMMINENT']);
     audio.setMusicState('deploy'); audio.playStinger('stinger_drop', 0.9);
     audio.setAmbience({ ambience_wind: 0.2 });
-    const pod = new DropPod(this, target, { kind: 'player', owner: p.id, duration: 4.2, delay: 0.8, onLand: () => { overlay.setStep(3); this.renderer.whiteFlash(0.6); }, onOpen: () => { p.model.root.visible = true; p.respawn(target, p.yaw); p.position.copy(target).add(new THREE.Vector3(Math.sin(p.yaw) * -1.6, 0, Math.cos(p.yaw) * -1.6)); p.position.y = this.world.groundHeight(p.position.x, p.position.z); overlay.remove(); this.beginPlay(); onDone?.(); } });
+    const pod = new DropPod(this, target, { kind: 'player', owner: p.id, duration: 4.2, delay: 0.8, onLand: () => { overlay.setStep(3); this.renderer.whiteFlash(0.6); }, onOpen: () => { p.model.root.visible = true; p.respawn(target, p.yaw); p.position.copy(target).add(new THREE.Vector3(Math.sin(p.yaw) * -3.4, 0, Math.cos(p.yaw) * -3.4)); p.position.y = this.world.groundHeight(p.position.x, p.position.z); overlay.remove(); this.beginPlay(); onDone?.(); } });
     this.dropPod = pod; this.dropT = 0; this.dropOverlay = overlay;
     s.hud.show(false);
   }
@@ -329,7 +329,7 @@ export class Game {
     this.mode = 'drop'; input.setGameplay(false);
     player.model.root.visible = false; player.position.copy(target);
     audio.playStinger('stinger_drop', 0.7);
-    this.dropPod = new DropPod(this, target, { kind: 'player', owner: player.id, duration: 3.6, delay: 0.4, onOpen: () => { player.respawn(target.clone(), player.cam.yaw); player.position.add(new THREE.Vector3(Math.sin(player.cam.yaw) * -1.6, 0, Math.cos(player.cam.yaw) * -1.6)); player.position.y = this.world.groundHeight(player.position.x, player.position.z); overlay.remove(); this.beginPlay(); events.emit('lives:changed', s.mission.lives); } });
+    this.dropPod = new DropPod(this, target, { kind: 'player', owner: player.id, duration: 3.6, delay: 0.4, onOpen: () => { player.respawn(target.clone(), player.cam.yaw); player.position.add(new THREE.Vector3(Math.sin(player.cam.yaw) * -3.4, 0, Math.cos(player.cam.yaw) * -3.4)); player.position.y = this.world.groundHeight(player.position.x, player.position.z); overlay.remove(); this.beginPlay(); events.emit('lives:changed', s.mission.lives); } });
     this.dropT = 0; this.dropOverlay = overlay;
     s.hud.show(false);
   }
@@ -378,10 +378,19 @@ export class Game {
     this.session?.hud.show(false);
     this.menus.hideInteract?.();
     const succeeded = result.success;
-    // keep the world rendering behind a fade, then switch to the results backdrop
+    // keep the world rendering behind a fade, then switch to the results backdrop (timer-driven; the world is torn down at the end)
     this.renderer.fx.fade = 0;
-    const fade = { t: 0, update: (dt) => { fade.t += dt; this.renderer.fx.fade = clamp(fade.t / 1.5, 0, 1); if (fade.t > 1.6) { this.world?.removeUpdatable(fade); this.teardownSession(); this.renderer.fx.fade = 0; this.setBackground(succeeded ? 'results' : 'failed'); if (succeeded) this.menus.showResults(result); else this.menus.showFailed(result); } } };
-    if (this.world) this.world.addUpdatable(fade); else { this.setBackground(succeeded ? 'results' : 'failed'); if (succeeded) this.menus.showResults(result); else this.menus.showFailed(result); }
+    const t0 = performance.now();
+    const step = () => {
+      const k = Math.min(1, (performance.now() - t0) / 1500);
+      this.renderer.fx.fade = k;
+      if (k < 1) { setTimeout(step, 40); return; }
+      try { this.teardownSession(); } catch (e) { console.error('[game] teardown failed', e); this.session = null; this.world = null; }
+      this.renderer.fx.fade = 0;
+      try { this.setBackground(succeeded ? 'results' : 'failed'); if (succeeded) this.menus.showResults(result); else this.menus.showFailed(result); }
+      catch (e) { console.error('[game] results screen failed', e); this.showMainMenu(); }
+    };
+    step();
   }
   // ---------------- main loop ----------------
   loop() {

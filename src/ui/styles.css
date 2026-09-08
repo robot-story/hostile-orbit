@@ -98,3 +98,5 @@ button { font-family: inherit; }
 /* side operation markers on the war table */
 .marker.side .diamond { border-color: var(--amber) !important; box-shadow: 0 0 10px var(--amber) !important; border-style: dashed !important; }
 .marker.side .marker-label, .marker.side span { color: var(--amber) !important; }
+/* Pause overlay: dim and blur the frozen world */
+#ui .pause-screen.visible { background: radial-gradient(ellipse at center, rgba(2,10,16,.55), rgba(0,3,6,.88)); backdrop-filter: blur(3px); }
