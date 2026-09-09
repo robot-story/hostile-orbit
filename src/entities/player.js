@@ -158,7 +158,7 @@ export class Player {
     if (this.jet) {
       this.fuel = Math.max(0, this.fuel - dt / this.maxBurn);
       if (!wantJet || this.fuel <= 0) { this.jet = false; this.jetSound?.stop(0.25); this.jetSound = null; events.emit('player:jet', false); }
-      else { this.vy = damp(this.vy, this.spaceHeld < 1.0 ? 11.5 : 5.5, 5, dt); this.jetSound?.setPosition(this.position); this.jetFx -= dt; if (this.jetFx <= 0) { this.jetFx = 0.05; const back = new THREE.Vector3(Math.sin(this.yaw) * 0.25, 0.75, Math.cos(this.yaw) * 0.25).add(this.position); this.fx.sparksBurst?.(back, new THREE.Vector3(0, -1, 0), 3, '#7fe9ff'); if (Math.random() < 0.5) this.fx.dust?.(this.position.clone(), 0.3); } }
+      else { const agl = this.position.y - this.world.terrain.getHeight(this.position.x, this.position.z); const ceil = clamp((58 - agl) / 8, 0, 1); this.vy = damp(this.vy, (this.spaceHeld < 1.0 ? 11.5 : 5.5) * ceil - (1 - ceil) * 2, 5, dt); this.jetSound?.setPosition(this.position); this.jetFx -= dt; if (this.jetFx <= 0) { this.jetFx = 0.05; const back = new THREE.Vector3(Math.sin(this.yaw) * 0.25, 0.75, Math.cos(this.yaw) * 0.25).add(this.position); this.fx.sparksBurst?.(back, new THREE.Vector3(0, -1, 0), 3, '#7fe9ff'); if (Math.random() < 0.5) this.fx.dust?.(this.position.clone(), 0.3); } }
     }
     if (this.grounded && !this.jet) this.fuel = Math.min(1, this.fuel + dt / 3.5);
   }

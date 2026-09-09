@@ -9,6 +9,7 @@ import { audio } from './audio/audio.js';
 import { World } from './world/world.js';
 import { buildLevel } from './world/level.js';
 import { MAPS, DEFAULT_MAP } from './world/maps/index.js';
+import { DevMenu } from './debug/devmenu.js';
 import { M, worldToMap } from './world/terrain.js';
 import { clamp, formatTime } from './core/mathx.js';
 import { Player } from './entities/player.js';
@@ -78,6 +79,7 @@ export class Game {
     this._buildBackgroundLayer();
     this.menus = createMenus(this._buildApi(), this.ui);
     this.menus.onTacticalMapClose(() => this.toggleTacticalMap(false));
+    this.dev = new DevMenu(this, this.ui);
     if (new URLSearchParams(location.search).has('showcase')) { startShowcase(this); this.loop(); this.startWatchdog(); return; }
     this._buildBoot();
     this.loop();
@@ -170,7 +172,7 @@ export class Game {
       continueOperation: () => self.continueOperation(),
       startDeployment: (cfg) => self.startDeployment(cfg),
       preview: { setMode: (m) => { if (m === 'loadout') self.onMenuOpen('loadout'); }, setWeapon: (id) => self.menuScene?.setWeapon(id), rotate: (d) => self.menuScene?.rotate(d), setArmour: (id) => self.menuScene?.setArmour?.(id) },
-      resume: () => self.resume(), restartCheckpoint: () => self.restartFromCheckpoint(), abortToOrbit: () => self.abortToOrbit(), quit: () => { try { window.close(); } catch { /* ignore */ } self.abortToOrbit(); },
+      resume: () => self.resume(), devMenu: () => { self.resume(); self.dev.toggle(true); }, restartCheckpoint: () => self.restartFromCheckpoint(), abortToOrbit: () => self.abortToOrbit(), quit: () => { try { window.close(); } catch { /* ignore */ } self.abortToOrbit(); },
       setFullscreen: (v) => self.setFullscreen(v),
       mp: self.mpApi(),
       getLastResults: () => self.lastResults,
@@ -238,6 +240,7 @@ export class Game {
     s.director.rng = (() => { let x = (config.seed || 7) >>> 0; return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; }; })();
     s.netsync = net.transport ? new NetSync(this) : null;
     s.hud = new Hud(this.ui, map); s.hud.setLives(s.mission.lives, s.mission.lives); s.hud.show(false);
+    this.dev?.onSession();
     this.renderer.setScene(this.world.scene, this.camera); this.renderMenuScene = false; this.setBackground(null);
     this.time = 0;
     return s;
@@ -369,15 +372,16 @@ export class Game {
   }
   updateLockHint() {
     if (!this.lockHint) { this.lockHint = document.createElement('div'); this.lockHint.id = 'lockhint'; this.lockHint.textContent = 'CLICK TO ENGAGE CONTROLS'; this.ui.appendChild(this.lockHint); }
-    const need = this.mode === 'play' && !input.locked && !input.lockUnavailable && !this.mapOpen;
-    this.cursorEl?.classList.toggle('hidden', ((this.mode === 'play' && !this.mapOpen) || this.mode === 'drop' || input.locked));
+    const need = this.mode === 'play' && !input.locked && !input.lockUnavailable && !this.mapOpen && !this.dev?.open;
+    this.cursorEl?.classList.toggle('hidden', ((this.mode === 'play' && !this.mapOpen && !this.dev?.open) || this.mode === 'drop' || input.locked));
     if (!need && this.lockHint.classList.contains('on')) this.lockHint.classList.remove('on');
     this.lockHint.classList.toggle('on', need);
   }
   // ---------------- pause / end ----------------
   onKey(code) {
-    if (code === 'F10') { this.god = !this.god; this.menus?.toast(this.god ? 'GOD MODE ON' : 'GOD MODE OFF', 'warn'); }
-    if (code === 'Escape') { if (this.mode === 'play' && this.mapOpen) this.toggleTacticalMap(false); else if (this.mode === 'play') this.pause(); else if (this.mode === 'pause') this.resume(); }
+    if (code === 'F10') { this.dev.set('god', !this.dev.state.god); this.menus?.toast(this.god ? 'GOD MODE ON' : 'GOD MODE OFF', 'warn'); }
+    if (code === 'F9') this.dev.toggle();
+    if (code === 'Escape') { if (this.dev?.open) this.dev.toggle(false); else if (this.mode === 'play' && this.mapOpen) this.toggleTacticalMap(false); else if (this.mode === 'play') this.pause(); else if (this.mode === 'pause') this.resume(); }
     if (code === (settings.data.binds.map || 'KeyM') && (this.mode === 'play')) this.toggleTacticalMap();
   }
   pause() {
@@ -431,7 +435,8 @@ export class Game {
   // ---------------- main loop ----------------
   loop() {
     requestAnimationFrame(() => this.loop());
-    this.tick();
+    try { this.tick(); }
+    catch (e) { const now = performance.now(); if (!this._lastErr || now - this._lastErr > 2000) { this._lastErr = now; console.error('[game] tick error', e); this.menus?.toast('SIMULATION FAULT LOGGED - CONTINUING', 'warn'); } }
   }
   /** Watchdog: when the tab is throttled (hidden pane/background), keep simulating via timers. */
   startWatchdog() {
@@ -447,7 +452,7 @@ export class Game {
   }
   tick() {
     this._lastTick = performance.now();
-    const dt = Math.min(0.05, this.clock.getDelta());
+    const dt = Math.min(0.05, this.clock.getDelta()) * (this.dev?.state.timeScale ?? 1);
     if (this.fpsEl) { this._fpsAcc += dt; this._fpsN++; if (this._fpsAcc > 0.5) { this.fpsEl.textContent = `${Math.round(this._fpsN / this._fpsAcc)} FPS`; this._fpsAcc = 0; this._fpsN = 0; } }
     const s = this.session;
     if (s && this.world) {
@@ -455,7 +460,9 @@ export class Game {
         this.time += dt;
         s.player.update(dt);
         this.world.nav.update();
-        s.director.update(dt); s.projectiles.update(dt); s.abilities.update(dt); s.mission.update(dt); s.netsync?.update(dt);
+        if (!this.dev?.state.freezeEnemies) s.director.update(dt);
+        s.projectiles.update(dt); s.abilities.update(dt); s.mission.update(dt); s.netsync?.update(dt);
+        this.dev?.tick(s);
         s.hud.update(s.player, this, dt);
         this.updateLockHint();
         this.renderer.fx.lowHealth = s.player.health < 30 && !s.player.dead ? 1 - s.player.health / 30 : 0;

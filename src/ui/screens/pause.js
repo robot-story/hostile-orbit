@@ -22,6 +22,7 @@ export function createPauseScreen(api, mgr) {
           okLabel: 'RESTART', danger: true, onConfirm: () => { mgr.closePause(); api.restartCheckpoint(); },
         }) }),
         menuButton(api, { label: 'Settings', onClick: () => { mgr.closePause(); mgr.show('settings'); } }),
+        menuButton(api, { label: 'Dev Menu', onClick: () => { mgr.closePause(); api.devMenu(); } }),
         menuButton(api, { label: 'Abort to Orbit', onClick: () => confirm.show({
           title: 'ABORT TO ORBIT', text: 'Abandoning the mission is recorded as a voluntary resignation.',
           okLabel: 'ABORT', danger: true, onConfirm: () => { mgr.closePause(); api.abortToOrbit(); },

@@ -41,7 +41,7 @@ export function mergeStaticProps(world, dynamic = []) {
     for (const geo of g.geos) { geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new THREE.Vector3()); const k = `${Math.floor((c.x + 200) / 100)}_${Math.floor((c.z + 200) / 100)}`; if (!buckets.has(k)) buckets.set(k, []); buckets.get(k).push(geo); }
     for (const [, geos] of buckets) {
       const allIndexed = geos.every(x => !!x.index);
-      const norm = geos.map(x => allIndexed ? x : x.toNonIndexed());
+      const norm = geos.map(x => (allIndexed || !x.index) ? x : x.toNonIndexed());
       let mg = null;
       try { mg = mergeGeometries(norm, false); } catch (e) { console.warn('[merge] failed bucket', e); }
       if (!mg) continue;
@@ -65,6 +65,6 @@ export function mergeGroupByMaterial(group) {
   group.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh) meshes.push(o); });
   for (const m of meshes) { const geo = m.geometry.clone(); for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'uv'].includes(k)) geo.deleteAttribute(k); geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld)); if (!byMat.has(m.material)) byMat.set(m.material, []); byMat.get(m.material).push(geo); }
   for (const m of meshes) m.parent?.remove(m);
-  for (const [mat, geos] of byMat) { const allIdx = geos.every(x => !!x.index); const mg = mergeGeometries(geos.map(x => allIdx ? x : x.toNonIndexed()), false); const mesh = new THREE.Mesh(mg, mat); mesh.castShadow = true; group.add(mesh); }
+  for (const [mat, geos] of byMat) { const allIdx = geos.every(x => !!x.index); const mg = mergeGeometries(geos.map(x => (allIdx || !x.index) ? x : x.toNonIndexed()), false); const mesh = new THREE.Mesh(mg, mat); mesh.castShadow = true; group.add(mesh); }
   return group;
 }

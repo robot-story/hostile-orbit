@@ -67,6 +67,9 @@ export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, depth: true });
+    this.contextLost = false;
+    canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.contextLost = true; console.warn('[renderer] WebGL context lost - waiting for restore'); }, false);
+    canvas.addEventListener('webglcontextrestored', () => { this.contextLost = false; console.warn('[renderer] WebGL context restored'); try { this.resize(); } catch { /* ignore */ } }, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
@@ -125,10 +128,10 @@ export class Renderer {
   }
   setScene(scene, camera) {
     this.renderPass.scene = scene; this.renderPass.camera = camera; this.scene = scene; this.camera = camera;
-    if (scene && !scene.environment) { scene.environment = this.environment(); scene.environmentIntensity = 0.55; }
+    if (scene && !scene.environment) { scene.environment = this.environment(); scene.environmentIntensity = scene.userData.envIntensity ?? 0.55; }
   }
   render(dt) {
-    if (!this.scene || !this.camera) return;
+    if (!this.scene || !this.camera || this.contextLost) return;
     this.time += dt;
     const u = this.gradePass.uniforms;
     u.uTime.value = this.time;

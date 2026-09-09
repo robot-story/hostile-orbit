@@ -151,7 +151,9 @@ export function buildLantern(world) {
   const highC = FL.corridors.find((c) => c.name === 'high');
   const trenchC = FL.corridors.find((c) => c.name === 'trench');
   for (const c of [mainC, highC, trenchC]) dressStreet(world, info, c);
-  dressStreetSigns(world, info, mainC, 1.2); dressStreetSigns(world, info, highC, 0.8); dressStreetSigns(world, info, trenchC, 0.5);
+  dressStreetSigns(world, info, mainC, 2.0); dressStreetSigns(world, info, highC, 1.1); dressStreetSigns(world, info, trenchC, 0.7);
+  // lit lamps down Meridian Avenue (within the 26-light budget; the strongest survive the cull)
+  for (const smp of sampleCorridorWorld(mainC.pts, 30, 34)) { const perp = new THREE.Vector3(-smp.dir.z, 0, smp.dir.x); for (const side of [-1, 1]) { const px = smp.pos.x + perp.x * (mainC.w / 2 - 1.2) * side, pz = smp.pos.z + perp.z * (mainC.w / 2 - 1.2) * side; if (world.terrain.floorDistance(px, pz) > 2) continue; streetLamp(world, new THREE.Vector3(px, ground(px, pz), pz), { color: side > 0 ? '#00e5ff' : '#ff3fd8', light: true }); } }
   towersAlong(world, mainC, { minH: 20, maxH: 40, max: 34 });
   towersAlong(world, highC, { minH: 14, maxH: 30, max: 24, chance: 0.6 });
   towersAlong(world, trenchC, { minH: 12, maxH: 26, max: 22, chance: 0.6 });

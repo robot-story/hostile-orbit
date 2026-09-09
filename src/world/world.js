@@ -12,7 +12,7 @@ import { updateMaterials } from '../render/materials.js';
 const _q = [];
 const _hit = { point: new THREE.Vector3(), normal: new THREE.Vector3(), dist: 0, collider: null, material: 'dirt', entity: null, zone: null };
 
-const DEFAULT_LIGHTING = { background: '#2c8a90', fog: '#c9946f', fogDensity: 0.0026, hemiSky: '#8fe0e8', hemiGround: '#a07a62', hemiIntensity: 1.25, sun: '#fff0dc', sunIntensity: 2.4, sunOffset: [-60, 130, 70], ambient: '#4a6a74', ambientIntensity: 0.7 };
+const DEFAULT_LIGHTING = { background: '#2c8a90', fog: '#c9946f', fogDensity: 0.0026, hemiSky: '#8fe0e8', hemiGround: '#a07a62', hemiIntensity: 1.25, sun: '#fff0dc', sunIntensity: 2.0, sunOffset: [-60, 130, 70], ambient: '#4a6a74', ambientIntensity: 0.7 };
 
 export class World {
   constructor(map = null) {
@@ -20,6 +20,7 @@ export class World {
     this.lighting = { ...DEFAULT_LIGHTING, ...(map?.lighting || {}) };
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(this.lighting.background);
+    this.scene.userData.envIntensity = this.lighting.envIntensity ?? 0.55;
     this.scene.fog = new THREE.FogExp2(this.lighting.fog, this.lighting.fogDensity);
     this.time = 0;
     this.terrain = new Terrain(2, map);

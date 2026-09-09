@@ -21,11 +21,11 @@ function useGenerated(mat, id, repeat = [1, 1], opts = {}) {
 function cached(key, make) { if (!_cache.has(key)) _cache.set(key, make()); return _cache.get(key); }
 
 export const Mat = {
-  armorWhite: () => cached('armorWhite', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorWhite(), roughness: 0.62, metalness: 0.25, color: '#ffffff' }), 'tex_armor_white', [1, 1], { color: '#f2f2f2' })),
+  armorWhite: () => cached('armorWhite', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorWhite(), roughness: 0.62, metalness: 0.25, color: '#ffffff' }), 'tex_armor_white', [1, 1], { color: '#d6d6d6' })),
   armorBlack: () => cached('armorBlack', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.7, metalness: 0.35, color: '#c8c8c8' }), 'tex_armor_black', [1, 1], { color: '#a8a8a8' })),
   underSuit: () => cached('underSuit', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.9, metalness: 0.1, color: '#7a7a80' }), 'tex_armor_black', [1, 1], { color: '#767680' })),
   gunMetal: () => cached('gunMetal', () => useGenerated(new THREE.MeshStandardMaterial({ color: '#3a3d44', roughness: 0.5, metalness: 0.6 }), 'tex_gun_dark', [1, 1], { color: '#8a8e96', roughness: 0.55 })),
-  gunWhite: () => cached('gunWhite', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorWhite(), roughness: 0.5, metalness: 0.4, color: '#d8d8d8' }), 'tex_gun_white', [1, 1], { color: '#e6e6e6' })),
+  gunWhite: () => cached('gunWhite', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorWhite(), roughness: 0.5, metalness: 0.4, color: '#d8d8d8' }), 'tex_gun_white', [1, 1], { color: '#cfcfcf' })),
   darkMetal: () => cached('darkMetal', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.metalPanel(1), roughness: 0.6, metalness: 0.45 }), 'tex_metal_panel', [1, 1], { color: '#b4b4b4' })),
   panel: (v = 0) => cached('panel' + v, () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.metalPanel(v), roughness: 0.65, metalness: 0.4 }), 'tex_metal_panel', [1 + (v % 2) * 0.5, 1 + (v % 3) * 0.5], { color: ['#d8d8d8', '#b0b4ba', '#c8c8c8', '#a0a4aa'][v % 4] })),
   concrete: () => cached('concrete', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.concrete(), roughness: 0.95, metalness: 0.0, color: '#7a7a78' }), 'tex_concrete', [2, 2], { color: '#8e8e8a' })),

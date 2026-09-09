@@ -192,7 +192,7 @@ export class Terrain {
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.setAttribute('aVein', new THREE.BufferAttribute(vein, 1));
     geo.computeVertexNormals();
-    const mat = new THREE.MeshStandardMaterial({ map: Tex.terrain(), vertexColors: true, roughness: 0.96, metalness: 0.0, emissive: '#ffffff', emissiveMap: Tex.veins(), emissiveIntensity: 1.0 });
+    const mat = new THREE.MeshStandardMaterial({ map: Tex.terrain(), vertexColors: true, roughness: T.roughness ?? 0.96, metalness: T.metalness ?? 0.0, envMapIntensity: T.envIntensity ?? 1.0, emissive: '#ffffff', emissiveMap: Tex.veins(), emissiveIntensity: T.veinIntensity ?? 1.0 });
     const texId = T.texture || 'tex_terrain', rep = T.repeat || 60;
     new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/' + texId + '.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.repeat.set(rep, rep); mat.map = tex; if (T.tint) mat.color.set(T.tint); mat.needsUpdate = true; }, undefined, () => {});
     mat.onBeforeCompile = (shader) => {

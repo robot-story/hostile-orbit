@@ -101,14 +101,14 @@ export const LANTERN = {
   mapImage: 'textures/menus/map_lantern.jpg',
   floor: FLOOR_LANTERN,
   terrain: {
-    style: 'city', texture: 'tex_asphalt', repeat: 90, tint: '#c8ccd8',
+    style: 'city', texture: 'tex_asphalt', repeat: 90, tint: '#c8ccd8', roughness: 0.5, metalness: 0.06, envIntensity: 1.0, veinIntensity: 1.6,
     palette: { floor: [0.22, 0.23, 0.28], floorNoise: [0.04, 0.04, 0.05], rock: [0.07, 0.075, 0.10], rockNoise: [0.03, 0.03, 0.04], ridge: [0.10, 0.10, 0.14], veinScale: 0.5 },
   },
   lighting: {
     background: '#04030a', fog: '#0b0a18', fogDensity: 0.0022,
     hemiSky: '#4a5cae', hemiGround: '#221436', hemiIntensity: 1.0,
     sun: '#b4c4ff', sunIntensity: 1.7, sunOffset: [60, 120, -70],
-    ambient: '#2c3058', ambientIntensity: 0.85,
+    ambient: '#2c3058', ambientIntensity: 0.85, envIntensity: 0.14,
   },
   sky: { top: '#020308', mid: '#0b0c1c', horizon: '#3a1650', aurora: 0, space: 0.35, sunDir: [0.3, 0.12, -0.9], sunColor: '#5a4a8a' },
   celestials: 'darkmoon',
