@@ -132,7 +132,7 @@ export class Player {
     this.model.root.rotation.y = this.yaw + Math.PI;
     this.cam.update(dt, { position: this.position, height: this.eyeHeight, aim: this.aiming, sprint: this.sprinting && speedN > 0.3, crouch: this.crouching, cover: s.cover, dead: this.dead, zoom: this.weapon.def.zoom });
     this.scoped = this.aiming && this.weapon.def.kind === 'sniper' && this.cam.aim > 0.85;
-    for (const m of this.model.meshes) m.visible = !this.scoped;
+    if (!this.model.custom) { for (const m of this.model.meshes) m.visible = !this.scoped; } else this.model.custom.visible = !this.scoped;
     this.weaponGroup.visible = !this.scoped;
   }
   faceCamera(dt, rate = 14) { this.yaw = angleDamp(this.yaw, this.cam.yaw, rate, dt); }

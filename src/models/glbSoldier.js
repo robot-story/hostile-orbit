@@ -44,12 +44,29 @@ export function loadCustomMesh(url, opts = {}) {
       const tr = new THREE.Matrix4().makeTranslation(-c.x, -b3.min.y, -c.z);
       bodyGeo.applyMatrix4(tr); if (weaponGeo) { weaponGeo.applyMatrix4(fit); weaponGeo.applyMatrix4(tr); }
       for (const g of [bodyGeo, weaponGeo]) if (g) { g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere(); }
+      const finalBody = opts.decimate ? decimateGrid(bodyGeo, opts.decimate) : bodyGeo;
       const mat = mesh.material.clone(); mat.side = THREE.FrontSide; mat.envMapIntensity = 0.8;
-      resolve({ geometry: bodyGeo, weapon: weaponGeo, material: mat, height: opts.height || 1.9, source: gltf, figures: figures.length });
+      resolve({ geometry: finalBody, weapon: weaponGeo, material: mat, height: opts.height || 1.9, source: gltf, figures: figures.length });
     }, undefined, reject);
   });
   cache.set(key, p);
   return p;
+}
+
+/** Fast vertex-clustering decimation: snap vertices to a grid of `cell` metres, merge, drop degenerate triangles. */
+export function decimateGrid(geo, cell = 0.012) {
+  const pos = geo.attributes.position, nrm = geo.attributes.normal, uv = geo.attributes.uv; const idx = geo.index;
+  const tri = idx ? idx.count / 3 : pos.count / 3;
+  const map = new Map(); const P = [], Nn = [], U = []; const remap = new Int32Array(pos.count);
+  const keyOf = (i) => `${Math.round(pos.getX(i) / cell)},${Math.round(pos.getY(i) / cell)},${Math.round(pos.getZ(i) / cell)}`;
+  for (let i = 0; i < pos.count; i++) { const k = keyOf(i); let r = map.get(k); if (r == null) { r = P.length / 3; map.set(k, r); P.push(pos.getX(i), pos.getY(i), pos.getZ(i)); if (nrm) Nn.push(nrm.getX(i), nrm.getY(i), nrm.getZ(i)); if (uv) U.push(uv.getX(i), uv.getY(i)); } remap[i] = r; }
+  const I = [];
+  for (let t = 0; t < tri; t++) { const a = remap[idx ? idx.getX(t * 3) : t * 3], b = remap[idx ? idx.getX(t * 3 + 1) : t * 3 + 1], c = remap[idx ? idx.getX(t * 3 + 2) : t * 3 + 2]; if (a !== b && b !== c && a !== c) I.push(a, b, c); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  if (nrm) g.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); if (uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+  g.setIndex(I); g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere();
+  console.info(`[glb] decimated ${pos.count} -> ${P.length / 3} verts, ${tri} -> ${I.length / 3} tris`);
+  return g;
 }
 
 /** Orient a weapon mesh: long axis -> +z (thin end forward), scale to `length`, grip region at the origin. */
@@ -132,6 +149,8 @@ function segDist(p, a, b, out) {
  * match the mesh's rest pose). Bone world matrices must be current. Returns the SkinnedMesh.
  */
 export function skinToRig(custom, bones, rootGroup) {
+  // skin weights depend only on the rig layout in its zero pose, so one weighted geometry is shared by every instance
+  if (custom.skinnedGeo) { const sk = new THREE.SkinnedMesh(custom.skinnedGeo, custom.material); sk.castShadow = !custom.noShadow; sk.frustumCulled = false; sk.name = 'part:custom'; rootGroup.add(sk); rootGroup.updateWorldMatrix(true, true); sk.bind(new THREE.Skeleton(Object.keys(bones).map((n) => bones[n]))); return sk; }
   const geo = custom.geometry.clone();
   const boneList = []; const nameIdx = {};
   for (const n of Object.keys(bones)) { nameIdx[n] = boneList.length; boneList.push(bones[n]); }
@@ -167,8 +186,9 @@ export function skinToRig(custom, bones, rootGroup) {
   }
   geo.setAttribute('skinIndex', new THREE.BufferAttribute(skinIndex, 4));
   geo.setAttribute('skinWeight', new THREE.BufferAttribute(skinWeight, 4));
+  custom.skinnedGeo = geo;
   const skinned = new THREE.SkinnedMesh(geo, custom.material);
-  skinned.castShadow = true; skinned.receiveShadow = false; skinned.frustumCulled = false; skinned.name = 'part:custom';
+  skinned.castShadow = !custom.noShadow; skinned.receiveShadow = false; skinned.frustumCulled = false; skinned.name = 'part:custom';
   rootGroup.add(skinned); rootGroup.updateWorldMatrix(true, true);
   skinned.bind(new THREE.Skeleton(boneList)); // world-space bind at the current (rest) pose
   return skinned;
@@ -178,8 +198,8 @@ export function skinToRig(custom, bones, rootGroup) {
 export const CUSTOM = { body: {}, weapon: {}, ready: false };
 export function preloadCustomModels() {
   const jobs = [
-    loadCustomMesh('models/vanguard.glb', { part: 0, height: 1.88 }).then((c) => { CUSTOM.body.vanguard = c; }),
-    loadCustomMesh('models/sentinel.glb', { part: 0, height: 1.9 }).then((c) => { CUSTOM.body.sentinel = c; }),
+    loadCustomMesh('models/vanguard.glb', { part: 0, height: 1.88, decimate: 0.008 }).then((c) => { CUSTOM.body.vanguard = c; }),
+    loadCustomMesh('models/sentinel.glb', { part: 0, height: 1.9, decimate: 0.02 }).then((c) => { CUSTOM.body.sentinel = c; c.noShadow = true; }),
     loadCustomMesh('models/sentinel.glb', { part: 2, mode: 'weapon', length: 1.08 }).then((c) => { CUSTOM.weapon.viper = c; }),
     loadCustomMesh('models/sentinel.glb', { part: 1, mode: 'weapon', length: 1.32 }).then((c) => { CUSTOM.weapon.longshot = c; }),
   ];
@@ -191,7 +211,7 @@ export function applyCustomBody(model, custom, opts = {}) {
   if (!custom || model.custom) return null;
   for (const n in model.bones) model.bones[n].rotation.set(0, 0, 0);
   const skinned = skinToRig(custom, model.bones, model.root);
-  if (opts.neon) { skinned.material = custom.material.clone(); makeNeonMask(skinned.material, opts.neon); }
+  if (opts.neon || opts.tint) { const key = 'mat:' + (opts.neon || '') + ':' + (opts.tint || ''); custom._mats = custom._mats || {}; if (!custom._mats[key]) { const m = custom.material.clone(); if (opts.tint) m.color.set(opts.tint); if (opts.neon) makeNeonMask(m, opts.neon); custom._mats[key] = m; } skinned.material = custom._mats[key]; }
   for (const m of model.meshes) m.visible = false;
   model.custom = skinned; model.customMeshes = [skinned];
   return skinned;
