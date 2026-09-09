@@ -142,6 +142,7 @@ export class Game {
     this.showMainMenu();
   }
   showMainMenu() {
+    if (!this._bootMarked) { this._bootMarked = true; try { performance.mark('ho:menu-ready'); console.info('[boot] menu ready at', Math.round(performance.now()), 'ms'); } catch { /* ignore */ } }
     this.mode = 'menu';
     input.setGameplay(false);
     if (!this._inviteChecked) { this._inviteChecked = true; if (this.checkInviteLink()) return; }

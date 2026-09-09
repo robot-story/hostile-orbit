@@ -92,28 +92,37 @@ class AudioEngine {
     for (const k in this.musicManifest) files.add(this.musicManifest[k].file);
     for (const k in this.voManifest) files.add(this.voManifest[k].file);
     const list = [...files];
-    // UI + weapons first
-    list.sort((a, b) => (a.includes('ui_') ? -1 : 0) - (b.includes('ui_') ? -1 : 0));
+    // Phase 1 (blocks init): tiny set the menus need right now - UI clicks + menu music stems.
+    const menuMusic = new Set(['pad', 'pulse'].map((k) => this.musicManifest[k]?.file).filter(Boolean));
+    const core = list.filter((f) => f.includes('ui_') || menuMusic.has(f));
+    const rest = list.filter((f) => !core.includes(f));
+    // weapons/impacts before ambience/VO so the first firefight is covered early
+    rest.sort((x, y) => (/weapon|shot|impact|reload|hit|explosion/.test(x) ? -1 : 0) - (/weapon|shot|impact|reload|hit|explosion/.test(y) ? -1 : 0));
     this.totalCount = list.length; this.loadedCount = 0;
-    const workers = 8;
-    let idx = 0;
-    const next = async () => {
-      while (idx < list.length) {
-        const f = list[idx++];
-        await this._loadBuffer(f);
-        this.loadedCount++; this.loadProgress = this.loadedCount / Math.max(1, this.totalCount);
-        events.emit('audio:progress', this.loadProgress);
-      }
+    const run = async (queue, workers) => {
+      let idx = 0;
+      const next = async () => {
+        while (idx < queue.length) {
+          const f = queue[idx++];
+          await this._loadBuffer(f);
+          this.loadedCount++; this.loadProgress = this.loadedCount / Math.max(1, this.totalCount);
+          events.emit('audio:progress', this.loadProgress);
+        }
+      };
+      await Promise.all(Array.from({ length: workers }, next));
     };
-    await Promise.all(Array.from({ length: workers }, next));
+    await run(core, 4);
     if (list.length === 0) console.warn('[audio] no audio manifest found - run npm run gen:all');
     events.emit('audio:ready');
+    // Phase 2 (background, low priority, after the menu has painted): everything else at low concurrency so
+    // images and modules are never queued behind 160 audio fetches. Missing sounds load on demand meanwhile.
+    this._bulk = new Promise((resolve) => setTimeout(async () => { await run(rest, 3); this.bulkReady = true; events.emit('audio:bulk-ready'); resolve(); }, 1500));
   }
 
   async _loadBuffer(file) {
     if (this.buffers.has(file)) return this.buffers.get(file);
     try {
-      const r = await fetch(`${BASE}audio/${file}`);
+      const r = await fetch(`${BASE}audio/${file}`, { priority: 'low' });
       if (!r.ok) throw new Error(r.status);
       const ab = await r.arrayBuffer();
       const buf = await this.ctx.decodeAudioData(ab);
@@ -126,6 +135,7 @@ class AudioEngine {
     const e = this.sfxManifest?.[name];
     if (!e) return null;
     const v = e.variants && e.variants.length ? pick(e.variants) : e.file;
+    if (!this.buffers.has(v)) this._loadBuffer(v); // on demand while the bulk preload is still running
     return { buf: this.buffers.get(v), gain: e.gain ?? 1, loop: !!e.loop };
   }
 
