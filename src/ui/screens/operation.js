@@ -1,4 +1,4 @@
-import { el, icon, actionButton, screenHeader, screenFooter } from '../components.js';
+import { el, icon, actionButton, screenHeader } from '../components.js';
 
 const MARKERS = [
   { x: 70, y: 320, label: 'JAMMER OUTPOST', kind: 'primary' },

@@ -1,4 +1,4 @@
-import { el, actionButton } from '../components.js';
+import { el, actionButton, screenHeader, screenFooter } from '../components.js';
 
 export function createMultiplayerScreen(api, mgr) {
   const root = el('div', { class: 'screen mp-screen' });
@@ -31,7 +31,8 @@ export function createMultiplayerScreen(api, mgr) {
   function render() {
     const state = api.mp.state();
     root.innerHTML = '';
-    root.appendChild(el('h1', { text: 'SQUAD LOBBY' }));
+    root.appendChild(screenHeader(api, { title: 'SQUAD LOBBY' }));
+    root.appendChild(screenFooter([{ key: 'ESC', label: 'BACK' }, { key: 'ENTER', label: 'READY' }]));
 
     if (!state.connected) {
       const nameInput = el('input', { class: 'mp-input', type: 'text', maxlength: '16', placeholder: 'CALLSIGN', value: api.settings.data.playerName });

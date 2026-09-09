@@ -16,7 +16,7 @@ export class World {
   constructor() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#2c8a90');
-    this.scene.fog = new THREE.FogExp2('#b8683c', 0.0038);
+    this.scene.fog = new THREE.FogExp2('#c9946f', 0.0026);
     this.time = 0;
     this.terrain = new Terrain(2);
     this.scene.add(this.terrain.mesh);
@@ -39,9 +39,9 @@ export class World {
     events.on('renderer:quality', () => this._applyShadowQuality());
   }
   _setupLights() {
-    this.hemi = new THREE.HemisphereLight('#6fd8dc', '#9a6a52', 1.1);
+    this.hemi = new THREE.HemisphereLight('#8fe0e8', '#a07a62', 1.25);
     this.scene.add(this.hemi);
-    this.sun = new THREE.DirectionalLight('#ffc08a', 2.2);
+    this.sun = new THREE.DirectionalLight('#fff0dc', 2.4);
     this.sun.position.set(-60, 130, 70);
     this.sun.castShadow = true;
     const s = this.sun.shadow;
@@ -51,7 +51,7 @@ export class World {
     s.bias = -0.0006; s.normalBias = 0.03;
     this.sunTarget = new THREE.Object3D(); this.scene.add(this.sunTarget); this.sun.target = this.sunTarget;
     this.scene.add(this.sun);
-    this.ambientFill = new THREE.AmbientLight('#2a4a54', 0.5);
+    this.ambientFill = new THREE.AmbientLight('#4a6a74', 0.7);
     this.scene.add(this.ambientFill);
     this._applyShadowQuality();
   }

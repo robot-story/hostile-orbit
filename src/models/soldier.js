@@ -37,6 +37,22 @@ export const LIMBS = {
 };
 
 const _geoCache = new Map();
+const TEXEL_TILE = 0.22; // metres of surface per texture repeat
+/** Scale a part's UVs so texture density is uniform regardless of part size (box faces use their own axis extents). */
+function scaleUVsToSize(g, p) {
+  const uv = g.attributes.uv; if (!uv) return;
+  const [kind, ...a] = p.geo; const sc = p.scale || [1, 1, 1];
+  const pos = g.attributes.position, nrm = g.attributes.normal;
+  const dims = kind === 'box' ? [a[0] * sc[0], a[1] * sc[1], a[2] * sc[2]] : kind === 'cyl' ? [Math.PI * 2 * Math.max(a[0], a[1]) * sc[0], a[2] * sc[1], 0] : [a[0] * 6.28 * sc[0], a[0] * 3.14 * sc[1], 0];
+  const off = Math.random() * 0.7;
+  for (let i = 0; i < uv.count; i++) {
+    let su, sv;
+    if (kind === 'box' && nrm) { const nx = Math.abs(nrm.getX(i)), ny = Math.abs(nrm.getY(i)), nz = Math.abs(nrm.getZ(i)); if (nx > 0.5) { su = dims[2]; sv = dims[1]; } else if (ny > 0.5) { su = dims[0]; sv = dims[2]; } else { su = dims[0]; sv = dims[1]; } }
+    else { su = dims[0]; sv = dims[1]; }
+    uv.setXY(i, uv.getX(i) * (su / TEXEL_TILE) + off, uv.getY(i) * (sv / TEXEL_TILE) + off);
+  }
+  uv.needsUpdate = true;
+}
 function partGeo(kind, ...args) {
   const key = kind + args.join(',');
   if (!_geoCache.has(key)) {
@@ -172,6 +188,7 @@ export function buildSoldier(styleName = 'vanguard', opts = {}) {
   for (const p of parts) {
     const bone = bones[p.bone];
     const g = partGeo(...p.geo).clone();
+    scaleUVsToSize(g, p);
     const m = new THREE.Matrix4().compose(new THREE.Vector3(...p.pos), new THREE.Quaternion().setFromEuler(new THREE.Euler(...p.rot)), new THREE.Vector3(...p.scale));
     // bake into model space: boneWorld * local
     g.applyMatrix4(m);

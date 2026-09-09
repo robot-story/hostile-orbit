@@ -1,4 +1,4 @@
-import { el, icon, actionButton } from '../components.js';
+import { el, icon, actionButton, screenHeader, screenFooter } from '../components.js';
 
 function fmtTime(sec) {
   if (!sec) return '—:—';
@@ -34,7 +34,7 @@ export function createRecordScreen(api, mgr) {
     const xpBase = xpForLevel(level), xpNext = xpForLevel(level + 1);
     const pct = Math.max(0, Math.min(100, ((api.save.profile.xp - xpBase) / (xpNext - xpBase)) * 100));
 
-    root.appendChild(el('h1', { text: 'COMBAT RECORD' }));
+    root.appendChild(screenHeader(api, { title: 'COMBAT RECORD' }));
 
     const rp = el('div', { class: 'record-progress panel' }, [
       el('div', { class: 'rp-level', text: level }),
@@ -71,6 +71,7 @@ export function createRecordScreen(api, mgr) {
         okLabel: 'ERASE RECORD', danger: true, onConfirm: () => { api.save.wipe(); render(); mgr.toast('RECORD ERASED', 'warn'); },
       }),
     }));
+    root.appendChild(screenFooter([{ key: 'ESC', label: 'BACK' }]));
   }
 
   return {

@@ -1,4 +1,4 @@
-import { el, icon, actionButton } from '../components.js';
+import { el, icon, actionButton, screenHeader, screenFooter } from '../components.js';
 
 const SLOT_ICON = { primary: 'rifle', secondary: 'pistol', grenade: 'grenade', armour: 'helmet' };
 const SLOT_LABEL = { primary: 'PRIMARY', secondary: 'SECONDARY', grenade: 'GRENADE', armour: 'ARMOUR' };
@@ -157,7 +157,7 @@ export function createLoadoutScreen(api, mgr) {
 
   function render() {
     root.innerHTML = '';
-    root.appendChild(el('div', { class: 'lo-title' }, [el('span', { html: icon('chevronBig') }), el('span', { text: 'DEPLOYMENT LOADOUT' })]));
+    root.appendChild(screenHeader(api, { title: 'DEPLOYMENT LOADOUT' }));
     const left = el('div', { class: 'lo-col-left stagger' });
     ['primary', 'secondary', 'grenade', 'armour'].forEach((slot) => buildCard(slot).forEach((n) => left.appendChild(n)));
     left.appendChild(buildSupportRow());
@@ -168,6 +168,7 @@ export function createLoadoutScreen(api, mgr) {
     root.appendChild(center);
     root.appendChild(right);
     root.appendChild(bottomBar());
+    root.appendChild(screenFooter([{ key: 'ESC', label: 'BACK' }, { key: 'ENTER', label: 'DEPLOY' }]));
   }
 
   return {

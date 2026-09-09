@@ -55,6 +55,17 @@ const EDITS = [
   { id: 'hero_main', ref: 'screenshot/character-model.png', prompt: `Using the exact armour design of the soldier in the reference (black and dirty-white plated armour, cyan neon visor slits, chest bar, backpack strip, chevron emblem), create a cinematic, photoreal, wide 16:9 heroic propaganda-style scene: the soldier stands on an orbital command deck at a rail with his back three-quarters to camera, rifle held ready, looking down through a huge window at a strange alien planet with glowing violet and green energy veins, black glass spires, and an aurora tethering the planet to orbit; a fleet of dark warships with cyan engines descends past him; dramatic rim light in cyan and burnt orange, volumetric haze, propaganda-poster heroism played completely straight, the composition leaves the left third dark for menu text. No text, no letters, no logos.` },
   { id: 'map_clean', ref: 'screenshot/level-map.png', prompt: `Recreate this top-down tactical map with EXACTLY the same terrain layout, canyon shapes, routes, outposts, buildings and landing pad in the same positions, as a clean photoreal satellite/terrain render seen from directly above. Remove ALL text, labels, numbers, legend boxes, grid lines, arrows, icons and markers. Burnt-orange desert floor, dark basalt canyon walls, gunmetal military structures with cyan light strips, subtle glowing violet and green energy veins in the ground. No text of any kind.` },
 ];
+const TILE = 'Seamless tileable PBR-style albedo texture, perfectly flat top-down orthographic view, even diffuse lighting, no perspective, no shadows cast by external objects, edges wrap seamlessly, square, no text, no watermark, no borders.';
+const MATERIALS = [
+  { id: 'tex_armor_white', prompt: `${TILE} Dirty off-white ceramic-composite military armour plating: scuffed, chipped edges revealing dark metal, faint panel seams and hex micro-pattern, grime in the recesses, a few small dark rivets. Power-armour aesthetic (black and dirty white). 1:1 plate scale of roughly 20 cm across the image.` },
+  { id: 'tex_armor_black', prompt: `${TILE} Matte black tactical under-suit and armour joint material: woven ballistic fabric with fine hexagonal weave, thin black rubberised plates, subtle grey scuffs, panel stitching.` },
+  { id: 'tex_legion_armor', prompt: `${TILE} Dark gunmetal biomechanical armour plating of a synthetic soldier: layered dark grey alloy plates with corroded copper edges, thin red-orange circuit veins glowing faintly in the seams, oily sheen, battle damage.` },
+  { id: 'tex_metal_panel', prompt: `${TILE} Dark gunmetal military wall panels: riveted steel plates, recessed seams, rust streaks, dust, faded yellow hazard paint remnants in one corner, scratches.` },
+  { id: 'tex_concrete', prompt: `${TILE} Weathered grey military concrete: cracks, dust, dark oil stains, formwork seams, small chips, slightly orange dust deposits.` },
+  { id: 'tex_rock', prompt: `${TILE} Dark basalt volcanic rock with burnt-orange dust settling in the crevices, sharp faceted texture, some glossy black glassy patches.` },
+  { id: 'tex_terrain', prompt: `${TILE} Burnt-orange alien desert ground: fine dust and coarse grit, small dark pebbles, faint dried mud cracks, footprints and tyre tracks softened by wind.` },
+  { id: 'tex_gun_white', prompt: `${TILE} Dirty white polymer and steel weapon receiver surface: matte off-white paint scuffed to bare metal at the edges, small vents and screws, panel lines.` },
+];
 const TEXTURES = [
   { id: 'planet_equirect', prompt: `Seamless equirectangular (2:1 projection) planet surface texture of an alien desert world seen from orbit: burnt-orange deserts, dark basalt mountain ranges, vast glowing violet and acid-green energy vein networks cracking the crust, scattered cyan city-light clusters, dust storms, small polar ice caps at the very top and bottom edges. Continuous across left and right edges. No text, no watermark, no borders.` },
 ];
@@ -86,6 +97,18 @@ if (process.argv.includes('--edits')) {
   for (const e of EDITS) { if (only && !only.includes(e.id)) continue; try { await edit(e); } catch (err) { console.error(String(err.message)); } }
   for (const t of TEXTURES) { if (only && !only.includes(t.id)) continue; try { await generate(t); } catch (err) { console.error(String(err.message)); } }
   console.log('done edits'); process.exit(0);
+}
+if (process.argv.includes('--materials')) {
+  const OUT2 = path.join(ROOT, 'public', 'textures', 'gen'); fs.mkdirSync(OUT2, { recursive: true });
+  let k = 0; const w = 3;
+  await Promise.all(Array.from({ length: w }, async () => { while (k < MATERIALS.length) { const m = MATERIALS[k++]; if (only && !only.includes(m.id)) continue; const file = path.join(OUT2, `${m.id}.jpg`); if (fs.existsSync(file) && !process.argv.includes('--force')) { console.log('skip', m.id); continue; }
+    for (let attempt = 0; attempt < 3; attempt++) { try {
+      const res = await fetch('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'gpt-image-1', prompt: m.prompt, size: '1024x1024', quality: 'medium', output_format: 'jpeg', output_compression: 88, n: 1 }) });
+      if (res.status === 429 || res.status >= 500) { await new Promise(r => setTimeout(r, 5000 * (attempt + 1))); continue; }
+      if (!res.ok) { console.error(m.id, res.status, (await res.text()).slice(0, 200)); break; }
+      const json = await res.json(); fs.writeFileSync(file, Buffer.from(json.data[0].b64_json, 'base64')); console.log('wrote', m.id); break;
+    } catch (e) { console.error(m.id, String(e.message)); } } } }));
+  console.log('done materials'); process.exit(0);
 }
 const list = only ? IMAGES.filter(i => only.includes(i.id)) : IMAGES;
 let i = 0; const workers = 3;

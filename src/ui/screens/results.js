@@ -1,4 +1,4 @@
-import { el, icon, actionButton, starRating } from '../components.js';
+import { el, icon, actionButton, starRating, screenFooter } from '../components.js';
 
 function fmtTime(sec) { const m = Math.floor(sec / 60), s = Math.round(sec % 60); return `${m}:${String(s).padStart(2, '0')}`; }
 
@@ -81,6 +81,7 @@ export function createResultsScreen(api, mgr) {
       actions.appendChild(actionButton(api, { label: 'REDEPLOY', kind: 'primary', sound: 'deploy', onClick: () => mgr.show('loadout') }));
     }
     root.appendChild(actions);
+    root.appendChild(screenFooter([{ key: 'ENTER', label: 'SELECT' }]));
   }
 
   return {

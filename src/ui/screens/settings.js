@@ -1,4 +1,4 @@
-import { el, tabBar, sliderRow, toggleRow, selectRow, swatchRow, bindRow, actionButton } from '../components.js';
+import { el, tabBar, sliderRow, toggleRow, selectRow, swatchRow, bindRow, actionButton, screenHeader, screenFooter } from '../components.js';
 import { DEFAULT_BINDS, BIND_LABELS } from '../../core/settings.js';
 
 const DESCRIPTIONS = {
@@ -129,6 +129,7 @@ export function createSettingsScreen(api, mgr) {
 
   function render() {
     root.innerHTML = '';
+    root.appendChild(screenHeader(api, { title: 'SETTINGS' }));
     const tabs = tabBar(api, [
       { id: 'gameplay', label: 'GAMEPLAY' }, { id: 'controls', label: 'CONTROLS' }, { id: 'graphics', label: 'GRAPHICS' },
       { id: 'audio', label: 'AUDIO' }, { id: 'accessibility', label: 'ACCESSIBILITY' }, { id: 'gore', label: 'GORE' },
@@ -136,6 +137,7 @@ export function createSettingsScreen(api, mgr) {
     root.appendChild(el('div', { class: 'settings-tabs' }, [tabs.el]));
     root.appendChild(mid);
     root.appendChild(el('div', { class: 'settings-desc' }, [descTitle, descText]));
+    root.appendChild(screenFooter([{ key: 'ESC', label: 'BACK' }]));
     renderTab();
   }
 

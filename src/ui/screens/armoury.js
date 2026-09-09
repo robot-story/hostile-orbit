@@ -1,4 +1,4 @@
-import { el, icon } from '../components.js';
+import { el, icon, screenHeader, screenFooter } from '../components.js';
 
 const STAT_LABELS = ['damage', 'control', 'mobility', 'defence'];
 
@@ -46,13 +46,14 @@ export function createArmouryScreen(api, mgr) {
 
   function render() {
     root.innerHTML = '';
-    root.appendChild(el('h1', {}, [el('span', { html: icon('helmet'), style: { width: '26px', height: '26px' } }), el('span', { text: 'ARMOURY' })]));
+    root.appendChild(screenHeader(api, { title: 'ARMOURY' }));
     const grid = el('div', { class: 'armoury-grid stagger' });
     Object.values(api.WEAPONS).filter((w) => w.slot === 'primary' || w.slot === 'secondary').forEach((w) => grid.appendChild(weaponCard(w)));
     grid.appendChild(extraCard(api.GRENADE.name, `Radius ${api.GRENADE.radius}m · Damage ${api.GRENADE.damage}`, 'grenade'));
     grid.appendChild(extraCard(api.INJECTOR.name, `Heals ${api.INJECTOR.heal}hp over ${api.INJECTOR.duration}s`, 'helmet'));
     Object.values(api.ARMOUR).forEach((a) => grid.appendChild(extraCard(a.name, a.description, 'helmet')));
     root.appendChild(grid);
+    root.appendChild(screenFooter([{ key: 'ESC', label: 'BACK' }]));
   }
 
   return {

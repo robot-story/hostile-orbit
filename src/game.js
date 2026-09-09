@@ -25,6 +25,7 @@ import { net, MSG } from './net/net.js';
 import { createMenus } from './ui/menus.js';
 import { createMenuScene } from './render/menuScene.js';
 import { mergeStaticProps } from './world/merge.js';
+import { startShowcase } from './debug/showcase.js';
 import { Transport } from './net/transport.js';
 import { NetSync } from './net/netsync.js';
 
@@ -74,6 +75,7 @@ export class Game {
     this._fps(settings.data.showFps);
     this._buildBackgroundLayer();
     this.menus = createMenus(this._buildApi(), this.ui);
+    if (new URLSearchParams(location.search).has('showcase')) { startShowcase(this); this.loop(); this.startWatchdog(); return; }
     this._buildBoot();
     this.loop();
     this.startWatchdog();
@@ -424,6 +426,7 @@ export class Game {
       s.fx.update(dt, this.camera);
       this.world.update(dt, this.camera);
       audio.updateListener(this.camera);
+    } else if (this.mode === 'showcase' && this.showcaseUpdate) { this.showcaseUpdate(dt); this.renderer.render(dt); input.endFrame(); return;
     } else if (this.renderMenuScene && this.menuScene) {
       this.menuScene.update(dt);
       audio.updateListener(this.menuScene.camera);

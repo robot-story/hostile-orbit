@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { settings } from '../core/settings.js';
 import { events } from '../core/events.js';
 
@@ -18,8 +19,8 @@ const GradeShader = {
     uDamage: { value: 0 },        // red vignette flash 0..1
     uHeal: { value: 0 },          // cyan flash
     uGrain: { value: 0.0 },
-    uSaturation: { value: 1.08 },
-    uContrast: { value: 1.06 },
+    uSaturation: { value: 0.98 },
+    uContrast: { value: 1.04 },
     uLowHealth: { value: 0 },     // desaturate + pulse
     uFade: { value: 0 },          // fade to black 0..1
     uFlash: { value: 0 },         // white flash (explosions)
@@ -117,7 +118,15 @@ export class Renderer {
     this.bloomPass.setSize(w * Math.min(pr, 1) * 0.5, h * Math.min(pr, 1) * 0.5);
     events.emit('renderer:resize', w, h);
   }
-  setScene(scene, camera) { this.renderPass.scene = scene; this.renderPass.camera = camera; this.scene = scene; this.camera = camera; }
+  /** Shared image-based lighting so metals and plastics shade properly (no black metal). */
+  environment() {
+    if (!this._env) { const pm = new THREE.PMREMGenerator(this.renderer); this._env = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose(); }
+    return this._env;
+  }
+  setScene(scene, camera) {
+    this.renderPass.scene = scene; this.renderPass.camera = camera; this.scene = scene; this.camera = camera;
+    if (scene && !scene.environment) { scene.environment = this.environment(); scene.environmentIntensity = 0.55; }
+  }
   render(dt) {
     if (!this.scene || !this.camera) return;
     this.time += dt;

@@ -173,12 +173,13 @@ export class Terrain {
       // neon veins only in floor cracks and along rock bases, patchy
       const patch = fbm2(x * 0.02 + 11, z * 0.02 + 5, 2);
       // sparse glowing patches: mostly along canyon floors near rock bases
-      vein[k] = (patch > 0.62 ? (patch - 0.62) * 4 : 0) * (1 - rockT * 0.7) * (fd < 8 && fd > -40 ? 1 : 0.15) * 0.55;
+      vein[k] = (patch > 0.66 ? (patch - 0.66) * 4 : 0) * (1 - rockT * 0.7) * (fd < 6 && fd > -14 ? 1 : 0.08) * 0.35;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.setAttribute('aVein', new THREE.BufferAttribute(vein, 1));
     geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({ map: Tex.terrain(), vertexColors: true, roughness: 0.96, metalness: 0.0, emissive: '#ffffff', emissiveMap: Tex.veins(), emissiveIntensity: 1.0 });
+    new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/tex_terrain.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.repeat.set(60, 60); mat.map = tex; mat.needsUpdate = true; }, undefined, () => {});
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aVein; varying float vVein; varying vec3 vWPos;')

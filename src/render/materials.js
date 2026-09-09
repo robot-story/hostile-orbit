@@ -8,22 +8,32 @@ export const COLORS = {
 };
 
 const _cache = new Map();
+const _loader = new THREE.TextureLoader();
+const _genBase = (import.meta.env.BASE_URL || './') + 'textures/gen/';
+/** Try to replace a material's map with a generated seamless texture (public/textures/gen/<id>.jpg). Silent fallback. */
+function useGenerated(mat, id, repeat = [1, 1], opts = {}) {
+  _loader.load(_genBase + id + '.jpg', (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.repeat.set(repeat[0], repeat[1]);
+    mat.map = tex; if (opts.color) mat.color.set(opts.color); if (opts.roughness != null) mat.roughness = opts.roughness; mat.needsUpdate = true;
+  }, undefined, () => {});
+  return mat;
+}
 function cached(key, make) { if (!_cache.has(key)) _cache.set(key, make()); return _cache.get(key); }
 
 export const Mat = {
-  armorWhite: () => cached('armorWhite', () => new THREE.MeshStandardMaterial({ map: Tex.armorWhite(), roughness: 0.62, metalness: 0.25, color: '#ffffff' })),
-  armorBlack: () => cached('armorBlack', () => new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.7, metalness: 0.35, color: '#c8c8c8' })),
-  underSuit: () => cached('underSuit', () => new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.9, metalness: 0.1, color: '#7a7a80' })),
-  gunMetal: () => cached('gunMetal', () => new THREE.MeshStandardMaterial({ color: '#2a2c31', roughness: 0.45, metalness: 0.8 })),
-  gunWhite: () => cached('gunWhite', () => new THREE.MeshStandardMaterial({ map: Tex.armorWhite(), roughness: 0.5, metalness: 0.4, color: '#d8d8d8' })),
-  darkMetal: () => cached('darkMetal', () => new THREE.MeshStandardMaterial({ map: Tex.metalPanel(1), roughness: 0.6, metalness: 0.7 })),
-  panel: (v = 0) => cached('panel' + v, () => new THREE.MeshStandardMaterial({ map: Tex.metalPanel(v), roughness: 0.65, metalness: 0.6 })),
-  concrete: () => cached('concrete', () => new THREE.MeshStandardMaterial({ map: Tex.concrete(), roughness: 0.95, metalness: 0.0, color: '#7a7a78' })),
+  armorWhite: () => cached('armorWhite', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorWhite(), roughness: 0.62, metalness: 0.25, color: '#ffffff' }), 'tex_armor_white', [1, 1], { color: '#f2f2f2' })),
+  armorBlack: () => cached('armorBlack', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.7, metalness: 0.35, color: '#c8c8c8' }), 'tex_armor_black', [1, 1], { color: '#e0e0e0' })),
+  underSuit: () => cached('underSuit', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.9, metalness: 0.1, color: '#7a7a80' }), 'tex_armor_black', [1, 1], { color: '#9a9aa0' })),
+  gunMetal: () => cached('gunMetal', () => new THREE.MeshStandardMaterial({ color: '#3a3d44', roughness: 0.5, metalness: 0.6 })),
+  gunWhite: () => cached('gunWhite', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorWhite(), roughness: 0.5, metalness: 0.4, color: '#d8d8d8' }), 'tex_gun_white', [1, 1], { color: '#e6e6e6' })),
+  darkMetal: () => cached('darkMetal', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.metalPanel(1), roughness: 0.6, metalness: 0.45 }), 'tex_metal_panel', [1, 1], { color: '#f0f0f0' })),
+  panel: (v = 0) => cached('panel' + v, () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.metalPanel(v), roughness: 0.65, metalness: 0.4 }), 'tex_metal_panel', [1 + (v % 2) * 0.5, 1 + (v % 3) * 0.5], { color: ['#ffffff', '#e4e8ee', '#f4f4f4', '#d8dce2'][v % 4] })),
+  concrete: () => cached('concrete', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.concrete(), roughness: 0.95, metalness: 0.0, color: '#7a7a78' }), 'tex_concrete', [2, 2], { color: '#9a9a96' })),
   hazard: () => cached('hazard', () => new THREE.MeshStandardMaterial({ map: Tex.hazard(), roughness: 0.7, metalness: 0.3 })),
-  rock: () => cached('rock', () => new THREE.MeshStandardMaterial({ map: Tex.rock(), roughness: 0.95, metalness: 0.02, color: '#8a8a8a' })),
-  rockDust: () => cached('rockDust', () => new THREE.MeshStandardMaterial({ map: Tex.rock(), roughness: 0.95, metalness: 0.0, color: '#c07a4a' })),
+  rock: () => cached('rock', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.rock(), roughness: 0.95, metalness: 0.02, color: '#8a8a8a' }), 'tex_rock', [2, 2], { color: '#b0b0b0' })),
+  rockDust: () => cached('rockDust', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.rock(), roughness: 0.95, metalness: 0.0, color: '#c07a4a' }), 'tex_rock', [2, 2], { color: '#d09a6a' })),
   // Enemies: dark biomechanical chassis with red-orange glow
-  legionArmor: () => cached('legionArmor', () => new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.55, metalness: 0.7, color: '#8a8f96' })),
+  legionArmor: () => cached('legionArmor', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.55, metalness: 0.5, color: '#8a8f96' }), 'tex_legion_armor', [1, 1], { color: '#d0d4da' })),
   legionFlesh: () => cached('legionFlesh', () => new THREE.MeshStandardMaterial({ color: '#3a1f24', roughness: 0.85, metalness: 0.1, emissive: '#3a0a10', emissiveIntensity: 0.25 })),
   // Neon emissives (unlit-looking; bloom does the rest)
   neon: (color = COLORS.cyan, intensity = 2.2) => cached('neon' + color + intensity, () => new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: intensity, roughness: 0.3, metalness: 0.0, toneMapped: true })),
