@@ -102,13 +102,17 @@ export class Player {
     this.hitCenter.copy(this.position).add(new THREE.Vector3(0, 1.0, 0));
     // animation state
     const speedN = clamp(this.velocity.length() / 9.4, 0, 1);
+    // relaxed low-ready carry after standing still for a moment (drops instantly on aim/fire/move)
+    const idle = this.state === 'normal' && speedN < 0.05 && !this.aiming && !this.trigger && this.reloadT < 0 && !this.jet && this.grounded;
+    this.idleT = idle ? (this.idleT || 0) + dt : 0;
+    const weaponLow = clamp(((this.idleT || 0) - 1.4) / 0.7, 0, 0.75);
     const local = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), -this.yaw);
     const s = {
       speed: this.state === 'cover' ? speedN * 0.6 : speedN, strafe: clamp(local.x / 4, -1, 1), forward: local.z >= -0.3 ? 1 : -1,
       sprint: this.sprinting && speedN > 0.3 ? 1 : (speedN > 0.35 && !this.aiming && !this.crouching && this.state === 'normal' ? 0.55 : 0), crouch: this.crouching ? 1 : 0, aim: this.aiming ? 1 : 0,
       cover: this.state === 'cover' ? { high: this.cover.height === 'high', peek: this.peek, over: this.cover.height === 'low', blind: this.blindFiring } : null,
       roll: this.state === 'roll' ? this.stateT / 0.62 : null, transform: (this.state === 'cover' && this.stateT < 0.42) ? this.stateT / 0.42 : (this.transformT > 0 ? 1 - this.transformT / 0.42 : null), vault: this.state === 'vault' ? this.stateT / 0.7 : null,
-      dead: this.dead, aimPitch: clamp(-this.cam.pitch / 1.1, -1, 1) * -1, weaponLow: 0, reload: this.reloadT >= 0 ? this.reloadT / this.weapon.def.reloadTime : null,
+      dead: this.dead, aimPitch: clamp(-this.cam.pitch / 1.1, -1, 1) * -1, weaponLow, reload: this.reloadT >= 0 ? this.reloadT / this.weapon.def.reloadTime : null,
       interact: !!this.interacting, jet: this.jet ? 1 : (!this.grounded && this.state === 'normal' ? 0.5 : 0),
     };
     events.emit('hud:fuel', this.fuel, this.jet);

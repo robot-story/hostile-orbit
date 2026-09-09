@@ -24,8 +24,8 @@ const POSE = {
   },
   sprint: {
     spine: [-0.38, 0, 0], chest: [-0.12, 0, 0], neck: [0.15, 0, 0], head: [0.2, 0, 0],
-    upperArmL: [-0.55, 0.35, 0.35], forearmL: [-1.6, 0.0, 0.0], handL: [0, 0, 0],
-    upperArmR: [-0.75, -0.3, -0.3], forearmR: [-1.4, 0.1, 0.0], handR: [0, 0, 0],
+    upperArmL: [-0.38, 0.3, 0.3], forearmL: [-1.5, 0.0, 0.0], handL: [0, 0, 0],
+    upperArmR: [-0.5, -0.25, -0.25], forearmR: [-1.3, 0.1, 0.0], handR: [0, 0, 0],
     thighL: [0, 0, 0.02], shinL: [0.2, 0, 0], footL: [0, 0, 0],
     thighR: [0, 0, -0.02], shinR: [0.2, 0, 0], footR: [0, 0, 0],
   },
@@ -232,7 +232,7 @@ export class CharacterAnimator {
     if (s.dead) { wp.pos.set(-0.2, -0.1, 0.1); wp.rot.set(0.6, -0.3, -0.8); }
     else if (s.cover?.blind) { wp.pos.set(s.cover.high ? -0.25 : -0.2, s.cover.high ? 0.55 : 0.5, 0.15); wp.rot.set(-0.15, s.cover.peek ? s.cover.peek * 0.7 : 0, 0); }
     else if (s.cover && s.aim < 0.5) { wp.pos.set(-0.14, 0.12, 0.18); wp.rot.set(-0.6, 0.9, -0.1); }
-    else if (s.sprint > 0.5) { wp.pos.set(-0.15, -0.02, 0.24); wp.rot.set(-0.35, -0.25, 0); }
+    else if (s.sprint > 0.5) { wp.pos.set(-0.15, -0.04, 0.24); wp.rot.set(-0.2, -0.22, 0); }
     else if (s.roll != null || s.vault != null) { wp.pos.set(-0.16, 0.05, 0.16); wp.rot.set(-0.5, -0.4, -0.2); }
     else if (s.reload != null) { wp.pos.set(-0.15, 0.02, 0.22); wp.rot.set(0.25, -0.35, -0.35); }
     else if (s.aim > 0.5) { wp.pos.set(-0.115, 0.145, 0.20); wp.rot.set(0, 0, 0); }

@@ -186,7 +186,7 @@ export function ammoCache(world, position, yaw = 0, opts = {}) {
   const crateBody = box(1.4, 0.7, 1.0, Mat.panel(0)); crateBody.position.y = 0.35; g.add(crateBody);
   const lid = box(1.4, 0.08, 1.0, Mat.panel(0)); lid.position.set(0, 0.72, -0.55); lid.rotation.x = -0.9; g.add(lid);
   for (let i = 0; i < 4; i++) {
-    const b = box(0.22, 0.35, 0.6, Mat.neon(COLORS.cyan, 1.6));
+    const b = box(0.22, 0.35, 0.6, Mat.neon(COLORS.cyan, 1.0));
     b.position.set(-0.5 + i * 0.32, 0.55 + (i % 2) * 0.05, 0.1); g.add(b);
   }
   const light = new THREE.PointLight(COLORS.cyan, 3, 6, 2); light.position.y = 0.8; light.castShadow = false; g.add(light);

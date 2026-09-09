@@ -40,7 +40,7 @@ export const Mat = {
   neonBasic: (color = COLORS.cyan) => cached('neonBasic' + color, () => new THREE.MeshBasicMaterial({ color: color, toneMapped: false })),
   glowAdditive: (color = COLORS.cyan, opacity = 0.6) => cached('glowAdd' + color + opacity, () => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })),
   glass: () => cached('glass', () => new THREE.MeshPhysicalMaterial({ color: '#8fd7e6', roughness: 0.1, metalness: 0.0, transmission: 0.0, transparent: true, opacity: 0.35, emissive: '#0b3a44', emissiveIntensity: 0.4 })),
-  visor: () => cached('visor', () => new THREE.MeshStandardMaterial({ color: '#0a1a20', roughness: 0.15, metalness: 0.9, emissive: COLORS.cyan, emissiveIntensity: 0.9 })),
+  visor: (color = COLORS.cyan) => cached('visor' + color, () => new THREE.MeshStandardMaterial({ color: '#0a1a20', roughness: 0.15, metalness: 0.9, emissive: color, emissiveIntensity: 0.9 })),
   blood: () => cached('blood', () => new THREE.MeshStandardMaterial({ color: COLORS.blood, roughness: 0.35, metalness: 0.1, emissive: '#3a0008', emissiveIntensity: 0.6 })),
   gib: () => cached('gib', () => new THREE.MeshStandardMaterial({ color: '#4a1218', roughness: 0.6, metalness: 0.15, emissive: '#2a0006', emissiveIntensity: 0.5 })),
   screen: (v = 0) => cached('screen' + v, () => new THREE.MeshStandardMaterial({ map: Tex.screen(v), emissive: '#ffffff', emissiveMap: Tex.screen(v), emissiveIntensity: 1.6, roughness: 0.3, metalness: 0.2, color: '#222' })),

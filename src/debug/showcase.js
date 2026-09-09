@@ -61,12 +61,13 @@ export function startShowcase(game) {
   let t = 0; const params = new URLSearchParams(location.search); const fixed = params.get('angle');
   const rowP = params.get('row'), colP = params.get('col');
   const focus = rowP != null ? pos(colP != null ? +colP : 3, +rowP).add(new THREE.Vector3(0, 1.2, 0)) : new THREE.Vector3(base.x, base.y + 1.5, base.z + 4);
-  const camH = rowP != null ? 2.5 : 9;
+  const camH = params.get('h') != null ? +params.get('h') : (rowP != null ? 2.5 : 9);
   game.showcaseUpdate = (dt) => {
     t += dt; for (const x of anims) x.a.update(dt, x.s);
     const ang = fixed != null ? +fixed : t * 0.12; const r = +(params.get('r') || 34);
     game.camera.position.set(focus.x + Math.sin(ang) * r, focus.y + camH, focus.z + Math.cos(ang) * r); game.camera.lookAt(focus); game.camera.userData.focus = focus;
     world.update(dt, game.camera);
   };
+  window.HO.showcaseAnims = anims; window.HO.showcaseRigs = anims.map(x => x.a);
   console.info('[showcase] ready');
 }

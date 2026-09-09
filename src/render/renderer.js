@@ -75,7 +75,7 @@ export class Renderer {
     this.renderer.autoClear = true;
     this.composer = new EffectComposer(this.renderer);
     this.renderPass = new RenderPass(null, null);
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.7, 0.5, 0.92);
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.45, 0.96);
     this.gradePass = new ShaderPass(GradeShader);
     this.outputPass = new OutputPass();
     this.fxaaPass = new ShaderPass(FXAAShader);
