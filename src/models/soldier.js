@@ -158,7 +158,7 @@ function materialsFor(style) {
   return {
     white: Mat.armorWhite(), black: Mat.armorBlack(), suit: Mat.underSuit(),
     legion: Mat.legionArmor(),
-    neon: Mat.neon(style.neon, 2.6), visor: Mat.visor(), accent: Mat.neon(style.neon, 1.5), joint: Mat.gunMetal(),
+    neon: Mat.neon(style.neon, style.plate === 'legion' ? 1.7 : 2.6), visor: Mat.visor(), accent: Mat.neon(style.neon, style.plate === 'legion' ? 1.0 : 1.5), joint: Mat.gunMetal(),
   };
 }
 

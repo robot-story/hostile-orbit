@@ -21,7 +21,7 @@ export function startShowcase(game) {
   const put = (obj, col, row, yaw = 0) => { const x = base.x - 21 + col * 6, z = base.z - 12 + row * 8; const y = world.groundHeight(x, z); if (obj.isObject3D) { obj.position.set(x, y, z); obj.rotation.y = yaw; world.actors.add(obj); } return new THREE.Vector3(x, y, z); };
   const anims = [];
   // Row 0: characters
-  const rig = (style, col, opts = {}) => { const m = buildSoldier(style); const a = new CharacterAnimator(m); if (opts.weapon) a.weaponSocket.add(WEAPON_BUILDERS[opts.weapon]()); put(m.root, col, 0, Math.PI); anims.push({ a, s: opts.state || { speed: 0, sprint: 0, crouch: 0, aim: 1, cover: null, weaponLow: 0 } }); return m; };
+  const rig = (style, col, opts = {}) => { const m = buildSoldier(style); const a = new CharacterAnimator(m); if (opts.weapon) a.weaponSocket.add(WEAPON_BUILDERS[opts.weapon]()); put(m.root, col, 0, 0); anims.push({ a, s: opts.state || { speed: 0, sprint: 0, crouch: 0, aim: 1, cover: null, weaponLow: 0 } }); return m; };
   rig('vanguard', 0, { weapon: 'viper' });
   rig('vanguard', 1, { weapon: 'longshot', state: { speed: 0.8, sprint: 0.55, crouch: 0, aim: 0, cover: null } });
   rig('legion', 2, { weapon: 'legion_rifle' });
@@ -49,12 +49,14 @@ export function startShowcase(game) {
   game.renderer.setScene(world.scene, game.camera);
   game.setBackground(null); game.menus.hide();
   game.mode = 'showcase';
-  const focus = new THREE.Vector3(base.x, base.y + 1.5, base.z + 4);
   let t = 0; const params = new URLSearchParams(location.search); const fixed = params.get('angle');
+  const rowP = params.get('row'), colP = params.get('col');
+  const focus = rowP != null ? pos(colP != null ? +colP : 3, +rowP).add(new THREE.Vector3(0, 1.2, 0)) : new THREE.Vector3(base.x, base.y + 1.5, base.z + 4);
+  const camH = rowP != null ? 2.5 : 9;
   game.showcaseUpdate = (dt) => {
     t += dt; for (const x of anims) x.a.update(dt, x.s);
     const ang = fixed != null ? +fixed : t * 0.12; const r = +(params.get('r') || 34);
-    game.camera.position.set(focus.x + Math.sin(ang) * r, focus.y + 9, focus.z + Math.cos(ang) * r); game.camera.lookAt(focus); game.camera.userData.focus = focus;
+    game.camera.position.set(focus.x + Math.sin(ang) * r, focus.y + camH, focus.z + Math.cos(ang) * r); game.camera.lookAt(focus); game.camera.userData.focus = focus;
     world.update(dt, game.camera);
   };
   console.info('[showcase] ready');
