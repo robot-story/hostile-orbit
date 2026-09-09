@@ -94,7 +94,18 @@ export function createCelestials(variant = 'khepri') {
     s.userData.speed = 4 + (i % 3) * 2;
     g.add(s); ships.push(s);
   }
+  // a colossus on the horizon: terrain-sized silhouette that breathes and drifts, violet eyes blinking
+  const colMat = new THREE.MeshStandardMaterial({ color: '#141018', roughness: 1, metalness: 0, emissive: '#0a0612', emissiveIntensity: 0.6, fog: false });
+  const colossus = new THREE.Group();
+  const bodyC = new THREE.Mesh(new THREE.SphereGeometry(180, 18, 12), colMat); bodyC.scale.set(1.6, 0.7, 1); colossus.add(bodyC);
+  for (let i = 0; i < 6; i++) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(14, 30, 260, 6), colMat); leg.position.set(-220 + i * 90, -180, (i % 2 ? 60 : -60)); leg.rotation.z = (i % 2 ? 0.25 : -0.25); colossus.add(leg); }
+  const eyeMat = new THREE.MeshBasicMaterial({ color: '#9b4dff', fog: false }); const eyes = [];
+  for (let i = 0; i < 5; i++) { const e = new THREE.Mesh(new THREE.SphereGeometry(7, 8, 6), eyeMat); e.position.set(230 + (i % 3) * 22, 40 - Math.floor(i / 3) * 30, 90 + (i % 2) * 20); colossus.add(e); eyes.push(e); }
+  colossus.position.set(760, 140, -1250); colossus.rotation.y = -0.6; colossus.scale.setScalar(0.75); colossus.userData.baseX = 760;
+  g.add(colossus);
   g.userData.update = (t, dt) => {
+    colossus.position.x = colossus.userData.baseX - (t * 0.6) % 900; colossus.position.y = 140 + Math.sin(t * 0.25) * 8; bodyC.scale.y = 0.7 + Math.sin(t * 0.5) * 0.03;
+    for (const e of eyes) e.visible = Math.sin(t * 0.9 + e.position.x) > -0.85;
     for (const b of beams) { const p = (Math.sin(t * 0.35 + b.userData.phase) + 1) * 0.5; b.material.opacity = p > 0.85 ? (p - 0.85) * 3.0 : 0; b.scale.x = b.scale.z = 0.8 + p; }
     for (const s of ships) { s.position.x += s.userData.speed * dt; if (s.position.x > 900) s.position.x = -900; }
   };

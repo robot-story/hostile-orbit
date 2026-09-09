@@ -11,6 +11,7 @@ import { buildLevel } from './world/level.js';
 import { MAPS, DEFAULT_MAP } from './world/maps/index.js';
 import { DevMenu } from './debug/devmenu.js';
 import { preloadCustomModels } from './models/glbSoldier.js';
+import { Hints } from './ui/hints.js';
 import { M, worldToMap } from './world/terrain.js';
 import { clamp, formatTime } from './core/mathx.js';
 import { Player } from './entities/player.js';
@@ -243,6 +244,7 @@ export class Game {
     s.netsync = net.transport ? new NetSync(this) : null;
     s.hud = new Hud(this.ui, map); s.hud.setLives(s.mission.lives, s.mission.lives); s.hud.show(false);
     this.dev?.onSession();
+    s.hints = new Hints(this.ui, this);
     this.renderer.setScene(this.world.scene, this.camera); this.renderMenuScene = false; this.setBackground(null);
     this.time = 0;
     return s;
@@ -250,7 +252,7 @@ export class Game {
   teardownSession() {
     if (!this.session) return;
     const s = this.session;
-    s.netsync?.dispose(); s.mission?.dispose(); s.hud?.dispose(); s.fx?.clear?.(); s.director?.clear?.(); s.abilities?.clear?.(); s.projectiles?.clear?.();
+    s.netsync?.dispose(); s.mission?.dispose(); s.hud?.dispose(); s.hints?.dispose(); s.fx?.clear?.(); s.director?.clear?.(); s.abilities?.clear?.(); s.projectiles?.clear?.();
     this.session = null; this.world = null;
     audio.stopVoice(); audio.setMuffle(0);
   }

@@ -150,7 +150,7 @@ function segDist(p, a, b, out) {
  */
 export function skinToRig(custom, bones, rootGroup) {
   // skin weights depend only on the rig layout in its zero pose, so one weighted geometry is shared by every instance
-  if (custom.skinnedGeo) { const sk = new THREE.SkinnedMesh(custom.skinnedGeo, custom.material); sk.castShadow = !custom.noShadow; sk.frustumCulled = false; sk.name = 'part:custom'; rootGroup.add(sk); rootGroup.updateWorldMatrix(true, true); sk.bind(new THREE.Skeleton(Object.keys(bones).map((n) => bones[n]))); return sk; }
+  if (custom.skinnedGeo) { const sk = new THREE.SkinnedMesh(custom.skinnedGeo, custom.material); sk.castShadow = !custom.noShadow; sk.frustumCulled = true; sk.name = 'part:custom'; rootGroup.add(sk); rootGroup.updateWorldMatrix(true, true); sk.bind(new THREE.Skeleton(Object.keys(bones).map((n) => bones[n]))); return sk; }
   const geo = custom.geometry.clone();
   const boneList = []; const nameIdx = {};
   for (const n of Object.keys(bones)) { nameIdx[n] = boneList.length; boneList.push(bones[n]); }
@@ -188,7 +188,8 @@ export function skinToRig(custom, bones, rootGroup) {
   geo.setAttribute('skinWeight', new THREE.BufferAttribute(skinWeight, 4));
   custom.skinnedGeo = geo;
   const skinned = new THREE.SkinnedMesh(geo, custom.material);
-  skinned.castShadow = !custom.noShadow; skinned.receiveShadow = false; skinned.frustumCulled = false; skinned.name = 'part:custom';
+  geo.computeBoundingSphere(); geo.boundingSphere.radius *= 1.6; geo.boundingSphere.center.y = 0.95;
+  skinned.castShadow = !custom.noShadow; skinned.receiveShadow = false; skinned.frustumCulled = true; skinned.name = 'part:custom';
   rootGroup.add(skinned); rootGroup.updateWorldMatrix(true, true);
   skinned.bind(new THREE.Skeleton(boneList)); // world-space bind at the current (rest) pose
   return skinned;

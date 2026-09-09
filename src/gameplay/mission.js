@@ -181,6 +181,7 @@ export class Mission {
   // ---------- start ----------
   start(dropPos) {
     this.active = true; this.time = 0;
+    events.emit('mission:start');
     this.setupInteractables();
     this.setupGarrisons();
     this.setupSideMissions();

@@ -124,6 +124,8 @@ export class Player {
       interact: !!this.interacting, jet: this.jet ? 1 : (!this.grounded && this.state === 'normal' ? 0.5 : 0), robotic: true,
     };
     events.emit('hud:fuel', this.fuel, this.jet);
+    // onboarding: nudge the cover prompt when standing next to usable cover
+    this._coverHintT = (this._coverHintT || 0) - dt; if (this._coverHintT <= 0 && this.state === 'normal' && this.grounded && !this.aiming) { this._coverHintT = 0.6; const facing = new THREE.Vector3(-Math.sin(this.cam.yaw), 0, -Math.cos(this.cam.yaw)); if (this.world.cover.findSnap(this.position, facing, 2.4)) events.emit('hint:cover'); }
     if (this.interacting) { this.velocity.x = damp(this.velocity.x, 0, 12, dt); this.velocity.z = damp(this.velocity.z, 0, 12, dt); }
     this.anim.aimPitch = clamp(this.cam.pitch / 1.1, -1, 1);
     this.lastAnimState = s;
@@ -404,6 +406,7 @@ export class Player {
     this.fx.shell?.(w.model.userData.ejector.getWorldPosition(new THREE.Vector3()), new THREE.Vector3(Math.cos(this.yaw), 0.6, -Math.sin(this.yaw)), d.kind);
     this.game.director?.noise(this.position, 1.5, this);
     audio.play(d.sound, { pos: muzzle, volume: 1, pitchVar: 0.05, important: true });
+    events.emit('world:gunshot', muzzle, d.kind === 'shotgun' ? 2 : 1);
     audio.play('shell_drop', { pos: this.position, volume: 0.25, delay: 0.35, pitchVar: 0.15 });
     this.anim.kick(d.kick);
     this.cam.addRecoil(d.recoil * (this.aiming ? 0.75 : 1), (Math.random() - 0.5) * d.recoilYaw * 2);

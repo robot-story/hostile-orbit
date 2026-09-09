@@ -3,6 +3,7 @@
 // only where they'd otherwise look like they float). Kept along route edges and around the jammer
 // outpost per the art direction (Commonwealth/Legion hardware sits visually "on top" of this layer).
 import * as THREE from 'three';
+import { events } from '../core/events.js';
 import { Mat, COLORS } from '../render/materials.js';
 import { Tex } from '../render/textures.js';
 import { rand, randInt, pick } from '../core/mathx.js';
@@ -145,17 +146,26 @@ export function sporeField(world, center, opts = {}) {
   points.frustumCulled = false;
   world.props.add(points);
   const phase = Math.random() * 10;
+  // gunfire scatters the spores: a burst of outward velocity that decays, so the swarm flinches away from shots
+  const vel = new Float32Array(count * 3);
+  const offShot = events.on('world:gunshot', (p, power = 1) => {
+    if (!p || Math.hypot(p.x - center.x, p.z - center.z) > radius + 14) return;
+    for (let i = 0; i < count; i++) { const dx = bases[i * 3] - p.x, dy = bases[i * 3 + 1] - p.y, dz = bases[i * 3 + 2] - p.z; const d = Math.hypot(dx, dy, dz); if (d > 14) continue; const f = (1 - d / 14) * 6 * power; vel[i * 3] += dx / d * f; vel[i * 3 + 1] += (dy / d + 0.6) * f; vel[i * 3 + 2] += dz / d * f; }
+  });
   const anim = {
     update: (dt) => {
       const t = performance.now() * 0.001 + phase;
       const pos = geo.attributes.position;
+      const decay = Math.exp(-2.2 * dt);
       for (let i = 0; i < count; i++) {
         const bx = bases[i * 3], by = bases[i * 3 + 1], bz = bases[i * 3 + 2];
         const sp = speeds[i];
+        const ox = vel[i * 3] * 0.5, oy = vel[i * 3 + 1] * 0.5, oz = vel[i * 3 + 2] * 0.5;
+        vel[i * 3] *= decay; vel[i * 3 + 1] *= decay; vel[i * 3 + 2] *= decay;
         pos.setXYZ(i,
-          bx + Math.sin(t * sp + i) * 1.2,
-          by + ((t * sp * 0.4) % 4),
-          bz + Math.cos(t * sp * 0.8 + i) * 1.2);
+          bx + Math.sin(t * sp + i) * 1.2 + ox,
+          by + ((t * sp * 0.4) % 4) + oy,
+          bz + Math.cos(t * sp * 0.8 + i) * 1.2 + oz);
       }
       pos.needsUpdate = true;
     },
