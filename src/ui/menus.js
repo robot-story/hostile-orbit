@@ -31,7 +31,9 @@ export function createMenus(api, root) {
     setLoadingProgress(p) { /* boot progress owned by game.js; kept for API completeness */ },
     showInteract(text, progress) { interactPrompt.show(text, progress); },
     hideInteract() { interactPrompt.hide(); },
-    showTacticalMap(playerXY, objectiveXY, teammates) { tacticalMap.show(playerXY, objectiveXY, teammates); },
+    showTacticalMap(state) { tacticalMap.show(state); },
+    setTacticalMapTitle(name) { tacticalMap.setTitle(name); },
+    onTacticalMapClose(fn) { tacticalMap.onClose = fn; },
     hideTacticalMap() { tacticalMap.hide(); },
     setMapImage(rel) { tacticalMap.setImage((import.meta.env.BASE_URL || '/') + rel); },
     confirm: null, // set below

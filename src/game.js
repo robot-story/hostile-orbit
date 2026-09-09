@@ -55,6 +55,7 @@ export class Game {
     events.on('objective:banner', (b) => this.menus?.banner(b.title, b.sub));
     events.on('hud:interact', (d) => { if (!this.menus) return; if (d) this.menus.showInteract(`[${keyLabel(settings.data.binds.interact)}] ${d.text}`, d.progress); else this.menus.hideInteract(); });
     events.on('fx:shake', (a) => this.localPlayer?.cam.shake(a));
+    events.on('hud:map-toggle', () => this.toggleTacticalMap());
     events.on('fx:flash', (v) => this.renderer.whiteFlash(v));
     events.on('player:damaged', ({ dmg }) => { if (dmg > 0) this.renderer.damageFlash(Math.min(0.9, dmg / 40)); });
     events.on('player:heal', () => this.renderer.healFlash(0.5));
@@ -76,6 +77,7 @@ export class Game {
     this._fps(settings.data.showFps);
     this._buildBackgroundLayer();
     this.menus = createMenus(this._buildApi(), this.ui);
+    this.menus.onTacticalMapClose(() => this.toggleTacticalMap(false));
     if (new URLSearchParams(location.search).has('showcase')) { startShowcase(this); this.loop(); this.startWatchdog(); return; }
     this._buildBoot();
     this.loop();
@@ -252,6 +254,7 @@ export class Game {
     const p = M(dz.mapX, dz.mapY, 0); const slot = net.slot || 0; p.x += (slot === 1 ? -3.5 : slot === 2 ? 3.5 : 0); p.z += slot ? 2.5 : 0; const w = this.world.nav.nearestWalkable(p.x, p.z, 20) || p; p.set(w.x, 0, w.z); p.y = this.world.groundHeight(p.x, p.z); return p;
   }
   async startDeployment(config) {
+    config.map = config.map || save.profile.loadout.map || DEFAULT_MAP;
     this.lastConfig = config;
     save.setLoadout({ ...config.loadout, difficulty: config.difficulty, dropZone: config.dropZone, map: config.map || save.profile.loadout.map || DEFAULT_MAP });
     this.menus.hide(); this.setBackground(null);
@@ -337,18 +340,45 @@ export class Game {
     this.dropT = 0; this.dropOverlay = overlay;
     s.hud.show(false);
   }
+  /** Live pins for the tactical map (map coords). */
+  tacticalMapState(s) {
+    const mp = (v) => { const m = worldToMap(v.x, v.z); return [m.mx, m.my]; };
+    const p = s.player; const pm = worldToMap(p.position.x, p.position.z);
+    const pins = [];
+    const L = this.world.map.locations, lv = this.world.level, mission = s.mission;
+    if (s.hud.objMarker?.pos) pins.push({ xy: mp(s.hud.objMarker.pos), kind: 'objective', color: s.hud.objMarker.color, label: s.hud.objMarker.label || 'OBJECTIVE' });
+    for (const so of Object.values(mission.side || {})) (so.positions || []).forEach((sp, k) => pins.push({ xy: mp(sp), kind: 'side', label: k === 0 ? so.name : '' }));
+    for (const it of mission.interactables.values()) if (it.marker && it.id.startsWith('pickup') && (!it.condition || it.condition(p))) pins.push({ xy: mp(it.position), kind: 'pickup', label: it.label.replace(/^TAKE /, '') });
+    if (lv.extraction?.center) pins.push({ xy: mp(lv.extraction.center), kind: 'extract', label: 'EXTRACTION' });
+    pins.push({ xy: mp(L.dropZone.pos), kind: 'drop', label: 'DROP ZONE' });
+    const players = this.players || [];
+    for (const e of (s.director?.enemies || [])) {
+      if (e.dead) continue;
+      if (e.type?.ally) { pins.push({ xy: mp(e.position), kind: 'ally' }); continue; }
+      let near = e.alert > 0.2 || e.isBoss; if (!near) for (const pl of players) if (pl.position.distanceTo(e.position) < 70) { near = true; break; }
+      if (near) pins.push({ xy: mp(e.position), kind: e.isBoss ? 'boss' : e.typeId === 'drone' ? 'drone' : 'enemy', label: e.isBoss ? 'WARDEN' : '' });
+    }
+    const mates = players.filter((pl) => pl !== p && !pl.dead).map((pl) => ({ xy: mp(pl.position), color: pl.color, name: pl.name }));
+    return { player: { x: pm.mx, y: pm.my, yaw: p.cam.yaw }, mates, pins };
+  }
+  toggleTacticalMap(force) {
+    if (this.mode !== 'play') return;
+    this.mapOpen = force != null ? force : !this.mapOpen;
+    if (this.mapOpen) { this.menus.setTacticalMapTitle(this.world?.map?.name || ''); input.releaseLock(); }
+    else this.menus.hideTacticalMap();
+  }
   updateLockHint() {
     if (!this.lockHint) { this.lockHint = document.createElement('div'); this.lockHint.id = 'lockhint'; this.lockHint.textContent = 'CLICK TO ENGAGE CONTROLS'; this.ui.appendChild(this.lockHint); }
-    const need = this.mode === 'play' && !input.locked && !input.lockUnavailable;
-    this.cursorEl?.classList.toggle('hidden', this.mode === 'play' || this.mode === 'drop' || input.locked);
+    const need = this.mode === 'play' && !input.locked && !input.lockUnavailable && !this.mapOpen;
+    this.cursorEl?.classList.toggle('hidden', ((this.mode === 'play' && !this.mapOpen) || this.mode === 'drop' || input.locked));
     if (!need && this.lockHint.classList.contains('on')) this.lockHint.classList.remove('on');
     this.lockHint.classList.toggle('on', need);
   }
   // ---------------- pause / end ----------------
   onKey(code) {
     if (code === 'F10') { this.god = !this.god; this.menus?.toast(this.god ? 'GOD MODE ON' : 'GOD MODE OFF', 'warn'); }
-    if (code === 'Escape') { if (this.mode === 'play') this.pause(); else if (this.mode === 'pause') this.resume(); }
-    if (code === (settings.data.binds.map || 'KeyM') && (this.mode === 'play')) { this.mapOpen = !this.mapOpen; if (!this.mapOpen) this.menus.hideTacticalMap(); }
+    if (code === 'Escape') { if (this.mode === 'play' && this.mapOpen) this.toggleTacticalMap(false); else if (this.mode === 'play') this.pause(); else if (this.mode === 'pause') this.resume(); }
+    if (code === (settings.data.binds.map || 'KeyM') && (this.mode === 'play')) this.toggleTacticalMap();
   }
   pause() {
     if (this.mode !== 'play') return;
@@ -429,7 +459,7 @@ export class Game {
         s.hud.update(s.player, this, dt);
         this.updateLockHint();
         this.renderer.fx.lowHealth = s.player.health < 30 && !s.player.dead ? 1 - s.player.health / 30 : 0;
-        if (this.mapOpen) { const pm = worldToMap(s.player.position.x, s.player.position.z); const om = s.mission.markers.length && s.hud.objMarker?.pos ? worldToMap(s.hud.objMarker.pos.x, s.hud.objMarker.pos.z) : null; this.menus.showTacticalMap({ x: pm.mx, y: pm.my, yaw: s.player.cam.yaw }, om ? { x: om.mx, y: om.my } : null, []); }
+        if (this.mapOpen) this.menus.showTacticalMap(this.tacticalMapState(s));
       } else if (this.mode === 'drop') {
         this.time += dt; this.updateDrop(dt); s.director.update(dt); s.projectiles.update(dt); s.mission.update(dt); s.abilities.update(dt); s.netsync?.update(dt);
       } else if (this.mode === 'pause' || this.mode === 'results') {

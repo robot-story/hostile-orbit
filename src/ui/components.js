@@ -378,31 +378,48 @@ export class InteractPrompt {
 export class TacticalMapOverlay {
   constructor(root, mapUrl) {
     this.el = el('div', { class: 'tac-map' }, [
+      el('div', { class: 'tac-map-head' }, [
+        el('div', { class: 'tac-map-title' }, [el('span', { class: 'tm-kicker', text: 'TACTICAL MAP' }), el('span', { class: 'tm-name', text: '' })]),
+        el('div', { class: 'tac-legend' }, [
+          el('span', { class: 'lg you', text: 'YOU' }), el('span', { class: 'lg mate', text: 'SQUAD' }), el('span', { class: 'lg obj', text: 'OBJECTIVE' }),
+          el('span', { class: 'lg side', text: 'SIDE OP' }), el('span', { class: 'lg enemy', text: 'HOSTILE' }), el('span', { class: 'lg extract', text: 'EXTRACTION' }),
+        ]),
+        el('button', { class: 'tac-close', type: 'button', text: 'CLOSE  [M]' }),
+      ]),
       el('div', { class: 'tac-map-inner' }, [
         el('img', { class: 'tac-map-img', src: mapUrl, onerror: `this.onerror=null;this.src='${(import.meta.env.BASE_URL || '/')}textures/blacksite-meridian-map.png'` }),
-        el('div', { class: 'tac-player' }),
-        el('div', { class: 'tac-objective' }),
+        el('div', { class: 'tac-grid' }),
+        el('div', { class: 'tac-pins' }),
         el('div', { class: 'tac-teammates' }),
+        el('div', { class: 'tac-player' }),
       ]),
     ]);
     root.appendChild(this.el);
+    this.el.querySelector('.tac-close').addEventListener('click', () => this.onClose && this.onClose());
+    this._pinT = 0; this._lastKey = '';
   }
   setImage(url) { const img = this.el.querySelector('.tac-map-img'); if (img && img.getAttribute('src') !== url) img.src = url; }
-  show(playerXY, objectiveXY, teammates = []) {
-    this.el.classList.add('visible');
-    this.update(playerXY, objectiveXY, teammates);
-  }
-  update(playerXY, objectiveXY, teammates = []) {
+  setTitle(name) { const n = this.el.querySelector('.tm-name'); if (n && n.textContent !== name) n.textContent = name; }
+  show(state) { this.el.classList.add('visible'); this.update(state); }
+  /** state: { player:{x,y,yaw}, mates:[{xy,color,name}], pins:[{xy,kind,color,label}] } (map coords 0..400, my up = north) */
+  update(state = {}) {
     const toPct = ([mx, my]) => [(mx / 400) * 100, (1 - my / 400) * 100];
-    if (playerXY) { const [x, y] = toPct(playerXY); const p = this.el.querySelector('.tac-player'); p.style.left = x + '%'; p.style.top = y + '%'; }
-    if (objectiveXY) { const [x, y] = toPct(objectiveXY); const o = this.el.querySelector('.tac-objective'); o.style.left = x + '%'; o.style.top = y + '%'; }
-    const tw = this.el.querySelector('.tac-teammates');
-    tw.innerHTML = '';
-    teammates.forEach((t, i) => {
-      const [x, y] = toPct(t.xy);
-      const d = el('div', { class: 'tac-mate', style: { left: x + '%', top: y + '%', background: t.color || '#fff' } });
-      tw.appendChild(d);
-    });
+    const p = state.player;
+    if (p) { const [x, y] = toPct([p.x, p.y]); const pe = this.el.querySelector('.tac-player'); pe.style.left = x + '%'; pe.style.top = y + '%'; pe.style.transform = `translate(-50%, -50%) rotate(${-p.yaw}rad)`; }
+    const mates = state.mates || []; const tw = this.el.querySelector('.tac-teammates');
+    const mkey = mates.map((t) => t.xy.map((v) => v.toFixed(0)).join(',') + t.color).join('|');
+    if (mkey !== this._mkey) { this._mkey = mkey; tw.innerHTML = ''; for (const t of mates) { const [x, y] = toPct(t.xy); tw.appendChild(el('div', { class: 'tac-mate', style: { left: x + '%', top: y + '%', background: t.color || '#fff', boxShadow: `0 0 8px ${t.color || '#fff'}` }, title: t.name || '' }, [el('span', { class: 'tac-lbl', text: t.name || '' })])); } }
+    const pins = state.pins || [];
+    const key = pins.map((q) => q.kind + q.xy.map((v) => v.toFixed(0)).join(',')).join('|');
+    if (key !== this._lastKey) {
+      this._lastKey = key;
+      const pw = this.el.querySelector('.tac-pins'); pw.innerHTML = '';
+      for (const q of pins) {
+        const [x, y] = toPct(q.xy);
+        const node = el('div', { class: `tac-pin ${q.kind}`, style: { left: x + '%', top: y + '%' } }, [el('i', { style: q.color ? { borderColor: q.color, background: q.color + '33' } : {} }), q.label ? el('span', { class: 'tac-lbl', text: q.label }) : null]);
+        pw.appendChild(node);
+      }
+    }
   }
   hide() { this.el.classList.remove('visible'); }
 }

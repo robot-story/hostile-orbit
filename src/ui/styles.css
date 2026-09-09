@@ -130,3 +130,36 @@ html, body, #app, #ui, #gl { cursor: none !important; }
   .main-title { font-size: 36px; }
   .main-menu-list .menu-btn { min-height: 34px; padding: 6px 18px; font-size: 16px; }
 }
+
+/* Live tactical map */
+#ui > .tac-map { background: rgba(3,5,8,0.9) !important; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; box-sizing: border-box; }
+#ui > .tac-map.visible { pointer-events: auto; }
+.tac-map-head { width: min(92vw, calc((100vh - 120px) / 0.82)); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.tac-map-title { display: flex; flex-direction: column; }
+.tac-map-title .tm-kicker { font-size: 11px; letter-spacing: 0.3em; color: var(--yellow); }
+.tac-map-title .tm-name { font-family: var(--font-title); font-size: 18px; letter-spacing: 0.06em; color: #fff; }
+.tac-legend { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--mono); font-size: 10px; letter-spacing: 0.15em; color: var(--muted); }
+.tac-legend .lg::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; transform: rotate(45deg); border: 1px solid currentColor; }
+.tac-legend .you { color: #fff; } .tac-legend .mate { color: #ffb020; } .tac-legend .obj { color: #00e5ff; } .tac-legend .side { color: #ffb020; } .tac-legend .enemy { color: #ff5a1f; } .tac-legend .extract { color: #3dff9a; }
+.tac-close { background: rgba(0,0,0,0.5); border: 1px solid var(--border-strong); color: var(--text); font-family: var(--font); font-size: 12px; letter-spacing: 0.2em; padding: 8px 14px; cursor: pointer; }
+.tac-close:hover { border-color: var(--yellow); color: var(--yellow); }
+#ui > .tac-map .tac-map-inner { position: relative; width: min(92vw, calc((100vh - 120px) / 0.82)); aspect-ratio: 1 / 0.82; border: 1px solid var(--border-strong); overflow: hidden; background: #08090b; }
+#ui > .tac-map .tac-map-img { position: absolute; inset: 0; width: 100% !important; height: 100% !important; object-fit: fill !important; filter: saturate(0.6) brightness(0.85); }
+.tac-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 10% 10%; pointer-events: none; }
+.tac-pin { position: absolute; width: 16px; height: 16px; transform: translate(-50%, -50%); pointer-events: none; }
+.tac-pin i { position: absolute; inset: 3px; border: 2px solid #00e5ff; background: rgba(0,229,255,0.2); transform: rotate(45deg); box-shadow: 0 0 8px rgba(0,229,255,0.6); }
+.tac-pin .tac-lbl, .tac-mate .tac-lbl { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; color: #fff; background: rgba(0,0,0,0.65); padding: 1px 5px; }
+.tac-pin.objective i { animation: tacPulse 1.4s ease-in-out infinite; }
+.tac-pin.side i { border-color: #ffb020; background: rgba(255,176,32,0.2); box-shadow: 0 0 8px rgba(255,176,32,0.6); border-style: dashed; }
+.tac-pin.pickup i { border-color: #ffb020; background: rgba(255,176,32,0.15); box-shadow: none; inset: 5px; }
+.tac-pin.enemy i { border-color: #ff5a1f; background: rgba(255,90,31,0.35); box-shadow: 0 0 6px rgba(255,90,31,0.7); inset: 5px; border-radius: 50%; transform: none; }
+.tac-pin.boss i { border-color: #ff3b1f; background: rgba(255,59,31,0.5); inset: 1px; transform: none; }
+.tac-pin.drone i { border-color: #ff5a1f; background: rgba(255,90,31,0.25); inset: 4px; transform: none; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.tac-pin.extract i { border-color: #3dff9a; background: rgba(61,255,154,0.2); box-shadow: 0 0 10px rgba(61,255,154,0.6); }
+.tac-pin.drop i { border-color: rgba(255,255,255,0.5); background: transparent; box-shadow: none; }
+.tac-pin.ally i { border-color: #3dff9a; background: rgba(61,255,154,0.3); inset: 5px; border-radius: 50%; transform: none; box-shadow: none; }
+#ui > .tac-map .tac-mate { position: absolute; width: 10px; height: 10px; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid #fff; }
+#ui > .tac-map .tac-player { position: absolute; width: 0; height: 0; transform: translate(-50%, -50%); }
+#ui > .tac-map .tac-player::before { content: ''; position: absolute; left: -7px; top: -9px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 16px solid #fff; filter: drop-shadow(0 0 6px #00e5ff); }
+#ui > .tac-map .tac-objective { display: none; }
+@keyframes tacPulse { 0%, 100% { box-shadow: 0 0 6px rgba(0,229,255,0.5); } 50% { box-shadow: 0 0 16px rgba(0,229,255,1); } }

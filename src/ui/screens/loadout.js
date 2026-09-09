@@ -138,7 +138,7 @@ export function createLoadoutScreen(api, mgr) {
             if (isHost()) api.mp.start();
             else api.mp.setReady(true);
           } else {
-            api.startDeployment({ difficulty: api.save.profile.loadout.difficulty, dropZone: api.save.profile.loadout.dropZone, loadout });
+            api.startDeployment({ difficulty: api.save.profile.loadout.difficulty, dropZone: api.save.profile.loadout.dropZone, map: api.save.profile.loadout.map, loadout });
           }
         },
       }),

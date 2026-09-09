@@ -38,7 +38,8 @@ export class Hud {
       <div class="hud-br"><div class="ammo"><div class="wicon"></div><div class="wname"></div><div class="count"><b class="mag">30</b><span class="res">/ 180</span></div><div class="pips"></div></div><div class="kit"><span class="gren"><i class="ico g"></i><b>4</b></span><span class="inj"><i class="ico h"></i><b>4</b></span></div></div>
       <div class="marked">TARGET MARKED — REINFORCEMENTS INBOUND</div>
       <div class="sniperscope"><div class="hole"></div><div class="ring"></div><div class="h"></div><div class="v"></div><div class="rl">LONGSHOT // 4.2x</div></div>
-      <div class="godmode">GOD MODE</div>`;
+      <div class="godmode">GOD MODE</div>
+      <button class="mapbtn" type="button"><i></i>TAC MAP <span>M</span></button>`;
     root.appendChild(this.el);
     const css = document.createElement('style');
     css.textContent = `
@@ -133,6 +134,7 @@ export class Hud {
       #hud.reloading .count b{color:var(--amber)} #hud.lowammo .count b{color:var(--red)}
       #hud .marked{position:absolute;left:50%;top:96px;transform:translateX(-50%);color:var(--red);font-size:12px;letter-spacing:.3em;opacity:0;transition:opacity .3s;text-shadow:0 0 8px var(--red)}
       #hud .marked.on{opacity:1;animation:tpulse 1s infinite}
+      #hud .mapbtn{position:absolute;right:16px;top:34px;pointer-events:auto;display:flex;align-items:center;gap:8px;background:rgba(0,10,16,.55);border:1px solid rgba(0,229,255,.4);color:var(--cyan);font-family:var(--font);font-size:11px;letter-spacing:.25em;padding:6px 10px;cursor:pointer} #hud .mapbtn i{width:8px;height:8px;border:1px solid var(--cyan);transform:rotate(45deg)} #hud .mapbtn span{font-family:var(--mono);background:rgba(0,229,255,.15);padding:1px 5px;font-size:10px} #hud .mapbtn:hover{background:rgba(0,229,255,.15)}
       #hud .godmode{position:absolute;right:16px;top:12px;font-size:11px;letter-spacing:.3em;color:var(--amber);opacity:.7;display:none}
       #hud.god .godmode{display:block}
       #hud .sniperscope{position:absolute;left:0;top:0;width:100%;height:100%;display:none;pointer-events:none;overflow:hidden}
@@ -150,6 +152,7 @@ export class Hud {
     this.lives = 4; this.maxLives = 4; this.setLives(4, 4);
     this.buildAbilities(); this.buildCompass();
     this.objMarker = null; this.alertLevel = 0; this.enemiesRef = null; this.playersRef = null;
+    this.el.querySelector('.mapbtn').addEventListener('click', () => events.emit('hud:map-toggle'));
     this._unsub = [
       events.on('hud:hitmarker', (m) => this.hitMarker(m)),
       events.on('player:damaged', ({ from }) => this.damageDir(from)),
@@ -234,7 +237,7 @@ export class Hud {
     if (grad) { grad.addColorStop(0, 'rgba(0,229,255,0)'); grad.addColorStop(0.85, 'rgba(0,229,255,0)'); grad.addColorStop(1, 'rgba(0,229,255,0.25)'); c.fillStyle = grad; c.beginPath(); c.arc(R, R, R, 0, Math.PI * 2); c.fill(); }
     // view cone
     c.fillStyle = 'rgba(0,229,255,0.08)'; c.beginPath(); c.moveTo(R, R); c.arc(R, R, R, -Math.PI / 2 - 0.55, -Math.PI / 2 + 0.55); c.closePath(); c.fill();
-    const toRadar = (x, z) => { const dx = x - player.position.x, dz = z - player.position.z; const rx = dx * Math.cos(yaw) + dz * Math.sin(yaw); const rz = -dx * Math.sin(yaw) + dz * Math.cos(yaw); return { x: R + rx / range * R, y: R + rz / range * R, d: Math.hypot(dx, dz) }; };
+    const toRadar = (x, z) => { const dx = x - player.position.x, dz = z - player.position.z; const rx = dx * Math.cos(yaw) - dz * Math.sin(yaw); const rz = dx * Math.sin(yaw) + dz * Math.cos(yaw); return { x: R + rx / range * R, y: R + rz / range * R, d: Math.hypot(dx, dz) }; };
     // enemies
     const enemies = game?.director?.enemies || [];
     for (const e of enemies) {
@@ -248,7 +251,7 @@ export class Hud {
       else if (drone) { c.moveTo(p.x, p.y - 5); c.lineTo(p.x + 5, p.y + 4); c.lineTo(p.x - 5, p.y + 4); c.closePath(); }
       else { c.arc(p.x, p.y, alert ? 4 : 3, 0, Math.PI * 2); }
       c.fill(); c.shadowBlur = 0;
-      if (alert && !boss) { const fy = e.yaw ?? 0; const fx = -Math.sin(fy), fz = -Math.cos(fy); const rx = fx * Math.cos(yaw) + fz * Math.sin(yaw), rz = -fx * Math.sin(yaw) + fz * Math.cos(yaw); c.strokeStyle = 'rgba(255,90,31,0.8)'; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x + rx * 9, p.y + rz * 9); c.stroke(); }
+      if (alert && !boss) { const fy = e.yaw ?? 0; const fx = -Math.sin(fy), fz = -Math.cos(fy); const rx = fx * Math.cos(yaw) - fz * Math.sin(yaw), rz = fx * Math.sin(yaw) + fz * Math.cos(yaw); c.strokeStyle = 'rgba(255,90,31,0.8)'; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x + rx * 9, p.y + rz * 9); c.stroke(); }
     }
     // rescued allies / teammates
     for (const e of enemies) if (e.type?.ally && !e.dead) { const p = toRadar(e.position.x, e.position.z); if (p.d > range) continue; c.fillStyle = '#3dff9a'; c.beginPath(); c.arc(p.x, p.y, 3.5, 0, Math.PI * 2); c.fill(); }

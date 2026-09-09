@@ -165,25 +165,33 @@ export class CharacterAnimator {
     // damp current toward target
     const k = 1 - Math.exp(-blend * dt);
     for (const n of BONE_NAMES) { const c = this.cur[n], t = T[n]; c[0] += (t[0] - c[0]) * k; c[1] += (t[1] - c[1]) * k; c[2] += (t[2] - c[2]) * k; }
-    this.rootY = damp(this.rootY, rootTarget, 10, dt);
+    this.rootY = damp(this.rootY, rootTarget - (this.land || 0) * 0.22, 10, dt);
     this.lean = damp(this.lean, leanTarget, 10, dt);
     // gait
     this.speed = damp(this.speed, s.speed, 10, dt);
     this.strafe = damp(this.strafe, s.strafe || 0, 10, dt);
     this.forward = damp(this.forward, s.forward ?? 1, 10, dt);
+    // continuous move direction in body space (x = right, z = forward), so legs step where the body is going
+    this.mdx = damp(this.mdx ?? 0, s.moveDir?.x ?? 0, 9, dt);
+    this.mdz = damp(this.mdz ?? 1, s.moveDir?.z ?? 1, 9, dt);
+    this.accelLean = damp(this.accelLean ?? 0, s.accel || 0, 8, dt);
+    this.turnLean = damp(this.turnLean ?? 0, s.turn || 0, 8, dt);
+    this.land = damp(this.land ?? 0, s.land || 0, s.land ? 30 : 6, dt);
+    this.turnShuffle = damp(this.turnShuffle ?? 0, s.turning ? 1 : 0, 10, dt);
     const stride = s.sprint > 0.8 ? 1.6 : (s.sprint > 0.3 ? 1.4 : (s.crouch > 0.5 ? 1.0 : 1.25));
     const freq = (s.sprint > 0.8 ? 11.5 : s.sprint > 0.3 ? 9.8 : 8.5) * (s.crouch > 0.5 ? 0.85 : 1);
-    if (this.speed > 0.02 && !s.dead && s.roll == null && s.vault == null) this.phase += dt * freq * clamp(this.speed, 0.35, 1);
+    if ((this.speed > 0.02 || this.turnShuffle > 0.2) && !s.dead && s.roll == null && s.vault == null) this.phase += dt * (this.speed > 0.02 ? freq * clamp(this.speed, 0.35, 1) : 6 * this.turnShuffle);
     // servo gait: sharpened sine so legs snap between poses like actuators, with a short dwell
     const rawSw = Math.sin(this.phase);
     const sw = Math.sign(rawSw) * Math.pow(Math.abs(rawSw), 0.55), sw2 = Math.sin(this.phase * 2);
     const amp = this.speed * stride * (s.cover ? 0.45 : 1) * 0.9;
-    const dirSign = this.forward >= 0 ? 1 : -1;
-    // apply legs gait (additive)
-    const legSwing = amp * 0.55 * dirSign;
+    // fore/aft swing follows the forward component; sideways stepping follows the strafe component
+    const legSwing = amp * 0.55 * (Math.abs(this.mdz) < 0.15 ? 0.15 * Math.sign(this.mdz || 1) : this.mdz);
+    const sideStep = amp * 0.5 * this.mdx;
+    const shuffle = this.turnShuffle * 0.12;
     const thighL = this.cur.thighL, thighR = this.cur.thighR, shinL = this.cur.shinL, shinR = this.cur.shinR;
     const bendL = Math.max(0, -sw) * amp * 0.9, bendR = Math.max(0, sw) * amp * 0.9;
-    const strafeSpread = this.strafe * amp * 0.35;
+    const strafeSpread = this.strafe * amp * 0.15;
     // arms counter-swing slightly (weapon held, so subtle) + torso twist
     const armSwing = amp * 0.12;
     this.bobAmp = damp(this.bobAmp, amp, 8, dt);
@@ -197,22 +205,25 @@ export class CharacterAnimator {
     const B = this.bones;
     const set = (name, x, y, z) => { B[name].rotation.set(x, y, z); };
     const c = this.cur;
-    set('spine', c.spine[0] + this.hit * 0.25 + breathe, c.spine[1] + sw * amp * 0.06 + this.hit * this.hitDir * 0.2, c.spine[2] + this.lean * 0.5 + this.strafe * amp * 0.05);
+    const sway = Math.sin(this.breath * 0.6) * 0.012 * (1 - this.speed); // idle weight shift
+    const fz = -this.mdz; // body-space forward is -z
+    const fwdLean = -this.speed * (s.sprint > 0.8 ? 0.10 : 0.04) * Math.max(0, fz) + this.speed * 0.05 * Math.max(0, -fz) - this.accelLean * 0.14 + this.land * 0.22;
+    set('spine', c.spine[0] + this.hit * 0.25 + breathe + fwdLean, c.spine[1] + sw * amp * 0.06 + this.hit * this.hitDir * 0.2 + this.mdx * this.speed * 0.2, c.spine[2] + this.lean * 0.5 + this.strafe * amp * 0.05 - this.mdx * this.speed * 0.09 - this.turnLean * 0.16 * this.speed + sway);
     set('chest', c.chest[0] - this.aimPitch * 0.55 * (s.aim > 0 || s.cover ? 1 : 0.5) + this.recoil * 0.4 + breathe, c.chest[1] - sw * amp * 0.08, c.chest[2] + this.lean * 0.5);
     set('neck', c.neck[0], c.neck[1], c.neck[2]);
     // head is gyro-stabilised: counter the torso sway instead of following it
-    set('head', c.head[0] - this.aimPitch * 0.25 + this.hit * 0.3, c.head[1] - sw * amp * 0.06, c.head[2] - this.lean * 0.4 - this.lean * 0.5);
+    set('head', c.head[0] - this.aimPitch * 0.25 + this.hit * 0.3 - fwdLean * 0.6, c.head[1] - sw * amp * 0.06 - this.mdx * this.speed * 0.2, c.head[2] - this.lean * 0.4 - this.lean * 0.5 + this.mdx * this.speed * 0.09 + this.turnLean * 0.12 * this.speed);
     set('upperArmL', c.upperArmL[0] - this.recoil * 0.6 + armSwing * sw, c.upperArmL[1], c.upperArmL[2]);
     set('forearmL', c.forearmL[0] - this.recoil * 0.5, c.forearmL[1], c.forearmL[2]);
     set('handL', c.handL[0], c.handL[1], c.handL[2]);
     set('upperArmR', c.upperArmR[0] - this.recoil * 0.8 - armSwing * sw, c.upperArmR[1], c.upperArmR[2]);
     set('forearmR', c.forearmR[0] - this.recoil * 0.4, c.forearmR[1], c.forearmR[2]);
     set('handR', c.handR[0], c.handR[1], c.handR[2]);
-    set('thighL', thighL[0] - sw * legSwing, thighL[1], thighL[2] - strafeSpread);
-    set('shinL', shinL[0] + bendL, shinL[1], shinL[2]);
+    set('thighL', thighL[0] - sw * legSwing + this.land * 0.55 + Math.max(0, sw) * shuffle, thighL[1], thighL[2] - strafeSpread - sw * sideStep);
+    set('shinL', shinL[0] + bendL + this.land * 0.9 + Math.max(0, sw) * shuffle * 1.6, shinL[1], shinL[2]);
     set('footL', c.footL[0] + Math.max(0, -sw) * amp * -0.3, c.footL[1], c.footL[2]);
-    set('thighR', thighR[0] + sw * legSwing, thighR[1], thighR[2] + strafeSpread);
-    set('shinR', shinR[0] + bendR, shinR[1], shinR[2]);
+    set('thighR', thighR[0] + sw * legSwing + this.land * 0.55 + Math.max(0, -sw) * shuffle, thighR[1], thighR[2] + strafeSpread - sw * sideStep);
+    set('shinR', shinR[0] + bendR + this.land * 0.9 + Math.max(0, -sw) * shuffle * 1.6, shinR[1], shinR[2]);
     set('footR', c.footR[0] + Math.max(0, sw) * amp * -0.3, c.footR[1], c.footR[2]);
     B.root.position.y = 0.98 + this.rootY + bob;
     if (s.roll != null) { const k = Math.min(1, s.roll); B.root.rotation.set(-k * Math.PI * 2, 0, 0); B.root.scale.setScalar(1); }

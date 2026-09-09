@@ -107,8 +107,16 @@ export class Player {
     this.idleT = idle ? (this.idleT || 0) + dt : 0;
     const weaponLow = clamp(((this.idleT || 0) - 1.4) / 0.7, 0, 0.75);
     const local = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), -this.yaw);
+    const llen = Math.hypot(local.x, local.z) || 1;
+    const prevSpeed = this._prevSpeedN ?? speedN; this._prevSpeedN = speedN;
+    const accelN = clamp((speedN - prevSpeed) / Math.max(dt, 1e-3) / 3, -1, 1);
+    this._accelS = damp(this._accelS || 0, accelN, 8, dt);
+    const prevYaw = this._prevYaw ?? this.yaw; this._prevYaw = this.yaw;
+    const turnN = clamp(angleDiff(prevYaw, this.yaw) / Math.max(dt, 1e-3) / 5, -1, 1);
+    this._turnS = damp(this._turnS || 0, turnN, 8, dt);
+    this.landT = Math.max(0, (this.landT || 0) - dt);
     const s = {
-      speed: this.state === 'cover' ? speedN * 0.6 : speedN, strafe: clamp(local.x / 4, -1, 1), forward: local.z >= -0.3 ? 1 : -1,
+      speed: this.state === 'cover' ? speedN * 0.6 : speedN, strafe: clamp(local.x / 4, -1, 1), forward: local.z >= -0.3 ? 1 : -1, moveDir: { x: speedN > 0.03 ? local.x / llen : 0, z: speedN > 0.03 ? local.z / llen : 1 }, accel: this._accelS, turn: this._turnS, land: this.landT > 0 ? this.landT / 0.5 : 0, turning: !!this.turning,
       sprint: this.sprinting && speedN > 0.3 ? 1 : (speedN > 0.35 && !this.aiming && !this.crouching && this.state === 'normal' ? 0.55 : 0), crouch: this.crouching ? 1 : 0, aim: this.aiming ? 1 : 0,
       cover: this.state === 'cover' ? { high: this.cover.height === 'high', peek: this.peek, over: this.cover.height === 'low', blind: this.blindFiring } : null,
       roll: this.state === 'roll' ? this.stateT / 0.62 : null, transform: (this.state === 'cover' && this.stateT < 0.42) ? this.stateT / 0.42 : (this.transformT > 0 ? 1 - this.transformT / 0.42 : null), vault: this.state === 'vault' ? this.stateT / 0.7 : null,
@@ -137,8 +145,11 @@ export class Player {
     const target = wish.clone().multiplyScalar(max);
     const accel = this.grounded ? 22 : (this.jet ? 14 : 6);
     this.velocity.x = damp(this.velocity.x, target.x, accel * 0.5, dt); this.velocity.z = damp(this.velocity.z, target.z, accel * 0.5, dt);
-    if (this.aiming || this.trigger) this.faceCamera(dt, 16);
-    else if (ax.active) this.yaw = angleDamp(this.yaw, Math.atan2(-wish.x, -wish.z), 12, dt);
+    // Facing: sprint turns the body into the run direction; every other movement strafes (body faces the camera);
+    // standing still only turns in place once the camera has swung far enough (no constant spinning).
+    if (this.sprinting && ax.active) { this.turning = false; this.yaw = angleDamp(this.yaw, Math.atan2(-wish.x, -wish.z), 9, dt); }
+    else if (this.aiming || this.trigger || ax.active) { this.turning = false; this.faceCamera(dt, ax.active ? 13 : 16); }
+    else { const d = Math.abs(angleDiff(this.yaw, this.cam.yaw)); if (d > 1.05) this.turning = true; if (this.turning) { this.yaw = angleDamp(this.yaw, this.cam.yaw, 7, dt); if (d < 0.06) this.turning = false; } }
     if (input.pressed('roll') && ax.active) { this.state = 'roll'; this.stateT = 0; this.rollDir = wish.clone().normalize(); this.yaw = Math.atan2(-this.rollDir.x, -this.rollDir.z); this.aiming = false; audio.play('roll', { pos: this.position }); }
     // Space: tap = cover/vault, hold = jetpack thrust
     if (input.down('cover')) this.spaceHeld += dt; else { if (this.spaceHeld > 0 && this.spaceHeld < 0.22 && !this.jet) this.tryCoverOrVault(wish); this.spaceHeld = 0; }
@@ -247,7 +258,7 @@ export class Player {
     const g = this.world.groundHeight(this.position.x, this.position.z, this.position.y, 0.55, this.radius);
     this.vy -= (this.jet ? 6 : 22) * dt;
     let y = this.position.y + this.vy * dt;
-    if (y <= g + 0.02 && !(this.jet && this.vy > 0)) { y = this.grounded ? damp(this.position.y, g, 30, dt) : g; if (!this.grounded) { if (this.vy < -6) audio.play('land', { pos: this.position }); this.fx?.dust?.(this.position.clone(), Math.min(3, -this.vy * 0.3 + 0.5)); } this.grounded = true; this.vy = 0; if (g - this.position.y > 0.05) y = damp(this.position.y, g, 25, dt); }
+    if (y <= g + 0.02 && !(this.jet && this.vy > 0)) { y = this.grounded ? damp(this.position.y, g, 30, dt) : g; if (!this.grounded) { this.landT = Math.min(0.5, Math.max(0.16, -this.vy * 0.05)); if (this.vy < -6) audio.play('land', { pos: this.position }); this.fx?.dust?.(this.position.clone(), Math.min(3, -this.vy * 0.3 + 0.5)); } this.grounded = true; this.vy = 0; if (g - this.position.y > 0.05) y = damp(this.position.y, g, 25, dt); }
     else this.grounded = y - g < 0.15;
     if (this.grounded && y < g) y = g;
     this.position.y = y;
