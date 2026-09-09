@@ -84,10 +84,7 @@ export class Game {
   setFullscreen(on) { try { if (on && !document.fullscreenElement) document.documentElement.requestFullscreen(); else if (!on && document.fullscreenElement) document.exitFullscreen(); } catch { /* ignore */ } }
   _buildBackgroundLayer() {
     const bg = document.createElement('div'); bg.id = 'menubg';
-    bg.innerHTML = `<div class="img a"></div><div class="img b"></div><div class="aurora"></div><div class="fleet"></div><div class="glow"></div><div class="dust"></div><div class="scan"></div>`;
-    // drifting fleet silhouettes across the window region
-    const fleet = bg.querySelector('.fleet');
-    for (let i = 0; i < 7; i++) { const s = document.createElement('i'); s.style.setProperty('--y', `${18 + Math.random() * 30}%`); s.style.setProperty('--d', `${70 + Math.random() * 60}s`); s.style.setProperty('--s', `${0.5 + Math.random() * 0.9}`); s.style.setProperty('--delay', `${-Math.random() * 90}s`); fleet.appendChild(s); }
+    bg.innerHTML = `<div class="img a"></div><div class="img b"></div><div class="aurora"></div><div class="glow"></div><div class="dust"></div><div class="scan"></div>`;
     // mouse parallax
     window.addEventListener('mousemove', (e) => { if (!bg.classList.contains('on')) return; const x = (e.clientX / window.innerWidth - 0.5), y = (e.clientY / window.innerHeight - 0.5); bg.style.setProperty('--px', `${-x * 14}px`); bg.style.setProperty('--py', `${-y * 8}px`); });
     this.canvas.insertAdjacentElement('afterend', bg);
@@ -98,11 +95,6 @@ export class Game {
       #menubg .img{position:absolute;inset:-4%;background-size:cover;background-position:center;opacity:0;transition:opacity .9s ease;animation:kb 40s ease-in-out infinite alternate;translate:var(--px,0) var(--py,0)}
       #menubg .aurora{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(120,60,255,.10) 42%,rgba(0,255,190,.12) 50%,rgba(120,60,255,.08) 58%,transparent 70%);background-size:220% 100%;mix-blend-mode:screen;animation:aurora 14s ease-in-out infinite alternate;opacity:.8}
       @keyframes aurora{0%{background-position:0% 0;filter:hue-rotate(0deg)}100%{background-position:100% 0;filter:hue-rotate(40deg)}}
-      #menubg .fleet{position:absolute;top:0;bottom:0;left:38%;right:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
-      #menubg .fleet i{position:absolute;left:-12%;top:var(--y);width:calc(70px * var(--s));height:calc(9px * var(--s));background:linear-gradient(90deg,#0b1218,#1a232c 60%,#0b1218);border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.6);opacity:.85;animation:fleet var(--d) linear infinite;animation-delay:var(--delay);filter:blur(.3px)}
-      #menubg .fleet i::after{content:'';position:absolute;right:-4px;top:30%;width:6px;height:40%;background:#7fe9ff;box-shadow:0 0 8px #7fe9ff,0 0 16px #00e5ff}
-      #menubg .fleet i::before{content:'';position:absolute;left:30%;top:-40%;width:30%;height:40%;background:#141c24}
-      @keyframes fleet{from{transform:translateX(0)}to{transform:translateX(80vw)}}
       #menubg .img.show{opacity:1}
       @keyframes kb{0%{transform:scale(1) translate(0,0)}100%{transform:scale(1.07) translate(-1.2%,0.8%)}}
       #menubg .glow{position:absolute;inset:0;background:radial-gradient(ellipse at 70% 60%,rgba(255,120,40,.10),transparent 55%),radial-gradient(ellipse at 20% 30%,rgba(0,229,255,.10),transparent 50%);animation:glowpulse 6s ease-in-out infinite;mix-blend-mode:screen}
@@ -128,10 +120,25 @@ export class Game {
     el.style.backgroundImage = `url(${BASE}textures/menus/${name}.jpg)`; el.classList.add('show'); old.classList.remove('show');
     this.bgWhich = next;
   }
+  /** Custom reticle cursor for menus (DOM element that follows the mouse), hidden while gameplay owns the pointer. */
+  _buildCursor() {
+    const c = document.createElement('div'); c.id = 'cursor'; c.innerHTML = '<i></i>'; document.body.appendChild(c); this.cursorEl = c;
+    const move = (e) => { c.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; c.classList.add('seen'); };
+    window.addEventListener('mousemove', move, { passive: true });
+    window.addEventListener('pointerdown', (e) => {
+      c.classList.add('down'); move(e);
+      // a stale pointer lock (from a previous session) would swallow menu clicks: release it whenever we are not playing
+      if (this.mode !== 'play' && document.pointerLockElement) { try { document.exitPointerLock(); } catch { /* ignore */ } }
+    });
+    window.addEventListener('pointerup', () => c.classList.remove('down'));
+    window.addEventListener('mouseover', (e) => c.classList.toggle('hot', !!e.target.closest?.('button, a, .chip, .load-card, .wp-item, .weapon-card, .marker.selectable, .hd-tab, .tab-btn, .pill-seg, .choice-arrow, .swatch, input, select, [role=button]')));
+    events.on('input:lock', (locked) => c.classList.toggle('hidden', locked));
+  }
   _buildBoot() {
     // No authorise gate: go straight to the main menu; the audio context unlocks on the first user gesture.
     const unlock = () => { audio.init().then(() => events.emit('audio:ready')); audio.resume(); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
     window.addEventListener('pointerdown', unlock); window.addEventListener('keydown', unlock);
+    this._buildCursor();
     this.showMainMenu();
   }
   showMainMenu() {
@@ -329,6 +336,7 @@ export class Game {
   updateLockHint() {
     if (!this.lockHint) { this.lockHint = document.createElement('div'); this.lockHint.id = 'lockhint'; this.lockHint.textContent = 'CLICK TO ENGAGE CONTROLS'; this.ui.appendChild(this.lockHint); }
     const need = this.mode === 'play' && !input.locked && !input.lockUnavailable;
+    this.cursorEl?.classList.toggle('hidden', this.mode === 'play' || this.mode === 'drop' || input.locked);
     if (!need && this.lockHint.classList.contains('on')) this.lockHint.classList.remove('on');
     this.lockHint.classList.toggle('on', need);
   }

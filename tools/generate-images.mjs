@@ -93,6 +93,23 @@ async function edit(img) {
 }
 
 const only = process.argv.find(a => a.startsWith('--only='))?.slice(7)?.split(',');
+// Alien-planet backdrop set (no people, no soldiers, no text): strange glowing worlds seen from orbit or the surface.
+const PLANET = 'Cinematic photoreal wide 16:9 science-fiction vista, grounded muted palette with restrained bioluminescent accents, volumetric haze, soft orbital lighting, no people, no soldiers, no characters, no spacecraft interiors with crew, no text, no letters, no logos, no watermark. The left third of the frame is dark and quiet for menu text.';
+const PLANETS = [
+  { id: 'hero_main', prompt: `${PLANET} Seen from high orbit: a strange alien planet dominating the right of frame, burnt-orange deserts split by enormous pulsing violet and acid-green energy veins glowing beneath the crust, colossal black glass spires rising out of the surface into space, an electrical aurora arcing from the pole up into orbit, rivers of bioluminescent cloud, a shattered ring of moon debris catching the light, two grey moons, stars. Eerie, beautiful, hostile.` },
+  { id: 'operation', prompt: `${PLANET} A slow tilt-down view from low orbit over the terminator line of the alien planet: night side below with glowing violet vein networks and cyan pinpoints of outposts, the day side ahead burnt orange with black glass spires, thin luminous atmosphere rim, faint auroral curtains, calm and clinical, mostly dark below for a map overlay.` },
+  { id: 'lobby', prompt: `${PLANET} Surface view at dusk on the alien world: a vast plain of cracked orange rock with glowing acid-green veins running toward a horizon of towering black glass spires, a huge ringed gas giant rising behind them, two moons, drifting bioluminescent spores in the air, long shadows.` },
+  { id: 'armoury', prompt: `${PLANET} Inside a cavern of black volcanic glass on the alien world: crystalline walls refracting violet and cyan light, glowing green mineral veins, a still pool reflecting a shaft of orange daylight from a crack in the ceiling, mist, no structures, no people.` },
+  { id: 'record', prompt: `${PLANET} High altitude aerial view of the alien planet's canyon lands: labyrinthine burnt-orange canyons, black basalt walls, luminous violet veins threading the canyon floors like circuitry, storm clouds lit from within by green lightning, a black glass spire piercing the clouds in the distance.` },
+  { id: 'settings', prompt: `${PLANET} Close orbit over the alien planet's aurora pole: curtains of violet and green auroral light rippling above the curved horizon, the star setting behind the limb with a thin orange atmosphere glow, shattered moon fragments drifting in the foreground in shadow, deep space and stars, calm and quiet.` },
+  { id: 'results', prompt: `${PLANET} Dawn breaking over the alien world seen from a high ridge: golden-orange light spilling across the vein-lit plains, black glass spires glowing at their tips, the aurora fading, columns of smoke rising far away from a destroyed installation, two moons pale in a turquoise sky, a sense of grim victory.` },
+  { id: 'failed', prompt: `${PLANET} Night on the alien world during a violent storm: red-orange lightning tearing through black clouds over the vein-lit plains, black glass spires silhouetted, ash and embers blowing across the frame, the energy veins flaring an angry crimson, ominous and hostile.` },
+];
+if (process.argv.includes('--planets')) {
+  let k = 0; const w = 4;
+  await Promise.all(Array.from({ length: w }, async () => { while (k < PLANETS.length) { const m = PLANETS[k++]; if (only && !only.includes(m.id)) continue; try { await generate(m); } catch (err) { console.error(String(err.message)); } } }));
+  process.exit(0);
+}
 if (process.argv.includes('--edits')) {
   for (const e of EDITS) { if (only && !only.includes(e.id)) continue; try { await edit(e); } catch (err) { console.error(String(err.message)); } }
   for (const t of TEXTURES) { if (only && !only.includes(t.id)) continue; try { await generate(t); } catch (err) { console.error(String(err.message)); } }

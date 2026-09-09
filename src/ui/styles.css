@@ -106,3 +106,27 @@ button { font-family: inherit; }
 .marker.side .marker-label, .marker.side span { color: var(--khaki) !important; }
 /* Pause overlay: dim the frozen world */
 #ui .pause-screen.visible { background: rgba(4,4,5,.82); backdrop-filter: blur(2px); }
+
+/* Custom reticle cursor: the system cursor is hidden over the game and replaced by a DOM cursor (always visible in menus). */
+html, body, #app, #ui, #gl { cursor: none !important; }
+#ui button, #ui a, #ui input, #ui select, #ui [role=button] { cursor: none !important; }
+#cursor { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 10000; opacity: 0; transition: opacity 0.15s ease; }
+#cursor.seen { opacity: 1; }
+#cursor.hidden { opacity: 0; }
+#cursor i { position: absolute; left: -11px; top: -11px; width: 22px; height: 22px; box-sizing: border-box; border: 2px solid var(--yellow); transform: rotate(45deg) scale(0.62); transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease; box-shadow: 0 0 0 1px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(0,0,0,0.7); }
+#cursor i::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: var(--yellow); box-shadow: 0 0 0 1px rgba(0,0,0,0.7); }
+#cursor.hot i { transform: rotate(45deg) scale(0.9); background: rgba(242, 199, 68, 0.18); }
+#cursor.down i { transform: rotate(45deg) scale(0.5); border-color: #fff; }
+
+/* Main menu must fit short viewports (browser chrome eats ~150px at 1080p): compact list, never crop the title. */
+.main-screen { justify-content: safe center; overflow-y: auto; box-sizing: border-box; }
+@media (max-height: 980px) {
+  .main-screen { padding: 24px 0; }
+  .main-title { font-size: 44px; }
+  .main-menu-list { margin-top: 22px; gap: 0; }
+  .main-menu-list .menu-btn { min-height: 40px; padding: 8px 20px; font-size: 19px; }
+}
+@media (max-height: 760px) {
+  .main-title { font-size: 36px; }
+  .main-menu-list .menu-btn { min-height: 34px; padding: 6px 18px; font-size: 16px; }
+}
