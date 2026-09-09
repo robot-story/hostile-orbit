@@ -24,7 +24,7 @@ export function createResultsScreen(api, mgr) {
   }
 
   function render(results = {}, failed = false) {
-    root.className = `screen results-screen ${failed ? 'failed' : ''}`;
+    root.classList.toggle('failed', !!failed);
     root.innerHTML = '';
     const o = results.objectives || {};
     const coop = !!results.coop;
