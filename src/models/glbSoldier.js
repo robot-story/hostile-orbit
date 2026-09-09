@@ -178,7 +178,7 @@ export function skinToRig(custom, bones, rootGroup) {
     cand.sort((x, y) => x.d - y.d);
     // two nearest with a soft blend; a third only when very close (joint regions)
     const d0 = cand[0].d, d1 = cand[1].d, d2 = cand[2].d;
-    const w0 = 1 / (d0 + 0.02) ** 3, w1 = 1 / (d1 + 0.02) ** 3, w2 = d2 - d0 < 0.06 ? 1 / (d2 + 0.02) ** 3 : 0;
+    const w0 = 1 / (d0 + 0.035) ** 2.2, w1 = 1 / (d1 + 0.035) ** 2.2, w2 = d2 - d0 < 0.11 ? 1 / (d2 + 0.035) ** 2.2 : 0;
     const sum = w0 + w1 + w2;
     skinIndex[i * 4] = cand[0].idx; skinWeight[i * 4] = w0 / sum;
     skinIndex[i * 4 + 1] = cand[1].idx; skinWeight[i * 4 + 1] = w1 / sum;
@@ -202,6 +202,7 @@ export function preloadCustomModels() {
     loadCustomMesh('models/sentinel.glb', { part: 0, height: 1.9, decimate: 0.02 }).then((c) => { CUSTOM.body.sentinel = c; c.noShadow = true; }),
     loadCustomMesh('models/sentinel.glb', { part: 2, mode: 'weapon', length: 1.08 }).then((c) => { CUSTOM.weapon.viper = c; }),
     loadCustomMesh('models/sentinel.glb', { part: 1, mode: 'weapon', length: 1.32 }).then((c) => { CUSTOM.weapon.longshot = c; }),
+    loadCustomMesh('models/sentinel.glb', { part: 3, height: 0.9, decimate: 0.015 }).then((c) => { c.geometry.translate(0, -0.45, 0); c.geometry.computeBoundingBox(); CUSTOM.body.drone = c; }),
   ];
   return Promise.allSettled(jobs).then((r) => { CUSTOM.ready = true; const failed = r.filter((x) => x.status === 'rejected'); if (failed.length) console.warn('[glb] some custom models failed', failed.map((f) => String(f.reason))); else console.info('[glb] custom models ready'); });
 }

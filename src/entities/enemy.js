@@ -114,9 +114,9 @@ export class Enemy {
       res.dead = true;
       const overkill = -this.health / this.maxHealth;
       res.gib = settings.goreLevel > 0 && !this.mechanical && (info.explosive ? overkill > 0.15 : overkill > this.type.gibThreshold || (zone === 'head' && (info.weapon === 'hammer' || dmg > 80)));
-      if (!res.gib && ['armL', 'armR', 'legL', 'legR'].includes(zone) && (dmg > 45 || info.weapon === 'hammer') && !this.mechanical && settings.data.dismemberment) res.limb = zone;
-      if (!res.gib && zone === 'head' && dmg > 60 && !this.mechanical && settings.data.dismemberment) res.limb = 'head';
-    } else if (['armL', 'armR', 'legL', 'legR'].includes(zone) && dmg > 55 && !this.mechanical && settings.data.dismemberment && settings.goreLevel === 2 && !this.lostLimbs.has(zone)) {
+      if (!res.gib && ['armL', 'armR', 'legL', 'legR'].includes(zone) && (dmg > 45 || info.weapon === 'hammer') && !this.mechanical && !this.model.custom && settings.data.dismemberment) res.limb = zone;
+      if (!res.gib && zone === 'head' && dmg > 60 && !this.mechanical && !this.model.custom && settings.data.dismemberment) res.limb = 'head';
+    } else if (['armL', 'armR', 'legL', 'legR'].includes(zone) && dmg > 55 && !this.mechanical && !this.model.custom && settings.data.dismemberment && settings.goreLevel === 2 && !this.lostLimbs.has(zone)) {
       res.limb = zone; // maimed but alive
     }
     return res;
@@ -146,7 +146,11 @@ export class Enemy {
     const dir = new THREE.Vector3(...(ev?.dir || [0, 0, 1]));
     const hitPoint = ev?.p ? new THREE.Vector3(...ev.p) : this.position.clone();
     if (this.mechanical) { this.fx.explosion(this.hitCenter, 2.2, 'drone'); this.fx.sparksBurst?.(this.hitCenter, UP, 30); audio.play('drone_explode', { pos: this.position }); this.removeModel(); this.game.director?.onEnemyRemoved(this); return; }
-    if (ev?.gib) {
+    if (ev?.gib && this.model.custom) {
+      // robot bodies burst into metal, not meat: flash, sparks, smoke, scorch; body removed
+      this.fx.explosion(this.hitCenter.clone(), 1.6, 'drone'); this.fx.sparksBurst?.(this.hitCenter.clone(), dir, 40, '#ffb36b'); this.fx.sparksBurst?.(this.hitCenter.clone(), UP, 24, '#7fe9ff'); this.fx.smokeColumn?.(this.position.clone(), 1.2, 4);
+      audio.play('drone_explode', { pos: this.position, volume: 0.8 }); if (this.weaponModel) this.weaponModel.visible = false; this.removeModel();
+    } else if (ev?.gib) {
       const limbs = Object.keys(LIMBS);
       this.fx.gibs(this.hitCenter.clone(), dir, { model: this.model, limbs, armour: true, count: 10 + Math.round(ev.impulse || 4) });
       this.fx.blood(this.hitCenter.clone(), UP, dir, 4);

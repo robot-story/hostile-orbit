@@ -1,5 +1,6 @@
 // Recon drone: flying mechanical unit that marks the player with a red beam and calls reinforcements.
 import * as THREE from 'three';
+import { CUSTOM } from '../models/glbSoldier.js';
 import { Mat, COLORS } from '../render/materials.js';
 import { ENEMY_TYPES } from './enemyTypes.js';
 import { audio } from '../audio/audio.js';
@@ -12,7 +13,8 @@ const _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 
 export function buildDroneModel() {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 12), Mat.legionArmor()); body.scale.set(1, 0.6, 1.2); body.castShadow = true; g.add(body);
+  const hull = CUSTOM.body.drone;
+  const body = hull ? new THREE.Mesh(hull.geometry, hull.material) : new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 12), Mat.legionArmor()); if (!hull) body.scale.set(1, 0.6, 1.2); body.castShadow = true; g.add(body);
   const eye = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), Mat.neon(COLORS.red, 3)); eye.position.set(0, -0.05, 0.42); g.add(eye);
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
