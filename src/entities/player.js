@@ -10,6 +10,8 @@ import { audio } from '../audio/audio.js';
 import { events } from '../core/events.js';
 import { clamp, damp, angleDamp, angleDiff, angleLerp, lerp } from '../core/mathx.js';
 import { settings } from '../core/settings.js';
+import { net } from '../net/net.js';
+import { SQUAD_COLORS } from '../net/protocol.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _ray = new THREE.Ray();
 
@@ -17,7 +19,7 @@ export class Player {
   constructor(game, camera, fx, loadout = { primary: 'viper', secondary: 'sidearm' }) {
     const world = game.world;
     this.game = game; this.world = world; this.fx = fx;
-    this.model = buildSoldier('vanguard');
+    this.model = buildSoldier('vanguard', { neon: SQUAD_COLORS[net.slot ?? 0] || SQUAD_COLORS[0] });
     this.anim = new CharacterAnimator(this.model);
     this.cam = new ThirdPersonCamera(camera, world);
     this.position = new THREE.Vector3();

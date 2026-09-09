@@ -21,9 +21,7 @@ export class RemotePlayer {
     this.position = new THREE.Vector3(); this.velocity = new THREE.Vector3(); this.yaw = 0; this.pitch = 0;
     this.health = 100; this.maxHealth = 100; this.dead = false; this.downed = false; this.crouching = false; this.aiming = false; this.sprinting = false; this.state = 'normal';
     this.hitboxes = true; this.hitRadius = 1.3; this.hitCenter = new THREE.Vector3(); this.radius = 0.38;
-    this.model = buildSoldier('vanguard'); this.anim = new CharacterAnimator(this.model);
-    // squad-colour the neon strips
-    const neon = Mat.neon(this.color, 2.6); for (const m of this.model.meshes) if (m.name === 'part:neon') m.material = neon;
+    this.model = buildSoldier('vanguard', { neon: this.color }); this.anim = new CharacterAnimator(this.model);
     this.weaponId = 'viper'; this.weaponModel = WEAPON_BUILDERS.viper(); this.anim.weaponSocket.add(this.weaponModel);
     this.world.actors.add(this.model.root);
     this.target = { p: new THREE.Vector3(), yaw: 0, pitch: 0, anim: { speed: 0, crouch: 0, aim: 0, sprint: 0, cover: null }, t: 0 };

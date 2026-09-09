@@ -166,7 +166,7 @@ function materialsFor(style) {
  * Build a rigged soldier. Returns { root, bones, boneList, skeleton, meshes, limbMeshes(), setLimbVisible(name, bool) }
  */
 export function buildSoldier(styleName = 'vanguard', opts = {}) {
-  const style = STYLES[styleName] || STYLES.vanguard;
+  const style = { ...(STYLES[styleName] || STYLES.vanguard), ...(opts.neon ? { neon: opts.neon } : {}) };
   const mats = materialsFor(style);
   const root = new THREE.Group();
   root.name = 'soldier:' + styleName;

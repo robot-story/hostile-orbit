@@ -17,7 +17,6 @@ export function createMainScreen(api, mgr) {
         el('span', { class: 'emblem', html: icon('chevronBig') }),
         el('span', { class: 'wing right' }),
       ]),
-      el('div', { class: 'main-tagline', text: 'A CLEANER TOMORROW, TOGETHER.' }),
     ]);
 
     const hasOp = !!(api.hasOperation && api.hasOperation());
@@ -78,7 +77,7 @@ export function createMainScreen(api, mgr) {
       build();
       api.music('menu');
       api.preview.setMode('menu');
-      if (!saidWelcome) { saidWelcome = true; api.say('ship_menu_welcome'); }
+      saidWelcome = true; // welcome line removed by request (no subtitle on the main menu)
     },
     onHide() { clearInterval(clockTimer); },
   };

@@ -69,15 +69,32 @@
 .op-screen > .scr-header { padding: 0; }
 
 /* war table */
-.war-table-wrap { flex: 1 1 62%; position: relative; perspective: 1400px; display: flex; align-items: center; justify-content: center; padding: 18px; background: #08090b; }
-.war-table { position: relative; width: 100%; max-width: 760px; aspect-ratio: 1 / 0.82; transform: rotateX(18deg); transform-style: preserve-3d; border: 1px solid var(--border-strong); background: rgba(0,0,0,0.55); overflow: hidden; }
+.war-table-wrap { flex: 1 1 62%; position: relative; display: flex; align-items: center; justify-content: center; padding: 12px; background: #08090b; overflow: hidden; touch-action: none; min-width: 0; }
+.war-table-wrap.grabbing .marker .holo { opacity: 0 !important; }
+.war-table { position: relative; width: min(100%, calc((100vh - 176px) / 0.82)); aspect-ratio: 1 / 0.82; transform-origin: center; will-change: transform; border: 1px solid var(--border-strong); background: rgba(0,0,0,0.55); }
+.war-table > .map-img, .war-table > .map-grid, .war-table > .map-tint { pointer-events: none; }
 .war-table .map-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.85; filter: saturate(0.5) brightness(0.7) contrast(1.05); }
 .war-table .map-tint { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.45)); }
 .war-table .map-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px); background-size: 10% 10%; }
 .war-table .scanlines { display: none; }
 .war-table .compass { position: absolute; top: 10px; right: 14px; font-family: var(--mono); font-size: 11px; color: var(--text); letter-spacing: 0.2em; opacity: 0.8; }
 
-.marker { position: absolute; width: 20px; height: 20px; transform: translate(-50%, -50%); }
+.marker { position: absolute; width: 20px; height: 20px; transform: translate(-50%, -50%) scale(var(--inv, 1)); }
+.marker .diamond { animation: mkPulse 2.6s ease-in-out infinite; }
+@keyframes mkPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(242,199,68,0); } 50% { box-shadow: 0 0 10px 1px rgba(242,199,68,0.45); } }
+.marker:hover { z-index: 20; }
+.marker:hover .diamond { box-shadow: 0 0 14px 2px rgba(242,199,68,0.8); animation: none; }
+.marker .holo { position: absolute; left: 50%; bottom: 28px; width: 230px; padding: 10px 12px; transform: translateX(-50%) translateY(8px) scale(0.94); opacity: 0; pointer-events: none; background: rgba(5,18,24,0.88); border: 1px solid rgba(91,227,255,0.6); box-shadow: 0 0 22px rgba(91,227,255,0.25), inset 0 0 26px rgba(91,227,255,0.08); color: #dff7ff; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; line-height: 1.45; text-align: left; white-space: normal; transition: opacity 0.16s ease, transform 0.16s ease; z-index: 30; }
+.marker .holo::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, rgba(91,227,255,0.07) 0 1px, transparent 1px 3px); pointer-events: none; }
+.marker .holo::after { content: ''; position: absolute; left: 50%; bottom: -8px; width: 1px; height: 8px; background: rgba(91,227,255,0.8); box-shadow: 0 0 6px rgba(91,227,255,0.8); }
+.marker .holo .h-kind { color: var(--yellow); font-size: 9px; letter-spacing: 0.22em; margin-bottom: 3px; }
+.marker .holo .h-title { font-family: var(--font); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: #fff; margin-bottom: 4px; }
+.marker .holo .h-desc { color: #bfe9f5; }
+.marker:hover .holo { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+.marker.side .holo .h-kind, .marker.secondary .holo .h-kind { color: var(--khaki); }
+.marker.enemy .holo { border-color: rgba(217,74,58,0.65); box-shadow: 0 0 22px rgba(217,74,58,0.22); }
+.marker.enemy .holo .h-kind { color: var(--danger); }
+.marker.enemy .diamond { animation: none; }
 .marker .diamond { position: absolute; inset: 4px; border: 2px solid var(--yellow); background: rgba(242,199,68,0.15); transform: rotate(45deg); }
 .marker.secondary .diamond { border-color: var(--khaki); background: rgba(201,185,138,0.12); }
 .marker.enemy { width: 12px; height: 12px; }
@@ -138,7 +155,8 @@
 .begin-btn { font-size: 16px; padding: 14px 30px; }
 
 /* ============================================================ LOADOUT */
-.loadout-screen { position: absolute; inset: 0; height: 100%; padding: 0 26px; padding-top: 70px; padding-bottom: 60px; display: flex; gap: 20px; }
+.loadout-screen { position: absolute; inset: 0; height: 100%; box-sizing: border-box; padding: 0 26px; padding-top: 70px; padding-bottom: 60px; display: flex; gap: 20px; }
+.loadout-screen > * { min-height: 0; max-height: 100%; overflow-y: auto; }
 .lo-col-left { width: 340px; display: flex; flex-direction: column; gap: 8px; }
 .lo-col-center { flex: 1 1 auto; }
 .lo-col-right { width: 340px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
