@@ -163,8 +163,22 @@ export class CharacterAnimator {
       T.head = [lerp(T.head[0], 0.35, k), T.head[1], T.head[2]];
     }
     // damp current toward target
-    const k = 1 - Math.exp(-blend * dt);
-    for (const n of BONE_NAMES) { const c = this.cur[n], t = T[n]; c[0] += (t[0] - c[0]) * k; c[1] += (t[1] - c[1]) * k; c[2] += (t[2] - c[2]) * k; }
+    const robotic = !!s.robotic;
+    const k = 1 - Math.exp(-blend * (robotic ? 1.7 : 1) * dt);
+    if (!this.vel) { this.vel = {}; for (const n of BONE_NAMES) this.vel[n] = [0, 0, 0]; }
+    for (const n of BONE_NAMES) {
+      const c = this.cur[n], t = T[n];
+      if (!robotic) { c[0] += (t[0] - c[0]) * k; c[1] += (t[1] - c[1]) * k; c[2] += (t[2] - c[2]) * k; continue; }
+      // servo: fast approach, tiny overshoot and a hard settle, with angle quantisation while the joint is travelling
+      const v = this.vel[n];
+      for (let i = 0; i < 3; i++) {
+        const d = t[i] - c[i];
+        v[i] = v[i] * Math.exp(-14 * dt) + d * 10 * dt;          // spring-ish velocity toward target
+        let nc = c[i] + d * k + v[i] * 0.35 * dt * 60 * 0.016;    // blend + overshoot term
+        if (Math.abs(d) > 0.06) nc = Math.round(nc / 0.025) * 0.025; // stepped travel (servo detents)
+        c[i] = nc;
+      }
+    }
     this.rootY = damp(this.rootY, rootTarget - (this.land || 0) * 0.22, 10, dt);
     this.lean = damp(this.lean, leanTarget, 10, dt);
     // gait
@@ -176,7 +190,7 @@ export class CharacterAnimator {
     this.mdz = damp(this.mdz ?? 1, s.moveDir?.z ?? 1, 9, dt);
     this.accelLean = damp(this.accelLean ?? 0, s.accel || 0, 8, dt);
     this.turnLean = damp(this.turnLean ?? 0, s.turn || 0, 8, dt);
-    this.land = damp(this.land ?? 0, s.land || 0, s.land ? 30 : 6, dt);
+    this.land = damp(this.land ?? 0, (s.land || 0) * (s.robotic ? 1.4 : 1), s.land ? 30 : 6, dt);
     this.turnShuffle = damp(this.turnShuffle ?? 0, s.turning ? 1 : 0, 10, dt);
     const stride = s.sprint > 0.8 ? 1.6 : (s.sprint > 0.3 ? 1.4 : (s.crouch > 0.5 ? 1.0 : 1.25));
     // step length per state (metres per footfall); the phase advances with the real ground speed so feet stop sliding

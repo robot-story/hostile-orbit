@@ -47,7 +47,7 @@ export class Enemy {
     this.hitboxes = true;
     this.lostLimbs = new Set();
     // model
-    this.model = buildSoldier(this.type.style || 'legion');
+    this.model = buildSoldier(this.type.style || 'legion', { custom: this.type.id === 'rifleman' ? 'sentinel' : null });
     this.anim = new CharacterAnimator(this.model);
     this.weaponDef = this.type.weapon ? WEAPONS[this.type.weapon] : null;
     if (this.weaponDef) { this.weaponModel = WEAPON_BUILDERS[this.type.weapon](); this.anim.weaponSocket.add(this.weaponModel); }
@@ -155,12 +155,13 @@ export class Enemy {
     } else {
       const impulse = dir.clone().multiplyScalar((ev?.impulse || 1) * 2.2 / this.type.mass).add(this.velocity.clone().multiplyScalar(0.5));
       if (ev?.explosive) impulse.y += 4;
-      this.ragdoll = this.fx.ragdoll(this.model, { position: this.position.clone(), yaw: this.yaw + Math.PI, impulse, hitPoint, hitLimb: ev?.zone });
+      if (this.model.custom) { this.ragdoll = null; this.deadT = 0; this.deadImpulse = impulse.clone(); }
+      else this.ragdoll = this.fx.ragdoll(this.model, { position: this.position.clone(), yaw: this.yaw + Math.PI, impulse, hitPoint, hitLimb: ev?.zone });
       if (this.weaponModel) { this.weaponModel.visible = false; }
       if (settings.goreLevel > 0) this.fx.bloodPool?.(this.position.clone(), 1 + Math.random() * 0.6);
       audio.play('body_fall', { pos: this.position, volume: 0.7, delay: 0.5 });
       if (this.ragdoll) this.ragdoll.onRemove = () => this.removeModel();
-      else this.removeModel();
+      else if (!this.model.custom) this.removeModel();
     }
     if (ev?.zone === 'head') audio.play('headshot_marker', { volume: 0.5 });
     audio.play('enemy_death_mech', { pos: this.position, volume: 0.5, pitchVar: 0.1 });
@@ -447,7 +448,16 @@ export class Enemy {
     this.velocity.x = damp(this.velocity.x, 0, 1.5, dt); this.velocity.z = damp(this.velocity.z, 0, 1.5, dt);
   }
   update(dt, camera) {
-    if (this.dead) return;
+    if (this.dead) {
+      // custom skinned bodies have no part ragdoll: settle into the dead pose, slide with the hit impulse, then clean up
+      if (this.model?.custom && !this.removed) {
+        this.deadT = (this.deadT || 0) + dt;
+        if (this.deadImpulse && this.deadT < 0.6) { this.position.addScaledVector(this.deadImpulse, dt * 0.35 * (1 - this.deadT / 0.6)); this.position.y = this.world.groundHeight(this.position.x, this.position.z); this.model.root.position.copy(this.position); }
+        this.anim.update(dt, { speed: 0, sprint: 0, crouch: 0, aim: 0, cover: null, dead: true, weaponLow: 0 });
+        if (this.deadT > 9) this.removeModel();
+      }
+      return;
+    }
     this.distToCam = camera ? camera.position.distanceTo(this.position) : 50;
     const far = this.distToCam > 90;
     if (net.isHost) {

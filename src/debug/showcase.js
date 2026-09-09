@@ -12,8 +12,10 @@ import * as Props from '../models/props.js';
 import * as Alien from '../models/alien.js';
 import * as City from '../models/city.js';
 import { mergeStaticProps } from '../world/merge.js';
+import { loadCustomMesh } from '../models/glbSoldier.js';
 
 export function startShowcase(game) {
+  const params = new URLSearchParams(location.search);
   const world = new World();
   game.world = world;
   const base = M(200, 45, 0);
@@ -22,7 +24,7 @@ export function startShowcase(game) {
   const put = (obj, col, row, yaw = 0) => { const x = base.x - 21 + col * 6, z = base.z - 12 + row * 8; const y = world.groundHeight(x, z); if (obj.isObject3D) { obj.position.set(x, y, z); obj.rotation.y = yaw; world.actors.add(obj); } return new THREE.Vector3(x, y, z); };
   const anims = [];
   // Row 0: characters
-  const rig = (style, col, opts = {}) => { const m = buildSoldier(style); const a = new CharacterAnimator(m); if (opts.weapon) a.weaponSocket.add(WEAPON_BUILDERS[opts.weapon]()); put(m.root, col, 0, 0); anims.push({ a, s: opts.state || { speed: 0, sprint: 0, crouch: 0, aim: 1, cover: null, weaponLow: 0 } }); return m; };
+  const rig = (style, col, opts = {}) => { const m = buildSoldier(style, { custom: opts.custom }); const a = new CharacterAnimator(m); if (opts.weapon) a.weaponSocket.add(WEAPON_BUILDERS[opts.weapon]()); put(m.root, col, 0, 0); anims.push({ a, s: opts.state || { speed: 0, sprint: 0, crouch: 0, aim: 1, cover: null, weaponLow: 0 } }); return m; };
   rig('vanguard', 0, { weapon: 'viper' });
   rig('vanguard', 1, { weapon: 'longshot', state: { speed: 0.8, sprint: 0.55, crouch: 0, aim: 0, cover: null } });
   rig('legion', 2, { weapon: 'legion_rifle' });
@@ -30,6 +32,7 @@ export function startShowcase(game) {
   rig('legionHeavy', 4, { weapon: 'legion_heavy' });
   rig('rescued', 5, { state: { speed: 0, sprint: 0, crouch: 0, aim: 0, cover: null, weaponLow: 1 } });
   const drone = buildDroneModel(); put(drone, 6, 0); drone.position.y += 2.5;
+  rig('legion', 7, { weapon: 'legion_rifle', custom: 'sentinel', state: { speed: 0, sprint: 0, crouch: 0, aim: 1, cover: null } });
   // Row 1: weapons (scaled up) + grenade + pod + turret crate
   ['viper', 'hammer', 'atlas', 'longshot', 'sidearm'].forEach((w, i) => { const g = WEAPON_BUILDERS[w](); g.scale.setScalar(2.4); put(g, i, 1, Math.PI / 2); g.position.y += 1.2; });
   const gr = buildGrenade(); gr.scale.setScalar(6); put(gr, 5, 1); gr.position.y += 1;
@@ -54,11 +57,23 @@ export function startShowcase(game) {
   City.neonSign(world, pos(5, 5), 0);
   City.holoBillboard(world, pos(6.5, 5), 0);
   City.streetLamp(world, pos(7.5, 5), { light: false });
+  // ?glb=1: preview the custom character mesh (normalised, unskinned) beside the procedural rigs
+  if (params.get('glb')) {
+    const o = { up: params.get('up') || undefined, yaw: params.get('yaw') != null ? +params.get('yaw') : 0, flipUp: params.has('flip'), part: params.get('part') != null ? +params.get('part') : undefined, split: params.get('split') || undefined };
+    loadCustomMesh(params.get('glb') === 'enemy' ? 'models/sentinel.glb' : 'models/vanguard.glb', o).then((c) => { const m = new THREE.Mesh(c.geometry, c.material); const p = pos(7, 0); m.position.copy(p); world.actors.add(m); window.HO.glbPreview = m; if (c.weapon) { const w = new THREE.Mesh(c.weapon, c.material); w.position.copy(p); world.actors.add(w); window.HO.glbWeapon = w; } console.info('[glb] size', c.geometry.boundingBox.getSize(new THREE.Vector3()).toArray().map((v) => v.toFixed(2))); }).catch((e) => console.error('[glb]', e));
+  }
+  // ?bind=1: overlay the custom mesh (semi-transparent) on a zero-pose procedural rig to tune the bind pose
+  if (params.get('bind')) {
+    const rigM = buildSoldier(params.get('bind') === 'enemy' ? 'legion' : 'vanguard'); const p = pos(7, 0); rigM.root.position.copy(p); rigM.root.rotation.y = Math.PI; world.actors.add(rigM.root); window.HO.bindRig = rigM;
+    for (const n in rigM.bones) rigM.bones[n].rotation.set(0, 0, 0);
+    const bp = params.get('pose'); if (bp) { try { const o = JSON.parse(bp); for (const n in o) rigM.bones[n]?.rotation.set(...o[n]); } catch (e) { console.warn('bad pose', e); } }
+    loadCustomMesh(params.get('bind') === 'enemy' ? 'models/sentinel.glb' : 'models/vanguard.glb', { part: +(params.get('part') || 0) }).then((c) => { const mat = c.material.clone(); mat.transparent = true; mat.opacity = 0.45; mat.depthWrite = false; const m = new THREE.Mesh(c.geometry, mat); m.position.copy(p); m.rotation.y = Math.PI; world.actors.add(m); window.HO.glbPreview = m; });
+  }
   world.finalize();
   game.renderer.setScene(world.scene, game.camera);
   game.setBackground(null); game.menus.hide();
   game.mode = 'showcase';
-  let t = 0; const params = new URLSearchParams(location.search); const fixed = params.get('angle');
+  let t = 0; const fixed = params.get('angle');
   const rowP = params.get('row'), colP = params.get('col');
   const focus = rowP != null ? pos(colP != null ? +colP : 3, +rowP).add(new THREE.Vector3(0, 1.2, 0)) : new THREE.Vector3(base.x, base.y + 1.5, base.z + 4);
   const camH = params.get('h') != null ? +params.get('h') : (rowP != null ? 2.5 : 9);

@@ -10,6 +10,7 @@ import { World } from './world/world.js';
 import { buildLevel } from './world/level.js';
 import { MAPS, DEFAULT_MAP } from './world/maps/index.js';
 import { DevMenu } from './debug/devmenu.js';
+import { preloadCustomModels } from './models/glbSoldier.js';
 import { M, worldToMap } from './world/terrain.js';
 import { clamp, formatTime } from './core/mathx.js';
 import { Player } from './entities/player.js';
@@ -74,13 +75,14 @@ export class Game {
 
   // ---------------- boot ----------------
   boot() {
+    const pre = preloadCustomModels();
     document.documentElement.style.setProperty('--hud-scale', settings.data.hudScale);
     this._fps(settings.data.showFps);
     this._buildBackgroundLayer();
     this.menus = createMenus(this._buildApi(), this.ui);
     this.menus.onTacticalMapClose(() => this.toggleTacticalMap(false));
     this.dev = new DevMenu(this, this.ui);
-    if (new URLSearchParams(location.search).has('showcase')) { startShowcase(this); this.loop(); this.startWatchdog(); return; }
+    if (new URLSearchParams(location.search).has('showcase')) { pre.then(() => startShowcase(this)); this.loop(); this.startWatchdog(); return; }
     this._buildBoot();
     this.loop();
     this.startWatchdog();
