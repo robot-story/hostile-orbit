@@ -49,4 +49,4 @@ The OpenAI key is only ever used by the `tools/` scripts at build time. Nothing 
 
 Testing switches: god mode is on by default for now (F10 toggles, `?mortal` disables at start).
 
-Deploy: build, then push `dist/` to the `gh-pages` branch.
+Deploy: `bash tools/deploy.sh` (builds, verifies, pushes `dist/` to `gh-pages` through a worktree).

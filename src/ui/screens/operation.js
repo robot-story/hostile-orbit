@@ -1,4 +1,4 @@
-import { el, icon, actionButton } from '../components.js';
+import { el, icon, actionButton, screenHeader, screenFooter } from '../components.js';
 
 const MARKERS = [
   { x: 70, y: 320, label: 'JAMMER OUTPOST', kind: 'primary' },
@@ -45,16 +45,11 @@ export function createOperationScreen(api, mgr) {
   }
 
   function buildHeader() {
-    return el('div', { class: 'op-header' }, [
-      el('div', { class: 'op-logo' }, [
-        el('span', { class: 'chev-mark', html: icon('chevronBig') }),
-        el('span', { text: 'ORBITAL COMMAND' }),
-      ]),
-      el('div', { class: 'op-right' }, [
-        el('div', { text: 'KHEPRI-9 // BLACKSITE MERIDIAN TACTICAL OPERATIONS' }),
-        el('div', { html: 'A CLEANER TOMORROW <b>TOGETHER</b>' }),
-      ]),
-    ]);
+    return screenHeader(api, {
+      title: 'ORBITAL COMMAND',
+      tabs: [{ id: 'summary', label: 'SUMMARY' }, { id: 'briefing', label: 'BRIEFING' }, { id: 'deploy', label: 'DEPLOY' }],
+      activeTab: 'deploy',
+    });
   }
 
   function buildMarker(m) {

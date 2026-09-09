@@ -1,4 +1,4 @@
-import { el, menuButton } from '../components.js';
+import { el, menuButton, icon } from '../components.js';
 
 export function createMainScreen(api, mgr) {
   const root = el('div', { class: 'screen main-screen' });
@@ -7,10 +7,17 @@ export function createMainScreen(api, mgr) {
 
   function build() {
     root.innerHTML = '';
-    const title = el('div', { class: 'main-title' }, [
-      el('div', { text: 'HOSTILE' }),
-      el('div', { text: 'ORBIT' }),
-      el('div', { class: 'accent-line' }),
+    const titleWrap = el('div', { class: 'main-title-wrap' }, [
+      el('div', { class: 'main-title' }, [
+        el('div', { text: 'HOSTILE' }),
+        el('div', { text: 'ORBIT' }),
+      ]),
+      el('div', { class: 'main-device' }, [
+        el('span', { class: 'wing left' }),
+        el('span', { class: 'emblem', html: icon('chevronBig') }),
+        el('span', { class: 'wing right' }),
+      ]),
+      el('div', { class: 'main-tagline', text: 'A CLEANER TOMORROW, TOGETHER.' }),
     ]);
 
     const hasOp = !!(api.hasOperation && api.hasOperation());
@@ -44,20 +51,15 @@ export function createMainScreen(api, mgr) {
 
     const clock = el('span', { class: 'clock' });
     const rank = el('div', { class: 'rank' }, [
-      el('b', { text: `LEVEL ${api.save.profile.level}` }),
-      el('span', { text: `${api.save.profile.xp} XP` }),
+      el('b', { text: `LEVEL ${api.save.profile.level} · ${api.save.profile.xp} XP` }),
     ]);
     const footer = el('div', { class: 'main-footer' }, [
-      el('span', { text: 'BLACKSITE MERIDIAN // ORBIT STABLE  //  ' }, ),
-      clock,
+      el('div', {}, [el('span', { text: 'BLACKSITE MERIDIAN // ORBIT STABLE // ' }), clock]),
       rank,
+      el('div', { class: 'ft-hint' }, [el('span', { class: 'keycap small', text: 'ENTER' }), el('span', { class: 'ft-label', text: 'SELECT' })]),
     ]);
-    // fix: keep footer left text + clock together
-    footer.innerHTML = '';
-    footer.appendChild(el('div', {}, [el('span', { text: 'BLACKSITE MERIDIAN // ORBIT STABLE // ' }), clock]));
-    footer.appendChild(rank);
 
-    root.appendChild(title);
+    root.appendChild(titleWrap);
     root.appendChild(list);
     root.appendChild(footer);
 

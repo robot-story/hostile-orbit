@@ -118,14 +118,14 @@ export function sliderRow(api, { label, value, min = 0, max = 1, step = 0.01, fo
 }
 
 export function toggleRow(api, { label, value, onChange, onSelect } = {}) {
-  const sw = el('button', { class: 'toggle' + (value ? ' on' : ''), type: 'button' }, [el('i')]);
-  sw.addEventListener('click', () => {
-    api.ui.click();
-    const now = !sw.classList.contains('on');
-    sw.classList.toggle('on', now);
-    onChange && onChange(now);
-  });
-  sw.addEventListener('mouseenter', () => api.ui.hover());
+  const offBtn = el('button', { class: 'pill-seg' + (!value ? ' active' : ''), type: 'button', text: 'OFF' });
+  const onBtn = el('button', { class: 'pill-seg' + (value ? ' active' : ''), type: 'button', text: 'ON' });
+  function set(v) { offBtn.classList.toggle('active', !v); onBtn.classList.toggle('active', v); onChange && onChange(v); }
+  offBtn.addEventListener('click', () => { api.ui.click(); set(false); });
+  onBtn.addEventListener('click', () => { api.ui.click(); set(true); });
+  offBtn.addEventListener('mouseenter', () => api.ui.hover());
+  onBtn.addEventListener('mouseenter', () => api.ui.hover());
+  const sw = el('div', { class: 'pill-toggle' }, [offBtn, onBtn]);
   const row = el('div', { class: 'settings-row', tabindex: '0' }, [
     el('div', { class: 'row-label', text: label }),
     el('div', { class: 'row-control' }, [sw]),
@@ -135,17 +135,22 @@ export function toggleRow(api, { label, value, onChange, onSelect } = {}) {
 }
 
 export function selectRow(api, { label, value, options, onChange, onSelect } = {}) {
-  const wrap = el('div', { class: 'chip-select' });
-  const render = () => {
-    wrap.innerHTML = '';
-    for (const opt of options) {
-      const chip = el('button', { class: 'chip small' + (opt.value === value ? ' active' : ''), type: 'button', text: opt.label });
-      chip.addEventListener('mouseenter', () => api.ui.hover());
-      chip.addEventListener('click', () => { api.ui.click(); value = opt.value; render(); onChange && onChange(opt.value); });
-      wrap.appendChild(chip);
-    }
-  };
-  render();
+  let idx = Math.max(0, options.findIndex((o) => o.value === value));
+  const valueEl = el('span', { class: 'choice-val', text: options[idx] ? options[idx].label : '' });
+  const ticks = el('div', { class: 'choice-ticks' }, options.map((o, i) => el('span', { class: 'choice-tick' + (i === idx ? ' active' : '') })));
+  function set(i) {
+    idx = (i + options.length) % options.length;
+    valueEl.textContent = options[idx].label;
+    [...ticks.children].forEach((t, j) => t.classList.toggle('active', j === idx));
+    onChange && onChange(options[idx].value);
+  }
+  const prev = el('button', { class: 'choice-arrow', type: 'button', html: '&#8249;' });
+  const next = el('button', { class: 'choice-arrow', type: 'button', html: '&#8250;' });
+  prev.addEventListener('mouseenter', () => api.ui.hover());
+  next.addEventListener('mouseenter', () => api.ui.hover());
+  prev.addEventListener('click', () => { api.ui.click(); set(idx - 1); });
+  next.addEventListener('click', () => { api.ui.click(); set(idx + 1); });
+  const wrap = el('div', { class: 'choice-control' }, [prev, el('div', { class: 'choice-mid' }, [valueEl, ticks]), next]);
   const row = el('div', { class: 'settings-row', tabindex: '0' }, [
     el('div', { class: 'row-label', text: label }),
     el('div', { class: 'row-control' }, [wrap]),
@@ -212,13 +217,50 @@ export function tabBar(api, tabs, active, onChange) {
   return { el: wrap, set: (id) => { active = id; render(); } };
 }
 
+/* ---------------------------------------------------------------- screen chrome (header / footer) */
+
+export function tabStrip(api, tabs, activeId, onChange) {
+  const wrap = el('div', { class: 'hd-tabs' });
+  tabs.forEach((t, i) => {
+    const b = el('button', { class: 'hd-tab' + (t.id === activeId ? ' active' : '') + (onChange ? '' : ' static'), type: 'button' }, [
+      el('span', { class: 'hd-tab-label', text: t.label }),
+      el('span', { class: 'hd-tab-num', text: String(i + 1).padStart(2, '0') }),
+    ]);
+    if (onChange) {
+      b.addEventListener('mouseenter', () => api.ui.hover());
+      b.addEventListener('click', () => { if (t.id === activeId) return; api.ui.tab(); onChange(t.id); });
+    }
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+
+export function screenHeader(api, { title, tabs, activeTab, onTab } = {}) {
+  const profile = api.save.profile;
+  const right = el('div', { class: 'hd-right' }, [
+    el('div', { class: 'hd-res' }, [el('span', { class: 'hd-res-icon', html: icon('xp') }), el('span', { class: 'hd-res-val', text: profile.xp })]),
+    el('div', { class: 'hd-res' }, [el('span', { class: 'hd-res-icon', html: icon('req') }), el('span', { class: 'hd-res-val', text: profile.requisition })]),
+    el('div', { class: 'hd-res' }, [el('span', { class: 'hd-res-icon', html: icon('intel') }), el('span', { class: 'hd-res-val', text: profile.intel })]),
+    el('div', { class: 'hd-level', text: `LEVEL ${profile.level}` }),
+  ]);
+  return el('div', { class: 'scr-header' }, [
+    el('div', { class: 'hd-title' }, [el('span', { class: 'hd-emblem', html: icon('chevronBig') }), el('span', { class: 'hd-title-text', text: title })]),
+    tabs && tabs.length ? tabStrip(api, tabs, activeTab, onTab) : el('div', { class: 'hd-tabs-spacer' }),
+    right,
+  ]);
+}
+
+export function screenFooter(hints = []) {
+  return el('div', { class: 'scr-footer' }, hints.map((h) => el('div', { class: 'ft-hint' }, [el('span', { class: 'keycap small', text: h.key }), el('span', { class: 'ft-label', text: h.label })])));
+}
+
 /* ---------------------------------------------------------------- stars */
 
 export function starRating(container, count, api) {
   container.innerHTML = '';
   const stars = [];
   for (let i = 0; i < 5; i++) {
-    const s = el('span', { class: 'star', html: '&#9733;' });
+    const s = el('span', { class: 'star' });
     stars.push(s);
     container.appendChild(s);
   }

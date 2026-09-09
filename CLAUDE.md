@@ -35,3 +35,11 @@ Cross-system communication uses `events` from `src/core/events.js`. Names are `n
 ## Running
 - `npm run dev` (port 5173), `npm run build`, `npm run gen:audio`, `npm run gen:voice`.
 - Test in the in-app browser; check `read_console_messages` for errors after every UI or gameplay change.
+
+## Systems map (added 2026-09-09)
+- `src/game.js` orchestrates: boot → menus (`src/ui/menus.js`) → `buildSession()` (World + level + merge pass + FX + Combat + Director + Abilities + Mission + Player + NetSync) → `dropSequence()` → play → `endMission()`.
+- Player abilities of note: cover tuck-roll (`transform` anim state), jetpack (hold Space; `player.fuel`, `maxBurn`), sniper scope (`weapon.def.zoom`, `player.scoped`), side operations (`mission.side`, event `objective:side`).
+- Co-op: `src/net/transport.js` (PeerJS host/client + lobby roster), `src/net/netsync.js` (snapshots/events), `src/entities/remotePlayer.js`. Room codes are 6 chars; invite link `?join=CODE` auto-joins from `game.checkInviteLink()`.
+- Static props are merged per material by `src/world/merge.js`; anything gameplay mutates must be flagged `userData.noMerge` or passed in the `dynamic` list from `buildSession`.
+- The main loop is driven by rAF plus a Web Worker watchdog (`startWatchdog`) so hidden/throttled tabs keep simulating; never gate flow on `requestAnimationFrame` alone.
+- Testing: god mode defaults ON (`?mortal` to disable, F10 toggles). Turn it off before a public release build.
