@@ -266,7 +266,7 @@ export class Game {
     this.buildSession(config);
     this.hideLoading();
     audio.say('ship_deploy', { priority: 3 });
-    audio.say('voss_briefing', { priority: 3, delay: 3 });
+    audio.say(this.world.map?.briefingLine || 'voss_briefing', { priority: 3, delay: 3 });
     this.dropSequence(this.dropPositionFor(config), () => { this.session.mission.start(); });
   }
   async continueOperation() {

@@ -116,7 +116,7 @@ export class Player {
     this._turnS = damp(this._turnS || 0, turnN, 8, dt);
     this.landT = Math.max(0, (this.landT || 0) - dt);
     const s = {
-      speed: this.state === 'cover' ? speedN * 0.6 : speedN, strafe: clamp(local.x / 4, -1, 1), forward: local.z >= -0.3 ? 1 : -1, moveDir: { x: speedN > 0.03 ? local.x / llen : 0, z: speedN > 0.03 ? local.z / llen : 1 }, accel: this._accelS, turn: this._turnS, land: this.landT > 0 ? this.landT / 0.5 : 0, turning: !!this.turning,
+      speed: this.state === 'cover' ? speedN * 0.6 : speedN, strafe: clamp(local.x / 4, -1, 1), forward: local.z >= -0.3 ? 1 : -1, moveDir: { x: speedN > 0.03 ? local.x / llen : 0, z: speedN > 0.03 ? local.z / llen : 1 }, velocity: this.grounded ? Math.hypot(this.velocity.x, this.velocity.z) : 0, groundAt: this.grounded ? (ox, oz) => this.world.groundHeight(this.position.x + ox, this.position.z + oz, this.position.y) : null, accel: this._accelS, turn: this._turnS, land: this.landT > 0 ? this.landT / 0.5 : 0, turning: !!this.turning,
       sprint: this.sprinting && speedN > 0.3 ? 1 : (speedN > 0.35 && !this.aiming && !this.crouching && this.state === 'normal' ? 0.55 : 0), crouch: this.crouching ? 1 : 0, aim: this.aiming ? 1 : 0,
       cover: this.state === 'cover' ? { high: this.cover.height === 'high', peek: this.peek, over: this.cover.height === 'low', blind: this.blindFiring } : null,
       roll: this.state === 'roll' ? this.stateT / 0.62 : null, transform: (this.state === 'cover' && this.stateT < 0.42) ? this.stateT / 0.42 : (this.transformT > 0 ? 1 - this.transformT / 0.42 : null), vault: this.state === 'vault' ? this.stateT / 0.7 : null,

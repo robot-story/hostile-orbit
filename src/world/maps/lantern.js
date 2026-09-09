@@ -99,6 +99,7 @@ export const LANTERN = {
     intel: 'Dense urban terrain. Orbital support blocked until the substation spire is down.',
   },
   mapImage: 'textures/menus/map_lantern.jpg',
+  briefingLine: 'voss_lantern_briefing',
   floor: FLOOR_LANTERN,
   terrain: {
     style: 'city', texture: 'tex_asphalt', repeat: 90, tint: '#c8ccd8', roughness: 0.5, metalness: 0.06, envIntensity: 1.0, veinIntensity: 1.6,

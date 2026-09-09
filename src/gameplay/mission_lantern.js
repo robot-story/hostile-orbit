@@ -17,7 +17,7 @@ export const LANTERN_SCRIPT = {
   board: { text: 'BOARD THE DROPSHIP', title: 'DROPSHIP ON FINAL APPROACH', sub: 'Get aboard', marker: 'DROPSHIP' },
   labels: { charge: 'PLANT OVERLOAD CHARGE', terminal: 'ACCESS BROADCAST CONSOLE', cell: 'RELEASE DETAINED CITIZEN', poster: 'CORRECT UNAUTHORISED SIGNAGE' },
   // Generic ship/commander lines only (the Meridian-specific ones mention the jammer by name)
-  voice: { canyon: ['voss_survival', 'voss_occupants'], orbital: ['vg_orbital', 'ship_orbital_unlock', null, null] },
+  voice: { canyon: ['voss_lantern_substation', 'voss_lantern_reeducation'], orbital: ['voss_lantern_spire_down', 'ship_orbital_unlock', 'voss_lantern_broadcast', null], download: 'voss_lantern_upload', extract: 'voss_lantern_rooftop', complete: 'voss_lantern_complete' },
 };
 
 export class LanternMission extends Mission {

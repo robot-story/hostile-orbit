@@ -179,8 +179,11 @@ export class CharacterAnimator {
     this.land = damp(this.land ?? 0, s.land || 0, s.land ? 30 : 6, dt);
     this.turnShuffle = damp(this.turnShuffle ?? 0, s.turning ? 1 : 0, 10, dt);
     const stride = s.sprint > 0.8 ? 1.6 : (s.sprint > 0.3 ? 1.4 : (s.crouch > 0.5 ? 1.0 : 1.25));
-    const freq = (s.sprint > 0.8 ? 11.5 : s.sprint > 0.3 ? 9.8 : 8.5) * (s.crouch > 0.5 ? 0.85 : 1);
-    if ((this.speed > 0.02 || this.turnShuffle > 0.2) && !s.dead && s.roll == null && s.vault == null) this.phase += dt * (this.speed > 0.02 ? freq * clamp(this.speed, 0.35, 1) : 6 * this.turnShuffle);
+    // step length per state (metres per footfall); the phase advances with the real ground speed so feet stop sliding
+    const stepLen = s.sprint > 0.8 ? 1.9 : (s.sprint > 0.3 ? 1.45 : (s.crouch > 0.5 ? 0.85 : 1.15));
+    const groundSpeed = s.velocity != null ? s.velocity : this.speed * 9.4;
+    const freq = groundSpeed > 0.05 ? Math.PI * groundSpeed / stepLen : (s.sprint > 0.8 ? 11.5 : s.sprint > 0.3 ? 9.8 : 8.5) * (s.crouch > 0.5 ? 0.85 : 1);
+    if ((this.speed > 0.02 || this.turnShuffle > 0.2) && !s.dead && s.roll == null && s.vault == null) this.phase += dt * (this.speed > 0.02 ? (s.velocity != null ? freq : freq * clamp(this.speed, 0.35, 1)) : 6 * this.turnShuffle);
     // servo gait: sharpened sine so legs snap between poses like actuators, with a short dwell
     const rawSw = Math.sin(this.phase);
     const sw = Math.sign(rawSw) * Math.pow(Math.abs(rawSw), 0.55), sw2 = Math.sin(this.phase * 2);
@@ -225,7 +228,24 @@ export class CharacterAnimator {
     set('thighR', thighR[0] + sw * legSwing + this.land * 0.55 + Math.max(0, -sw) * shuffle, thighR[1], thighR[2] + strafeSpread - sw * sideStep);
     set('shinR', shinR[0] + bendR + this.land * 0.9 + Math.max(0, -sw) * shuffle * 1.6, shinR[1], shinR[2]);
     set('footR', c.footR[0] + Math.max(0, sw) * amp * -0.3, c.footR[1], c.footR[2]);
-    B.root.position.y = 0.98 + this.rootY + bob;
+    // slope foot planting: drop the pelvis to the lower foot, bend the knee of the higher foot (2-bone leg 0.46 + 0.46)
+    let plant = 0;
+    if (s.groundAt && !s.dead && s.roll == null && s.vault == null && s.transform == null && !s.jet) {
+      const yaw = B.root.parent ? B.root.parent.rotation.y : 0; // model root yaw (facing = yaw + PI convention handled by caller)
+      const sx = Math.cos(yaw), sz = -Math.sin(yaw);
+      const hipOff = 0.14, base = s.groundAt(0, 0);
+      const gL = s.groundAt(hipOff * sx, hipOff * sz) - base, gR = s.groundAt(-hipOff * sx, -hipOff * sz) - base;
+      const lo = Math.min(gL, gR, 0), hi = Math.max(gL, gR);
+      plant = clamp(lo, -0.35, 0);
+      const liftL = clamp(gL - lo, 0, 0.45), liftR = clamp(gR - lo, 0, 0.45);
+      this.plantL = damp(this.plantL ?? 0, liftL, 12, dt); this.plantR = damp(this.plantR ?? 0, liftR, 12, dt); this.plantY = damp(this.plantY ?? 0, plant, 12, dt);
+      // knee bend that shortens the leg by `lift`: law of cosines on the 0.46/0.46 chain
+      const kneeFor = (lift) => { const L = 0.92 - lift; const cosK = clamp((0.46 * 0.46 + 0.46 * 0.46 - L * L) / (2 * 0.46 * 0.46), -1, 1); return Math.PI - Math.acos(cosK); };
+      const kL = kneeFor(this.plantL), kR = kneeFor(this.plantR);
+      B.thighL.rotation.x -= kL * 0.5; B.shinL.rotation.x += kL; B.footL.rotation.x -= kL * 0.5;
+      B.thighR.rotation.x -= kR * 0.5; B.shinR.rotation.x += kR; B.footR.rotation.x -= kR * 0.5;
+    } else { this.plantY = damp(this.plantY ?? 0, 0, 12, dt); this.plantL = damp(this.plantL ?? 0, 0, 12, dt); this.plantR = damp(this.plantR ?? 0, 0, 12, dt); }
+    B.root.position.y = 0.98 + this.rootY + bob + (this.plantY || 0);
     if (s.roll != null) { const k = Math.min(1, s.roll); B.root.rotation.set(-k * Math.PI * 2, 0, 0); B.root.scale.setScalar(1); }
     else if (s.transform != null) {
       // transformer tuck: the frame folds into a compact block, spins once, and unfolds

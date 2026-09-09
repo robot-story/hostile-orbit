@@ -465,7 +465,8 @@ export class Enemy {
     this.moveSpeedN = clamp(sp / this.type.sprint, 0, 1);
     const local = _v.set(this.velocity.x, 0, this.velocity.z).applyAxisAngle(UP, -this.yaw);
     if (this.distToCam < 120 || !far) {
-      this.anim.update(dt, { speed: this.moveSpeedN, strafe: clamp(local.x / 3, -1, 1), forward: local.z >= -0.3 ? 1 : -1, sprint: this.moveSpeedN > 0.75 ? 1 : 0, crouch: this.crouch, aim: this.aiming, cover: null, weaponLow: this.alert ? 0 : 0.8 });
+      const ll = Math.hypot(local.x, local.z) || 1;
+      this.anim.update(dt, { speed: this.moveSpeedN, strafe: clamp(local.x / 3, -1, 1), forward: local.z >= -0.3 ? 1 : -1, moveDir: { x: ll > 0.2 ? local.x / ll : 0, z: ll > 0.2 ? local.z / ll : -1 }, velocity: Math.hypot(this.velocity.x, this.velocity.z), groundAt: (ox, oz) => this.world.groundHeight(this.position.x + ox, this.position.z + oz, this.position.y), sprint: this.moveSpeedN > 0.75 ? 1 : 0, crouch: this.crouch, aim: this.aiming, cover: null, weaponLow: this.alert ? 0 : 0.8 });
     }
     if (this.target && this.aiming > 0.5) { const dy = (this.target.position.y + 1.2) - (this.position.y + 1.4); const dxz = Math.max(1, this.distToTarget); this.anim.aimPitch = clamp(Math.atan2(dy, dxz) / 1.1, -1, 1); }
     this.model.root.position.copy(this.position);

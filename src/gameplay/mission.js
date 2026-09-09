@@ -25,7 +25,7 @@ export const MERIDIAN_SCRIPT = {
   warden: { text: 'DESTROY THE WARDEN', title: 'WARDEN SIGNATURE DETECTED', sub: 'Destroy its armour plates to expose the core' },
   board: { text: 'BOARD THE DROPSHIP', title: 'DROPSHIP ON FINAL APPROACH', sub: 'Get aboard', marker: 'DROPSHIP' },
   labels: { charge: 'PLANT EXPLOSIVE CHARGE', terminal: 'ACCESS COMMAND TERMINAL', cell: 'RELEASE CAPTURED OPERATIVE', poster: 'CORRECT UNAUTHORISED MESSAGING' },
-  voice: { canyon: ['voss_jammer_intel', 'voss_occupants'], orbital: ['voss_orbital_unlocked', 'ship_orbital_unlock', 'voss_comms_base', 'voss_detention'] },
+  voice: { canyon: ['voss_jammer_intel', 'voss_occupants'], orbital: ['voss_orbital_unlocked', 'ship_orbital_unlock', 'voss_comms_base', 'voss_detention'], download: 'voss_download', extract: 'voss_data_secured', complete: 'voss_complete' },
 };
 
 export const STAGES = ['land', 'canyon', 'jammer', 'jammer_armed', 'orbital', 'comms', 'download', 'extract_move', 'extract_hold', 'warden', 'board', 'complete', 'failed'];
@@ -133,13 +133,13 @@ export class Mission {
       case 'download':
         this.setObjective(S.download.text, S.download);
         this.downloadT = 0; this.waveT = 4;
-        audio.say('voss_download', { priority: 3 });
+        audio.say(S.voice.download || 'voss_download', { priority: 3 });
         audio.setMusicState('combat');
         break;
       case 'extract_move':
         this.flags.data = true;
         this.setObjective(S.extract_move.text, S.extract_move);
-        audio.say('voss_data_secured', { priority: 3 });
+        audio.say(S.voice.extract || 'voss_data_secured', { priority: 3 });
         audio.say('ship_data_complete', { priority: 2, delay: 7 });
         this.mark(L.extractionCenter.pos, '#00e5ff', S.extract_move.marker);
         for (const c of this.level.cells || []) if (!c.rescued) this.mark(c.consolePosition, '#ffd23f', S.comms.cellMarker);
@@ -316,7 +316,7 @@ export class Mission {
   }
   complete() {
     if (!this.active) return; this.active = false; this.setStage('complete');
-    audio.say('voss_complete', { priority: 3 }); audio.say('ship_results', { priority: 2, delay: 8 });
+    audio.say(this.script.voice.complete || 'voss_complete', { priority: 3 }); audio.say('ship_results', { priority: 2, delay: 8 });
     this.dropship?.takeOff();
     this.result = this.buildResults(true);
     save.recordMissionResult(this.script.id, this.result); save.addRecord({ missionsCompleted: 1, coopMissions: net.isMultiplayer ? 1 : 0 }); save.addRewards(this.result); save.clearCheckpoint();
