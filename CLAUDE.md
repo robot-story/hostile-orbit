@@ -43,3 +43,9 @@ Cross-system communication uses `events` from `src/core/events.js`. Names are `n
 - Static props are merged per material by `src/world/merge.js`; anything gameplay mutates must be flagged `userData.noMerge` or passed in the `dynamic` list from `buildSession`.
 - The main loop is driven by rAF plus a Web Worker watchdog (`startWatchdog`) so hidden/throttled tabs keep simulating; never gate flow on `requestAnimationFrame` alone.
 - Testing: god mode defaults ON (`?mortal` to disable, F10 toggles). Turn it off before a public release build.
+
+## Maps (added 2026-09-09)
+- Maps live in `src/world/maps/` and are registered in `maps/index.js` (`MAPS`, `MAP_ORDER`, `DEFAULT_MAP`). A map bundles: `floor` (walkable layout in map coords), `terrain` (style `canyon`|`city`, texture tile, palette), `lighting`, `sky`, `celestials` variant, `dropZones`, `markers`/`enemyMarkers` (war table), `briefing`, `locations`/`patrolRoutes`/`spawnPoints`, `build(world)` and `Mission` class.
+- `World(map)` and `Terrain(res, map)` take the map; `buildLevel(world)` dispatches to `world.map.build`. The selected map id travels in `config.map`, `save.profile.loadout.map`, lobby `settings.map` and checkpoints.
+- Every map keeps the SAME location keys (`dropZone, canyonJunction, jammerGateSouth, jammerCenter, commsGateSouth, commsPlaza, commsTerminal, detentionEntrance, extractionCenter, extractionApproach`) and level-info fields (`jammer.chargePoints`, `terminal`, `cells`, `extraction`, `posters`, `supplyCaches`) so the shared `Mission` stage machine runs unchanged; per-map wording comes from a `script` table (`MERIDIAN_SCRIPT`, `LANTERN_SCRIPT`).
+- Black Lantern (`maps/lantern.js`, `level_lantern.js`, `models/city.js`, `mission_lantern.js`): neon city on a dark moon. Its tactical map was generated from `screenshot/lantern-schematic.png` (drawn from FLOOR_LANTERN) via `node tools/generate-images.mjs --edits --only=map_lantern`; redraw the schematic if the layout changes.

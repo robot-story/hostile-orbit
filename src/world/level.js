@@ -157,6 +157,11 @@ function dressRoad(world, corridor) {
 }
 
 export function buildLevel(world) {
+  if (world.map?.build && world.map.build !== buildMeridian) return world.map.build(world);
+  return buildMeridian(world);
+}
+
+export function buildMeridian(world) {
   const info = {
     locations: LOCATIONS,
     patrolRoutes,

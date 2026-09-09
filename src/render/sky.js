@@ -10,8 +10,8 @@ export function createSky(opts = {}) {
       uTop: { value: new THREE.Color(opts.top || '#0f5f6e') },
       uMid: { value: new THREE.Color(opts.mid || '#2fa8a8') },
       uHorizon: { value: new THREE.Color(opts.horizon || '#e07a3a') },
-      uSunDir: { value: new THREE.Vector3(-0.38, 0.8, 0.45).normalize() },
-      uSunColor: { value: new THREE.Color('#ffb06a') },
+      uSunDir: { value: new THREE.Vector3(...(opts.sunDir || [-0.38, 0.8, 0.45])).normalize() },
+      uSunColor: { value: new THREE.Color(opts.sunColor || '#ffb06a') },
       uAurora: { value: opts.aurora ?? 1 },
       uSpace: { value: opts.space ?? 0 },
     },
@@ -61,7 +61,8 @@ export function createSky(opts = {}) {
 }
 
 /** Two moons + distant fleet silhouettes + orbital beams, parented to a group that follows the camera in XZ. */
-export function createCelestials() {
+export function createCelestials(variant = 'khepri') {
+  if (variant === 'darkmoon') return createDarkMoonCelestials();
   const g = new THREE.Group();
   g.name = 'celestials';
   const moonMat = new THREE.MeshStandardMaterial({ color: '#c9d3d8', roughness: 1, emissive: '#1a2a30', emissiveIntensity: 0.5, fog: false });
@@ -95,6 +96,36 @@ export function createCelestials() {
   }
   g.userData.update = (t, dt) => {
     for (const b of beams) { const p = (Math.sin(t * 0.35 + b.userData.phase) + 1) * 0.5; b.material.opacity = p > 0.85 ? (p - 0.85) * 3.0 : 0; b.scale.x = b.scale.z = 0.8 + p; }
+    for (const s of ships) { s.position.x += s.userData.speed * dt; if (s.position.x > 900) s.position.x = -900; }
+  };
+  return g;
+}
+
+/** Dark-moon variant: a huge shadowed moon looming over the city, a magenta orbital glow, a sparse dark fleet. */
+function createDarkMoonCelestials() {
+  const g = new THREE.Group(); g.name = 'celestials';
+  const moonMat = new THREE.MeshStandardMaterial({ color: '#1a1d26', roughness: 1, emissive: '#0d1020', emissiveIntensity: 0.9, fog: false });
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(420, 40, 28), moonMat);
+  moon.position.set(420, 260, -1500);
+  // thin lit rim on the far side (a second, slightly bigger back-face shell in a pale colour)
+  const rimMat = new THREE.MeshBasicMaterial({ color: '#8fa8ff', side: THREE.BackSide, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const rim = new THREE.Mesh(new THREE.SphereGeometry(428, 40, 28), rimMat); rim.position.copy(moon.position);
+  g.add(moon, rim);
+  const small = new THREE.Mesh(new THREE.SphereGeometry(28, 20, 14), new THREE.MeshStandardMaterial({ color: '#6a6f80', roughness: 1, emissive: '#101218', emissiveIntensity: 0.6, fog: false }));
+  small.position.set(-700, 640, -1300); g.add(small);
+  // city glow discs on the horizon
+  const glowMat = new THREE.MeshBasicMaterial({ color: '#ff3fd8', transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide });
+  const glows = [];
+  for (let i = 0; i < 5; i++) { const gl = new THREE.Mesh(new THREE.CircleGeometry(260 + (i % 2) * 120, 24), glowMat.clone()); gl.position.set(-1200 + i * 600, 60, -1400 - (i % 2) * 200); gl.material.color.set(i % 2 ? '#00e5ff' : '#ff3fd8'); gl.userData.phase = i; g.add(gl); glows.push(gl); }
+  const shipMat = new THREE.MeshStandardMaterial({ color: '#0d1016', roughness: 0.9, metalness: 0.5, emissive: '#ff3fd8', emissiveIntensity: 0.12, fog: false });
+  const ships = [];
+  for (let i = 0; i < 4; i++) {
+    const s = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(60, 8, 14), shipMat); const wing = new THREE.Mesh(new THREE.BoxGeometry(24, 2, 40), shipMat); wing.position.set(6, -2, 0);
+    s.add(hull, wing); s.position.set(-500 + i * 300, 420 + (i % 2) * 80, -1150 - (i % 2) * 200); s.rotation.y = -0.4; s.userData.speed = 3 + (i % 2) * 2; g.add(s); ships.push(s);
+  }
+  g.userData.update = (t, dt) => {
+    for (const gl of glows) gl.material.opacity = 0.06 + 0.03 * Math.sin(t * 0.7 + gl.userData.phase * 1.3);
     for (const s of ships) { s.position.x += s.userData.speed * dt; if (s.position.x > 900) s.position.x = -900; }
   };
   return g;

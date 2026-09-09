@@ -421,3 +421,15 @@
   .settings-desc { display: none; }
   .squad-slots { flex-direction: column; }
 }
+
+/* Operation selector cards (briefing panel) */
+.op-select { display: flex; flex-direction: column; gap: 6px; }
+.op-card { display: flex; gap: 10px; align-items: stretch; width: 100%; padding: 0; background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-left: 3px solid transparent; color: var(--text); font-family: var(--font); text-align: left; cursor: pointer; transition: all .12s ease; }
+.op-card .oc-thumb { flex: 0 0 64px; height: 48px; background-size: cover; background-position: center; filter: saturate(0.6) brightness(0.8); }
+.op-card .oc-body { padding: 6px 8px 6px 0; min-width: 0; }
+.op-card .oc-name { font-weight: 700; font-size: 12px; letter-spacing: 0.1em; }
+.op-card .oc-tag { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; margin-top: 2px; }
+.op-card:hover { border-color: var(--border-strong); background: rgba(255,255,255,0.04); }
+.op-card.active { border-left-color: var(--yellow); background: rgba(242,199,68,0.08); }
+.op-card.active .oc-name { color: var(--yellow); }
+.op-card.readonly { cursor: default; opacity: 0.85; }

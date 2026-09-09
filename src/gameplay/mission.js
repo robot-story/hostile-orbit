@@ -11,6 +11,23 @@ import { M } from '../world/terrain.js';
 import { clamp, rand, pick, formatTime } from '../core/mathx.js';
 import { Mat } from '../render/materials.js';
 
+/** Per-map objective text. Stage ids are shared by every map; only the words change. */
+export const MERIDIAN_SCRIPT = {
+  id: 'silent_meridian', opName: 'OPERATION: SILENT MERIDIAN', resultLine: 'BLACKSITE MERIDIAN LIBERATED', completeSub: 'Blacksite Meridian liberated',
+  canyon: { text: 'REACH THE JAMMER OUTPOST', title: 'NEW OBJECTIVE', sub: 'Move through the canyon to the jammer outpost', marker: 'JAMMER OUTPOST' },
+  jammer: { text: 'PLANT EXPLOSIVES ON THE JAMMER (0/2)', title: 'NEW OBJECTIVE', sub: 'Plant two charges on the jammer array', progress: (n) => `PLANT EXPLOSIVES ON THE JAMMER (${n}/2)` },
+  jammer_armed: { text: 'GET CLEAR OF THE JAMMER', title: 'CHARGES ARMED', sub: 'Detonation in 10 seconds' },
+  orbital: { text: 'ASSAULT THE COMMUNICATIONS BASE', title: 'OBJECTIVE COMPLETE', sub: 'Jammer destroyed. Orbital support online.', marker: 'COMMS BASE' },
+  comms: { text: 'DOWNLOAD THE INVASION DATA', title: 'NEW OBJECTIVE', sub: 'Access the command terminal', marker: 'TERMINAL', cellMarker: 'DETENTION' },
+  download: { text: 'DEFEND THE TERMINAL — DOWNLOAD 0%', title: 'DOWNLOAD STARTED', sub: 'Hold the command room', progress: (pct) => `DEFEND THE TERMINAL — DOWNLOAD ${pct}%` },
+  extract_move: { text: 'REACH THE EXTRACTION PLATFORM', title: 'DATA SECURED', sub: 'Proceed to extraction', marker: 'EXTRACTION' },
+  extract_hold: { text: 'HOLD THE PLATFORM — 90s', title: 'EXTRACTION CALLED', sub: 'Survive for ninety seconds', progress: (s) => `HOLD THE PLATFORM — ${s}s` },
+  warden: { text: 'DESTROY THE WARDEN', title: 'WARDEN SIGNATURE DETECTED', sub: 'Destroy its armour plates to expose the core' },
+  board: { text: 'BOARD THE DROPSHIP', title: 'DROPSHIP ON FINAL APPROACH', sub: 'Get aboard', marker: 'DROPSHIP' },
+  labels: { charge: 'PLANT EXPLOSIVE CHARGE', terminal: 'ACCESS COMMAND TERMINAL', cell: 'RELEASE CAPTURED OPERATIVE', poster: 'CORRECT UNAUTHORISED MESSAGING' },
+  voice: { canyon: ['voss_jammer_intel', 'voss_occupants'], orbital: ['voss_orbital_unlocked', 'ship_orbital_unlock', 'voss_comms_base', 'voss_detention'] },
+};
+
 export const STAGES = ['land', 'canyon', 'jammer', 'jammer_armed', 'orbital', 'comms', 'download', 'extract_move', 'extract_hold', 'warden', 'board', 'complete', 'failed'];
 
 export class Mission {
@@ -27,6 +44,7 @@ export class Mission {
     this.active = false; this.result = null;
     this.interactHold = 0; this.currentInteract = null;
     this.musicT = 0;
+    this.script = MERIDIAN_SCRIPT;
     this.side = { propaganda: { name: 'CORRECT PROPAGANDA', done: 0, total: 3, positions: [] }, caches: { name: 'RECOVER SUPPLY CACHES', done: 0, total: 3, positions: [] }, drones: { name: 'DESTROY RECON DRONES', done: 0, total: 3, positions: [] } };
     this._bind();
   }
@@ -40,7 +58,7 @@ export class Mission {
     picks.forEach((c, i) => {
       const pos = c.p.clone(); pos.y = this.world.groundHeight(pos.x, pos.z);
       this.side.propaganda.positions.push(pos);
-      this.addInteractable({ id: 'prop' + i, position: pos, radius: 3.2, label: 'CORRECT UNAUTHORISED MESSAGING', holdTime: 1.6, marker: '#ffb020', condition: () => !c.done, onComplete: () => { c.done = true; this.sideProgress('propaganda', pos); try { c.m.material = Mat.poster('Messaging Corrected. Thank You For Your Compliance.', 'APPROVED BY ORBITAL COMMAND', '#00e5ff', 42 + i); } catch { /* ignore */ } } });
+      this.addInteractable({ id: 'prop' + i, position: pos, radius: 3.2, label: this.script.labels.poster, holdTime: 1.6, marker: '#ffb020', condition: () => !c.done, onComplete: () => { c.done = true; this.sideProgress('propaganda', pos); try { c.m.material = Mat.poster('Messaging Corrected. Thank You For Your Compliance.', 'APPROVED BY ORBITAL COMMAND', '#00e5ff', 42 + i); } catch { /* ignore */ } } });
     });
     // supply caches: reuse level caches
     const caches = (lv.supplyCaches || []).slice(0, 3); this.side.caches.total = caches.length;
@@ -80,59 +98,56 @@ export class Mission {
     this.stage = stage; this.stageT = 0;
     if (net.isHost) net.send(MSG.EV_OBJECTIVE, { id: 'stage', state: stage, data: this.flags }, { reliable: true });
     this.clearMarkers();
-    const L = this.L;
+    const L = this.L, S = this.script;
     switch (stage) {
       case 'canyon':
-        this.setObjective('REACH THE JAMMER OUTPOST', { title: 'NEW OBJECTIVE', sub: 'Move through the canyon to the jammer outpost' });
-        this.mark(L.jammerGateSouth.pos, '#00e5ff', 'JAMMER OUTPOST');
-        audio.say('voss_jammer_intel', { priority: 3, delay: 6 });
-        audio.say('voss_occupants', { priority: 2, delay: 26 });
+        this.setObjective(S.canyon.text, S.canyon);
+        this.mark(L.jammerGateSouth.pos, '#00e5ff', S.canyon.marker);
+        if (S.voice.canyon[0]) audio.say(S.voice.canyon[0], { priority: 3, delay: 6 });
+        if (S.voice.canyon[1]) audio.say(S.voice.canyon[1], { priority: 2, delay: 26 });
         this.checkpoint('canyon');
         break;
       case 'jammer':
-        this.setObjective('PLANT EXPLOSIVES ON THE JAMMER (0/2)', { title: 'NEW OBJECTIVE', sub: 'Plant two charges on the jammer array' });
+        this.setObjective(S.jammer.text, S.jammer);
         for (const cp of this.level.jammer.chargePoints) this.mark(cp, '#ff7a1a', 'CHARGE');
         this.checkpoint('jammer');
         break;
       case 'jammer_armed':
-        this.setObjective('GET CLEAR OF THE JAMMER', { title: 'CHARGES ARMED', sub: 'Detonation in 10 seconds' });
+        this.setObjective(S.jammer_armed.text, S.jammer_armed);
         this.jammerCountdown = 10;
         break;
       case 'orbital':
         this.flags.jammer = true;
-        this.setObjective('ASSAULT THE COMMUNICATIONS BASE', { title: 'OBJECTIVE COMPLETE', sub: 'Jammer destroyed. Orbital support online.' });
+        this.setObjective(S.orbital.text, S.orbital);
         this.game.abilities.unlock();
-        audio.say('voss_orbital_unlocked', { priority: 3, delay: 1.5 });
-        audio.say('ship_orbital_unlock', { priority: 2, delay: 9 });
-        audio.say('voss_comms_base', { priority: 3, delay: 16 });
-        audio.say('voss_detention', { priority: 2, delay: 30 });
-        this.mark(L.commsGateSouth.pos, '#00e5ff', 'COMMS BASE');
+        S.voice.orbital.forEach((v, i) => { if (v) audio.say(v, { priority: i % 2 ? 2 : 3, delay: [1.5, 9, 16, 30][i] }); });
+        this.mark(L.commsGateSouth.pos, '#00e5ff', S.orbital.marker);
         this.checkpoint('orbital');
         break;
       case 'comms':
-        this.setObjective('DOWNLOAD THE INVASION DATA', { title: 'NEW OBJECTIVE', sub: 'Access the command terminal' });
-        this.mark(this.level.terminal.position, '#00e5ff', 'TERMINAL');
-        for (const c of this.level.cells || []) if (!c.rescued) this.mark(c.consolePosition, '#ffd23f', 'DETENTION');
+        this.setObjective(S.comms.text, S.comms);
+        this.mark(this.level.terminal.position, '#00e5ff', S.comms.marker);
+        for (const c of this.level.cells || []) if (!c.rescued) this.mark(c.consolePosition, '#ffd23f', S.comms.cellMarker);
         this.checkpoint('comms');
         break;
       case 'download':
-        this.setObjective('DEFEND THE TERMINAL — DOWNLOAD 0%', { title: 'DOWNLOAD STARTED', sub: 'Hold the command room' });
+        this.setObjective(S.download.text, S.download);
         this.downloadT = 0; this.waveT = 4;
         audio.say('voss_download', { priority: 3 });
         audio.setMusicState('combat');
         break;
       case 'extract_move':
         this.flags.data = true;
-        this.setObjective('REACH THE EXTRACTION PLATFORM', { title: 'DATA SECURED', sub: 'Proceed to extraction' });
+        this.setObjective(S.extract_move.text, S.extract_move);
         audio.say('voss_data_secured', { priority: 3 });
         audio.say('ship_data_complete', { priority: 2, delay: 7 });
-        this.mark(L.extractionCenter.pos, '#00e5ff', 'EXTRACTION');
-        for (const c of this.level.cells || []) if (!c.rescued) this.mark(c.consolePosition, '#ffd23f', 'DETENTION');
+        this.mark(L.extractionCenter.pos, '#00e5ff', S.extract_move.marker);
+        for (const c of this.level.cells || []) if (!c.rescued) this.mark(c.consolePosition, '#ffd23f', S.comms.cellMarker);
         this.checkpoint('extract_move');
         break;
       case 'extract_hold':
         this.flags.extractionStarted = true; this.holdTimer = 90; this.waveT = 3; this.wardenSpawned = false;
-        this.setObjective('HOLD THE PLATFORM — 90s', { title: 'EXTRACTION CALLED', sub: 'Survive for ninety seconds' });
+        this.setObjective(S.extract_hold.text, S.extract_hold);
         audio.say('voss_extraction', { priority: 3 });
         audio.say('ship_wait_time', { priority: 2, delay: 8 });
         audio.say('voss_hold', { priority: 2, delay: 30 });
@@ -141,21 +156,21 @@ export class Mission {
         this.checkpoint('extract_hold');
         break;
       case 'warden':
-        this.setObjective('DESTROY THE WARDEN', { title: 'WARDEN SIGNATURE DETECTED', sub: 'Destroy its armour plates to expose the core' });
+        this.setObjective(S.warden.text, S.warden);
         audio.say('voss_warden_2', { priority: 3 });
         audio.say('voss_warden', { priority: 2, delay: 6 });
         audio.say('vg_warden', { priority: 1, delay: 16 });
         audio.setMusicState('boss');
         break;
       case 'board':
-        this.setObjective('BOARD THE DROPSHIP', { title: 'DROPSHIP ON FINAL APPROACH', sub: 'Get aboard' });
+        this.setObjective(S.board.text, S.board);
         audio.say('voss_dropship', { priority: 3 });
         if (this.dropship) this.dropship.canLand = true;
-        this.mark(L.extractionCenter.pos, '#3dff9a', 'DROPSHIP');
+        this.mark(L.extractionCenter.pos, '#3dff9a', S.board.marker);
         audio.setMusicState('extraction');
         break;
       case 'complete':
-        this.setObjective('MISSION COMPLETE', { title: 'MISSION COMPLETE', sub: 'Blacksite Meridian liberated' });
+        this.setObjective('MISSION COMPLETE', { title: 'MISSION COMPLETE', sub: S.completeSub });
         break;
       case 'failed':
         this.setObjective('MISSION FAILED');
@@ -195,9 +210,9 @@ export class Mission {
   }
   setupInteractables() {
     const lv = this.level;
-    lv.jammer.chargePoints.forEach((p, i) => this.addInteractable({ id: 'charge' + i, position: p, radius: 2.4, label: 'PLANT EXPLOSIVE CHARGE', holdTime: 3, condition: () => this.stage === 'jammer' && !this['charge' + i], onComplete: () => this.requestInteract('charge' + i) }));
-    this.addInteractable({ id: 'terminal', position: lv.terminal.position, radius: 2.8, label: 'ACCESS COMMAND TERMINAL', holdTime: 2, condition: () => this.stage === 'comms', onComplete: () => this.requestInteract('terminal') });
-    (lv.cells || []).forEach((c, i) => this.addInteractable({ id: 'cell' + i, position: c.consolePosition, radius: 2.6, label: 'RELEASE CAPTURED OPERATIVE', holdTime: 2.5, condition: () => !c.rescued && ['comms', 'download', 'extract_move', 'extract_hold', 'warden', 'board'].includes(this.stage), onComplete: () => this.requestInteract('cell' + i) }));
+    lv.jammer.chargePoints.forEach((p, i) => this.addInteractable({ id: 'charge' + i, position: p, radius: 2.4, label: this.script.labels.charge, holdTime: 3, condition: () => this.stage === 'jammer' && !this['charge' + i], onComplete: () => this.requestInteract('charge' + i) }));
+    this.addInteractable({ id: 'terminal', position: lv.terminal.position, radius: 2.8, label: this.script.labels.terminal, holdTime: 2, condition: () => this.stage === 'comms', onComplete: () => this.requestInteract('terminal') });
+    (lv.cells || []).forEach((c, i) => this.addInteractable({ id: 'cell' + i, position: c.consolePosition, radius: 2.6, label: this.script.labels.cell, holdTime: 2.5, condition: () => !c.rescued && ['comms', 'download', 'extract_move', 'extract_hold', 'warden', 'board'].includes(this.stage), onComplete: () => this.requestInteract('cell' + i) }));
     this.addInteractable({ id: 'board', position: this.L.extractionCenter.pos, radius: 7, label: 'BOARD THE DROPSHIP', holdTime: 1.5, condition: () => this.stage === 'board' && this.dropship?.landed, onComplete: () => this.requestInteract('board') });
     for (const cache of (lv.supplyCaches || [])) { const used = new Set(); this.addInteractable({ id: 'cache' + (cache.collider?.id || Math.random()), position: cache.position, radius: 2.2, label: 'TAKE SUPPLIES', holdTime: 0.8, condition: (p) => !used.has(p.id), onComplete: (p) => { used.add(p.id); p.resupply(0.5); audio.play('pickup', { volume: 1 }); events.emit('toast', 'SUPPLY CACHE: AMMUNITION RESTOCKED', 'unlock'); if (this._cacheSet?.has(cache.position) && p === this.game.localPlayer) { this._cacheSet.delete(cache.position); this.sideProgress('caches', cache.position); } if (cache.weapon) { if (save.unlockWeapon(cache.weapon)) events.emit('toast', `${cache.weapon.toUpperCase()} RECOVERED — AVAILABLE IN THE ARMOURY`, 'unlock'); p.pickupWeapon(cache.weapon); } } }); }
     // field weapon pickups: Hammer at the jammer outpost, Atlas at the comms base
@@ -220,7 +235,7 @@ export class Mission {
     audio.play('terminal_interact', { pos: this.level.jammer.chargePoints[i], volume: 1 });
     if (net.isHost && !remote) net.send(MSG.EV_OBJECTIVE, { id: 'charge', data: { index: i } }, { reliable: true });
     if (this.flags.chargesPlanted >= 2) this.setStage('jammer_armed');
-    else { this.setObjective(`PLANT EXPLOSIVES ON THE JAMMER (${this.flags.chargesPlanted}/2)`); events.emit('toast', 'CHARGE PLANTED', 'info'); }
+    else { this.setObjective(this.script.jammer.progress(this.flags.chargesPlanted)); events.emit('toast', 'CHARGE PLANTED', 'info'); }
   }
   onRescued(i, remote = false) {
     const c = this.level.cells?.[i]; if (!c || c.rescued) return; c.rescued = true; this.flags.rescued++;
@@ -296,7 +311,7 @@ export class Mission {
     audio.say('voss_failed', { priority: 3 });
     audio.setMusicState('failed');
     this.result = this.buildResults(false);
-    save.recordMissionResult('silent_meridian', this.result); save.addRecord({ missionsFailed: 1 }); save.clearCheckpoint();
+    save.recordMissionResult(this.script.id, this.result); save.addRecord({ missionsFailed: 1 }); save.clearCheckpoint();
     setTimeout(() => events.emit('mission:end', this.result), 4000);
   }
   complete() {
@@ -304,7 +319,7 @@ export class Mission {
     audio.say('voss_complete', { priority: 3 }); audio.say('ship_results', { priority: 2, delay: 8 });
     this.dropship?.takeOff();
     this.result = this.buildResults(true);
-    save.recordMissionResult('silent_meridian', this.result); save.addRecord({ missionsCompleted: 1, coopMissions: net.isMultiplayer ? 1 : 0 }); save.addRewards(this.result); save.clearCheckpoint();
+    save.recordMissionResult(this.script.id, this.result); save.addRecord({ missionsCompleted: 1, coopMissions: net.isMultiplayer ? 1 : 0 }); save.addRewards(this.result); save.clearCheckpoint();
     events.emit('mission:extracting');
     setTimeout(() => events.emit('mission:end', this.result), 6500);
   }
@@ -317,12 +332,12 @@ export class Mission {
     const intel = (this.flags.data ? 2 : 0) + this.flags.rescued;
     save.addRecord({ kills: s.kills, headshots: s.headshots, shotsFired: s.shotsFired, shotsHit: s.shotsHit, deaths: s.deaths || 0, grenadesThrown: s.grenadesThrown, orbitalStrikes: s.orbitalStrikes, operativesRescued: this.flags.rescued, wardensKilled: s.wardensKilled || 0, dronesDestroyed: s.dronesDestroyed, timePlayed: Math.round(this.time), damageDealt: Math.round(s.damageDealt), limbsRemoved: s.limbsRemoved });
     save.setRecordMax('longestKillStreak', s.bestStreak);
-    return { success, time: Math.round(this.time), accuracy, kills: s.kills, headshots: s.headshots, reinforcementsUsed: this.reinforcementsUsed, xp, requisition, intel, stars, objectives: { jammer: this.flags.jammer, data: this.flags.data, rescued: this.flags.rescued, rescuedTotal: 2 }, coop: net.isMultiplayer, isHost: net.isHost };
+    return { success, time: Math.round(this.time), accuracy, kills: s.kills, headshots: s.headshots, reinforcementsUsed: this.reinforcementsUsed, xp, requisition, intel, stars, objectives: { jammer: this.flags.jammer, data: this.flags.data, rescued: this.flags.rescued, rescuedTotal: 2 }, coop: net.isMultiplayer, isHost: net.isHost, map: this.game.world.map?.id, opName: this.script.opName, resultLine: this.script.resultLine };
   }
   checkpoint(stage) {
     if (!net.isHost) return;
     const p = this.game.localPlayer;
-    save.setCheckpoint({ stage, time: this.time, lives: this.lives, reinforcementsUsed: this.reinforcementsUsed, flags: { ...this.flags }, position: p ? [p.position.x, p.position.y, p.position.z] : null, loadout: save.profile.loadout, difficulty: this.game.difficulty?.id, stats: { ...this.game.combat.stats }, savedAt: Date.now() });
+    save.setCheckpoint({ map: this.game.world.map?.id, stage, time: this.time, lives: this.lives, reinforcementsUsed: this.reinforcementsUsed, flags: { ...this.flags }, position: p ? [p.position.x, p.position.y, p.position.z] : null, loadout: save.profile.loadout, difficulty: this.game.difficulty?.id, stats: { ...this.game.combat.stats }, savedAt: Date.now() });
     events.emit('toast', 'CHECKPOINT REACHED', 'info');
     audio.play('checkpoint', { volume: 0.7 });
   }
@@ -351,7 +366,7 @@ export class Mission {
       if (this.stage === 'orbital' && this.anyPlayerNear(this.L.commsGateSouth.pos, 40)) this.setStage('comms');
       if (this.stage === 'download') {
         this.downloadT += dt; const pct = clamp(this.downloadT / 60, 0, 1);
-        if (Math.floor(pct * 100) !== this._lastPct) { this._lastPct = Math.floor(pct * 100); this.setObjective(`DEFEND THE TERMINAL — DOWNLOAD ${this._lastPct}%`); if (this._lastPct % 10 === 0) audio.play('download_beep', { volume: 0.5 }); }
+        if (Math.floor(pct * 100) !== this._lastPct) { this._lastPct = Math.floor(pct * 100); this.setObjective(this.script.download.progress(this._lastPct)); if (this._lastPct % 10 === 0) audio.play('download_beep', { volume: 0.5 }); }
         this.waveT -= dt;
         if (this.waveT <= 0) { this.waveT = 16; const pts = this.level.spawnPoints?.comms || [this.L.commsGateSouth.pos]; D.wave([pick(['assault', 'fire_team']), pick(['patrol', 'heavy'])], pts, { allowElite: true }); events.emit('toast', 'NULL LEGION REINFORCEMENTS INBOUND', 'warn'); }
         if (pct >= 1) this.setStage('extract_move');
@@ -359,7 +374,7 @@ export class Mission {
       if (this.stage === 'extract_move' && this.anyPlayerNear(this.L.extractionCenter.pos, 18)) this.setStage('extract_hold');
       if (this.stage === 'extract_hold') {
         this.holdTimer -= dt; const s = Math.ceil(this.holdTimer);
-        if (s !== this._lastHold) { this._lastHold = s; this.setObjective(`HOLD THE PLATFORM — ${Math.max(0, s)}s`); if (s <= 10 && s > 0) audio.play('countdown_tick', { volume: 0.7 }); if (s === 45) audio.say('ship_extraction_request', { priority: 1 }); }
+        if (s !== this._lastHold) { this._lastHold = s; this.setObjective(this.script.extract_hold.progress(Math.max(0, s))); if (s <= 10 && s > 0) audio.play('countdown_tick', { volume: 0.7 }); if (s === 45) audio.say('ship_extraction_request', { priority: 1 }); }
         this.waveT -= dt;
         if (this.waveT <= 0) { this.waveT = 14; const pts = this.level.spawnPoints?.extraction || [this.L.extractionApproach.pos]; const shuffled = [...pts].sort(() => Math.random() - 0.5); D.wave([pick(['assault', 'fire_team', 'patrol_heavy']), pick(['patrol', 'heavy', 'assault'])], shuffled, { allowElite: true }); if (Math.random() < 0.5) D.wave(['recon'], shuffled, { delay: 3 }); }
         if (this.holdTimer <= 45 && !this.wardenSpawned) { this.wardenSpawned = true; const sp = this.L.extractionApproach.pos; D.spawn('warden', sp, { yaw: 0 }); audio.play('warden_roar', { pos: sp, volume: 1, maxDistance: 400 }); events.emit('toast', 'WARDEN SIGNATURE DETECTED', 'warn'); }

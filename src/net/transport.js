@@ -22,7 +22,7 @@ export class Transport {
     this.hostConn = null;
     this.code = null; this.link = null; this.isHost = false; this.connected = false; this.error = null;
     this.players = []; // lobby roster
-    this.settings = { difficulty: 'veteran', dropZone: 'main' };
+    this.settings = { difficulty: 'veteran', dropZone: 'main', map: 'meridian' };
     this.phase = 'lobby'; // lobby | mission | results
     this.localName = 'Vanguard'; this.localLoadout = null;
     this.nextId = 2;

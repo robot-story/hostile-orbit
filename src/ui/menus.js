@@ -33,6 +33,7 @@ export function createMenus(api, root) {
     hideInteract() { interactPrompt.hide(); },
     showTacticalMap(playerXY, objectiveXY, teammates) { tacticalMap.show(playerXY, objectiveXY, teammates); },
     hideTacticalMap() { tacticalMap.hide(); },
+    setMapImage(rel) { tacticalMap.setImage((import.meta.env.BASE_URL || '/') + rel); },
     confirm: null, // set below
     show,
     hide,

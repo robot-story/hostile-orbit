@@ -387,6 +387,7 @@ export class TacticalMapOverlay {
     ]);
     root.appendChild(this.el);
   }
+  setImage(url) { const img = this.el.querySelector('.tac-map-img'); if (img && img.getAttribute('src') !== url) img.src = url; }
   show(playerXY, objectiveXY, teammates = []) {
     this.el.classList.add('visible');
     this.update(playerXY, objectiveXY, teammates);

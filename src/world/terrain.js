@@ -49,19 +49,19 @@ function segDist(px, py, ax, ay, bx, by) {
 }
 
 /** Returns {d: distance to floor edge (0 inside), lift: floor height offset} */
-export function floorField(mx, my) {
+export function floorField(mx, my, floor = FLOOR) {
   let best = Infinity, lift = 0;
-  for (const c of FLOOR.circles) {
+  for (const c of floor.circles) {
     const d = Math.hypot(mx - c.c[0], my - c.c[1]) - c.r;
-    if (d < best) { best = d; lift = 0; }
+    if (d < best) { best = d; lift = c.lift || 0; }
   }
-  for (const r of FLOOR.rects) {
+  for (const r of floor.rects) {
     const dx = Math.max(r.min[0] - mx, 0, mx - r.max[0]);
     const dy = Math.max(r.min[1] - my, 0, my - r.max[1]);
     const d = Math.hypot(dx, dy) + (dx === 0 && dy === 0 ? -Math.min(mx - r.min[0], r.max[0] - mx, my - r.min[1], r.max[1] - my) : 0);
-    if (d < best) { best = d; lift = 0; }
+    if (d < best) { best = d; lift = r.lift || 0; }
   }
-  for (const co of FLOOR.corridors) {
+  for (const co of floor.corridors) {
     for (let i = 0; i < co.pts.length - 1; i++) {
       const d = segDist(mx, my, co.pts[i][0], co.pts[i][1], co.pts[i + 1][0], co.pts[i + 1][1]) - co.w / 2;
       if (d < best) { best = d; lift = co.lift || 0; }
@@ -70,15 +70,27 @@ export function floorField(mx, my) {
   return { d: best, lift };
 }
 
-export function baseFloorHeight(mx, my) {
+export function baseFloorHeight(mx, my, style = 'canyon') {
+  if (style === 'city') return 1.2 * smoothstep(60, 330, my) + (fbm2(mx * 0.008, my * 0.008, 3) - 0.5) * 0.35;
   // Gentle rise to the north, plus large soft undulation
   return 6.5 * smoothstep(60, 330, my) + (fbm2(mx * 0.008, my * 0.008, 3) - 0.5) * 1.6;
 }
 
-export function terrainHeightMap(mx, my) {
-  const { d, lift } = floorField(mx, my);
-  const floor = baseFloorHeight(mx, my);
+export function terrainHeightMap(mx, my, map = null) {
+  const style = map?.terrain?.style || 'canyon';
+  const { d, lift } = floorField(mx, my, map?.floor || FLOOR);
+  const floor = baseFloorHeight(mx, my, style);
   const ridgeNoise = fbm2(mx * 0.025 + 3.1, my * 0.025 + 7.7, 4);
+  if (style === 'city') {
+    // urban blocks: steep plateaus (building footprints) instead of rounded canyon walls
+    const block = 4 + Math.floor(ridgeNoise * 3) * 2.5;
+    const wallT = smoothstep(0, 4, d);
+    const liftT = lift < 0 ? (1 - smoothstep(0, 2.5, d)) : (1 - smoothstep(0, 8, d));
+    let h = floor + wallT * block + lift * liftT + (fbm2(mx * 0.12, my * 0.12, 2) - 0.5) * lerp(0.15, 0.6, wallT);
+    const edge = Math.min(mx, my, 400 - mx, 400 - my);
+    h += smoothstep(14, 0, edge) * 30;
+    return h;
+  }
   const ridge = 13 + ridgeNoise * 14;
   const wallT = smoothstep(0, 20, d);
   // Trench lift: lower floor with sharp walls
@@ -94,15 +106,15 @@ export function terrainHeightMap(mx, my) {
 }
 
 export class Terrain {
-  constructor(res = 2) {
-    this.res = res;
+  constructor(res = 2, map = null) {
+    this.res = res; this.map = map; this.floor = map?.floor || FLOOR;
     this.n = Math.floor(MAP_SIZE / res) + 1;
     this.heights = new Float32Array(this.n * this.n);
     this.floorDist = new Float32Array(this.n * this.n);
     for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
       const mx = i * res, my = j * res;
-      this.heights[j * this.n + i] = terrainHeightMap(mx, my);
-      this.floorDist[j * this.n + i] = floorField(mx, my).d;
+      this.heights[j * this.n + i] = terrainHeightMap(mx, my, map);
+      this.floorDist[j * this.n + i] = floorField(mx, my, this.floor).d;
     }
     this.mesh = this._buildMesh();
   }
@@ -150,6 +162,8 @@ export class Terrain {
   }
   _buildMesh() {
     const n = this.n, size = MAP_SIZE;
+    const T = this.map?.terrain || {};
+    const P = { floor: [0.98, 0.80, 0.62], floorNoise: [0.1, 0.1, 0.08], rock: [0.30, 0.26, 0.25], rockNoise: [0.12, 0.08, 0.06], ridge: [0.45, 0.28, 0.18], veinScale: 0.35, ...(T.palette || {}) };
     const geo = new THREE.PlaneGeometry(size, size, n - 1, n - 1);
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position;
@@ -164,22 +178,23 @@ export class Terrain {
       const rockT = smoothstep(2, 16, fd);
       const nz = fbm2(x * 0.05, z * 0.05, 3);
       // dust orange floor -> dark basalt rock
-      c.setRGB(0.98 + nz * 0.1, 0.80 + nz * 0.1, 0.62 + nz * 0.08);
-      const rock = new THREE.Color(0.30 + nz * 0.12, 0.26 + nz * 0.08, 0.25 + nz * 0.06);
+      c.setRGB(P.floor[0] + nz * P.floorNoise[0], P.floor[1] + nz * P.floorNoise[1], P.floor[2] + nz * P.floorNoise[2]);
+      const rock = new THREE.Color(P.rock[0] + nz * P.rockNoise[0], P.rock[1] + nz * P.rockNoise[1], P.rock[2] + nz * P.rockNoise[2]);
       c.lerp(rock, rockT);
       // slight brighter dust on top ridges
-      if (h > 20) c.lerp(new THREE.Color(0.45, 0.28, 0.18), smoothstep(20, 32, h) * 0.5);
+      if (h > 20) c.lerp(new THREE.Color(P.ridge[0], P.ridge[1], P.ridge[2]), smoothstep(20, 32, h) * 0.5);
       colors[k * 3] = c.r; colors[k * 3 + 1] = c.g; colors[k * 3 + 2] = c.b;
       // neon veins only in floor cracks and along rock bases, patchy
       const patch = fbm2(x * 0.02 + 11, z * 0.02 + 5, 2);
       // sparse glowing patches: mostly along canyon floors near rock bases
-      vein[k] = (patch > 0.66 ? (patch - 0.66) * 4 : 0) * (1 - rockT * 0.7) * (fd < 6 && fd > -14 ? 1 : 0.08) * 0.35;
+      vein[k] = (patch > 0.66 ? (patch - 0.66) * 4 : 0) * (1 - rockT * 0.7) * (fd < 6 && fd > -14 ? 1 : 0.08) * P.veinScale;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.setAttribute('aVein', new THREE.BufferAttribute(vein, 1));
     geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({ map: Tex.terrain(), vertexColors: true, roughness: 0.96, metalness: 0.0, emissive: '#ffffff', emissiveMap: Tex.veins(), emissiveIntensity: 1.0 });
-    new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/tex_terrain.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.repeat.set(60, 60); mat.map = tex; mat.needsUpdate = true; }, undefined, () => {});
+    const texId = T.texture || 'tex_terrain', rep = T.repeat || 60;
+    new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/' + texId + '.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.repeat.set(rep, rep); mat.map = tex; if (T.tint) mat.color.set(T.tint); mat.needsUpdate = true; }, undefined, () => {});
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aVein; varying float vVein; varying vec3 vWPos;')

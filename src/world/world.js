@@ -12,13 +12,17 @@ import { updateMaterials } from '../render/materials.js';
 const _q = [];
 const _hit = { point: new THREE.Vector3(), normal: new THREE.Vector3(), dist: 0, collider: null, material: 'dirt', entity: null, zone: null };
 
+const DEFAULT_LIGHTING = { background: '#2c8a90', fog: '#c9946f', fogDensity: 0.0026, hemiSky: '#8fe0e8', hemiGround: '#a07a62', hemiIntensity: 1.25, sun: '#fff0dc', sunIntensity: 2.4, sunOffset: [-60, 130, 70], ambient: '#4a6a74', ambientIntensity: 0.7 };
+
 export class World {
-  constructor() {
+  constructor(map = null) {
+    this.map = map;
+    this.lighting = { ...DEFAULT_LIGHTING, ...(map?.lighting || {}) };
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color('#2c8a90');
-    this.scene.fog = new THREE.FogExp2('#c9946f', 0.0026);
+    this.scene.background = new THREE.Color(this.lighting.background);
+    this.scene.fog = new THREE.FogExp2(this.lighting.fog, this.lighting.fogDensity);
     this.time = 0;
-    this.terrain = new Terrain(2);
+    this.terrain = new Terrain(2, map);
     this.scene.add(this.terrain.mesh);
     this.colliders = new ColliderWorld(8);
     this.cover = new CoverSystem(this);
@@ -29,9 +33,9 @@ export class World {
     this.hitTargets = []; // entities with hitboxes
     this.dynamicMeshes = [];
     this._setupLights();
-    this.sky = createSky();
+    this.sky = createSky(map?.sky || {});
     this.scene.add(this.sky);
-    this.celestials = createCelestials();
+    this.celestials = createCelestials(map?.celestials || 'khepri');
     this.scene.add(this.celestials);
     this.props = new THREE.Group(); this.props.name = 'props'; this.scene.add(this.props);
     this.fxGroup = new THREE.Group(); this.fxGroup.name = 'fx'; this.scene.add(this.fxGroup);
@@ -39,10 +43,11 @@ export class World {
     events.on('renderer:quality', () => this._applyShadowQuality());
   }
   _setupLights() {
-    this.hemi = new THREE.HemisphereLight('#8fe0e8', '#a07a62', 1.25);
+    const L = this.lighting;
+    this.hemi = new THREE.HemisphereLight(L.hemiSky, L.hemiGround, L.hemiIntensity);
     this.scene.add(this.hemi);
-    this.sun = new THREE.DirectionalLight('#fff0dc', 2.4);
-    this.sun.position.set(-60, 130, 70);
+    this.sun = new THREE.DirectionalLight(L.sun, L.sunIntensity);
+    this.sun.position.set(...L.sunOffset);
     this.sun.castShadow = true;
     const s = this.sun.shadow;
     s.mapSize.set(2048, 2048);
@@ -51,7 +56,7 @@ export class World {
     s.bias = -0.0006; s.normalBias = 0.03;
     this.sunTarget = new THREE.Object3D(); this.scene.add(this.sunTarget); this.sun.target = this.sunTarget;
     this.scene.add(this.sun);
-    this.ambientFill = new THREE.AmbientLight('#4a6a74', 0.7);
+    this.ambientFill = new THREE.AmbientLight(L.ambient, L.ambientIntensity);
     this.scene.add(this.ambientFill);
     this._applyShadowQuality();
   }
@@ -178,7 +183,7 @@ export class World {
       // shadow follows camera focus
       const f = camera.userData.focus || camera.position;
       this.sunTarget.position.set(f.x, f.y, f.z);
-      this.sun.position.set(f.x - 60, f.y + 130, f.z + 70);
+      const o = this.lighting.sunOffset; this.sun.position.set(f.x + o[0], f.y + o[1], f.z + o[2]);
     }
     for (const u of this.updatables) u.update(dt);
   }

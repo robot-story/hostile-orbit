@@ -21,7 +21,8 @@ const WEAPON_ICONS = {
 };
 
 export class Hud {
-  constructor(root) {
+  constructor(root, map = null) {
+    this.map = map;
     this.el = document.createElement('div'); this.el.id = 'hud';
     this.el.innerHTML = `
       <div class="xhair"><i></i><i></i><i></i><i></i><b></b><div class="hitm"><i></i><i></i><i></i><i></i></div></div>
@@ -145,7 +146,7 @@ export class Hud {
     `;
     document.head.appendChild(css);
     this.canvas = this.el.querySelector('.radar canvas'); this.ctx = this.canvas.getContext('2d');
-    this.mapImg = new Image(); this.mapImg.src = `${BASE}textures/menus/map_clean.jpg`; this.mapImg.onerror = () => { this.mapImg.onerror = null; this.mapImg.src = `${BASE}textures/blacksite-meridian-map.png`; };
+    this.mapImg = new Image(); this.mapImg.src = `${BASE}${map?.mapImage || 'textures/menus/map_clean.jpg'}`; this.mapImg.onerror = () => { this.mapImg.onerror = null; this.mapImg.src = `${BASE}textures/blacksite-meridian-map.png`; };
     this.lives = 4; this.maxLives = 4; this.setLives(4, 4);
     this.buildAbilities(); this.buildCompass();
     this.objMarker = null; this.alertLevel = 0; this.enemiesRef = null; this.playersRef = null;

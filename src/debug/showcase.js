@@ -10,6 +10,7 @@ import { buildPodModel, Gunship, Dropship, buildSupplyCrate } from '../gameplay/
 import { buildDropZone, buildPylon } from '../models/buildings.js';
 import * as Props from '../models/props.js';
 import * as Alien from '../models/alien.js';
+import * as City from '../models/city.js';
 import { mergeStaticProps } from '../world/merge.js';
 
 export function startShowcase(game) {
@@ -45,6 +46,14 @@ export function startShowcase(game) {
   const gs = Gunship.buildModel(); gs.scale.setScalar(0.5); put(gs, 1.5, 4.6); gs.position.y += 4;
   const ds = Dropship.buildModel(); ds.scale.setScalar(0.5); put(ds, 5.5, 4.6); ds.position.y += 1;
   buildPylon(world, pos(-0.5, 0.5), 7);
+  // Row 5: city
+  City.buildTower(world, pos(0, 5), 0, { color: '#00e5ff' });
+  City.buildTower(world, pos(1.3, 5), 0.4, { color: '#ff3fd8' });
+  City.hoverWreck(world, pos(2.6, 5), 0.2);
+  City.kiosk(world, pos(4, 5), 0);
+  City.neonSign(world, pos(5, 5), 0);
+  City.holoBillboard(world, pos(6.5, 5), 0);
+  City.streetLamp(world, pos(7.5, 5), { light: false });
   world.finalize();
   game.renderer.setScene(world.scene, game.camera);
   game.setBackground(null); game.menus.hide();

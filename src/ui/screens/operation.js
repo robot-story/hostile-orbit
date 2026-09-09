@@ -1,17 +1,5 @@
 import { el, icon, actionButton, screenHeader } from '../components.js';
 
-const MARKERS = [
-  { x: 70, y: 320, label: 'JAMMER OUTPOST', kind: 'primary', tag: 'PRIMARY OBJECTIVE', desc: 'Plant charges on the Null Legion jammer. Orbital support stays blocked until it falls.' },
-  { x: 200, y: 335, label: 'COMMUNICATIONS BASE', kind: 'primary', tag: 'PRIMARY OBJECTIVE', desc: 'Breach the comms base and download the invasion data from the core terminal.' },
-  { x: 292, y: 355, label: 'DETENTION', kind: 'secondary', tag: 'SECONDARY OBJECTIVE', desc: 'Two captured operatives are held here. Free them for bonus requisition and a friendly gun.' },
-  { x: 330, y: 250, label: 'EXTRACTION', kind: 'primary', tag: 'EXTRACTION', desc: 'Call the dropship and hold the pad for 90 seconds. The Warden will contest it.' },
-  { x: 200, y: 190, label: 'SIDE OP: PROPAGANDA', kind: 'side', tag: 'SIDE OPERATION', desc: 'Silence the Legion propaganda broadcasters scattered through the canyon.' },
-  { x: 108, y: 205, label: 'SIDE OP: SUPPLY CACHES', kind: 'side', tag: 'SIDE OPERATION', desc: 'Recover lost Commonwealth supply caches for intel and requisition.' },
-  { x: 200, y: 130, label: 'SIDE OP: RECON DRONES', kind: 'side', tag: 'SIDE OPERATION', desc: 'Shoot down recon drones before they mark the squad for reinforcements.' },
-];
-const ENEMY_MARKERS = [
-  { x: 30, y: 210 }, { x: 105, y: 375 }, { x: 350, y: 375 }, { x: 340, y: 130 }, { x: 220, y: 90 },
-];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 function holo(tag, title, desc) {
@@ -29,7 +17,18 @@ export function createOperationScreen(api, mgr) {
 
   let difficulty = api.save.profile.loadout.difficulty || 'veteran';
   let dropZone = api.save.profile.loadout.dropZone || 'main';
+  let mapId = api.save.profile.loadout.map || api.DEFAULT_MAP;
   let pickingZone = false;
+  const MAP_IDS = Object.keys(api.MAPS);
+  function currentMap() { const st = api.mp.state(); if (st.connected && st.settings?.map && api.MAPS[st.settings.map]) mapId = st.settings.map; return api.MAPS[mapId] || api.MAPS[api.DEFAULT_MAP]; }
+  function setMap(id) {
+    if (!isHost() || !api.MAPS[id]) return;
+    mapId = id; dropZone = 'main';
+    api.save.setLoadout({ map: id, dropZone });
+    if (inLobby()) api.mp.setSettings({ map: id, dropZone });
+    pickingZone = false;
+    render();
+  }
 
   function isHost() {
     const st = api.mp.state();
@@ -41,14 +40,14 @@ export function createOperationScreen(api, mgr) {
     if (!isHost()) return;
     difficulty = id;
     api.save.setLoadout({ difficulty: id });
-    if (inLobby()) api.mp.setSettings({ difficulty, dropZone });
+    if (inLobby()) api.mp.setSettings({ difficulty, dropZone, map: mapId });
     render();
   }
   function setDropZone(id) {
     if (!isHost()) return;
     dropZone = id;
     api.save.setLoadout({ dropZone: id });
-    if (inLobby()) api.mp.setSettings({ difficulty, dropZone });
+    if (inLobby()) api.mp.setSettings({ difficulty, dropZone, map: mapId });
     pickingZone = false;
     render();
   }
@@ -98,16 +97,17 @@ export function createOperationScreen(api, mgr) {
   }
 
   function buildWarTable() {
+    const map = currentMap();
     const inner = el('div', { class: 'war-table' }, [
-      el('img', { class: 'map-img', src: mapUrl, alt: 'Tactical map', onerror: `this.onerror=null;this.src='${mapFallback}'` }),
+      el('img', { class: 'map-img', src: (import.meta.env.BASE_URL || '/') + map.mapImage, alt: 'Tactical map', onerror: `this.onerror=null;this.src='${mapFallback}'` }),
       el('div', { class: 'map-grid' }),
       el('div', { class: 'map-tint' }),
       el('div', { class: 'scanlines' }),
       el('div', { class: 'compass', text: 'N ▲' }),
     ]);
-    MARKERS.forEach((m) => inner.appendChild(buildMarker(m)));
-    ENEMY_MARKERS.forEach((m) => inner.appendChild(buildEnemyMarker(m)));
-    Object.values(api.DROP_ZONES).forEach((z) => inner.appendChild(buildDzMarker(z)));
+    (map.markers || []).forEach((m) => inner.appendChild(buildMarker(m)));
+    (map.enemyMarkers || []).forEach((m) => inner.appendChild(buildEnemyMarker(m)));
+    Object.values(map.dropZones || api.DROP_ZONES).forEach((z) => inner.appendChild(buildDzMarker(z)));
     const wrap = el('div', { class: 'war-table-wrap' }, [inner]);
     // pan (drag) + zoom (wheel); markers counter-scale via --inv so they stay legible
     let scale = 1, tx = 0, ty = 0, drag = null, moved = false;
@@ -129,22 +129,33 @@ export function createOperationScreen(api, mgr) {
       { name: 'req', label: 'REQUISITION' },
       { name: 'intel', label: 'INTEL' },
     ];
+    const map = currentMap(); const host = isHost();
+    const selector = el('div', { class: 'op-select' }, MAP_IDS.map((id) => {
+      const m = api.MAPS[id];
+      const b = el('button', { class: `op-card ${id === map.id ? 'active' : ''} ${!host ? 'readonly' : ''}`, type: 'button' }, [
+        el('div', { class: 'oc-thumb', style: { backgroundImage: `url(${(import.meta.env.BASE_URL || '/') + m.mapImage})` } }),
+        el('div', { class: 'oc-body' }, [el('div', { class: 'oc-name', text: m.name }), el('div', { class: 'oc-tag', text: m.tagline || '' })]),
+      ]);
+      if (host && id !== map.id) { b.addEventListener('mouseenter', () => api.ui.hover()); b.addEventListener('click', () => { api.ui.click(); setMap(id); }); }
+      return b;
+    }));
     return el('div', { class: 'briefing-panel panel' }, [
-      el('div', { class: 'bp-kicker' }, [el('span', { html: icon('chevronBig') }), el('span', { text: 'OPERATION BRIEFING' })]),
-      el('h2', { text: 'OPERATION: SILENT MERIDIAN' }),
-      el('div', { class: 'bp-loc', text: 'LOCATION: KHEPRI-9' }),
-      el('div', { class: 'bp-preview' }),
+      el('div', { class: 'bp-kicker' }, [el('span', { html: icon('chevronBig') }), el('span', { text: 'SELECT OPERATION' })]),
+      selector,
+      el('div', { class: 'bp-kicker', style: { marginTop: '14px' } }, [el('span', { html: icon('chevronBig') }), el('span', { text: 'OPERATION BRIEFING' })]),
+      el('h2', { text: map.opName }),
+      el('div', { class: 'bp-loc', text: map.location }),
       el('div', { class: 'bp-objective' }, [
         el('span', { html: icon('target') }),
-        el('div', {}, [el('div', { class: 'bp-o-label', text: 'PRIMARY OBJECTIVE' }), el('div', { class: 'bp-o-text', text: 'Destroy the Null Legion jammer' })]),
+        el('div', {}, [el('div', { class: 'bp-o-label', text: 'PRIMARY OBJECTIVE' }), el('div', { class: 'bp-o-text', text: map.briefing.primary })]),
       ]),
       el('div', { class: 'bp-objective secondary' }, [
         el('span', { html: '&#9733;' }),
-        el('div', {}, [el('div', { class: 'bp-o-label', text: 'SECONDARY OBJECTIVE' }), el('div', { class: 'bp-o-text', text: 'Rescue captured operatives' })]),
+        el('div', {}, [el('div', { class: 'bp-o-label', text: 'SECONDARY OBJECTIVE' }), el('div', { class: 'bp-o-text', text: map.briefing.secondary })]),
       ]),
       el('div', { class: 'bp-intel' }, [
         el('span', { html: icon('intel') }),
-        el('span', { text: 'Heavy resistance. Orbital support blocked until jammer destruction.' }),
+        el('span', { text: map.briefing.intel }),
       ]),
       el('div', { class: 'bp-rewards' }, [
         el('div', { class: 'bp-r-title', text: 'MISSION REWARDS' }),
@@ -171,7 +182,7 @@ export function createOperationScreen(api, mgr) {
     ]);
     const zoneBtn = el('button', { class: `chip ${pickingZone ? 'active' : ''} ${!host ? 'readonly' : ''}`, type: 'button' }, [
       el('span', { html: icon('drop') }),
-      el('span', { text: api.DROP_ZONES[dropZone] ? api.DROP_ZONES[dropZone].name : 'SELECT DROP ZONE' }),
+      el('span', { text: (currentMap().dropZones || api.DROP_ZONES)[dropZone] ? (currentMap().dropZones || api.DROP_ZONES)[dropZone].name : 'SELECT DROP ZONE' }),
     ]);
     if (host) {
       zoneBtn.addEventListener('mouseenter', () => api.ui.hover());
@@ -206,8 +217,10 @@ export function createOperationScreen(api, mgr) {
     onShow() {
       difficulty = api.save.profile.loadout.difficulty || 'veteran';
       dropZone = api.save.profile.loadout.dropZone || 'main';
+      mapId = api.save.profile.loadout.map || api.DEFAULT_MAP;
       pickingZone = false;
       render();
+      if (!this._lobbyOff) this._lobbyOff = api.events.on('lobby:update', () => { if (root.classList.contains('visible') && !isHost()) render(); });
     },
     onHide() {},
   };

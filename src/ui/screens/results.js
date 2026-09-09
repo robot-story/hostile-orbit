@@ -32,8 +32,8 @@ export function createResultsScreen(api, mgr) {
 
     root.appendChild(el('div', { class: 'res-title-bar panel' }, [
       el('div', { class: 'res-kicker' }, [el('span', { html: icon('chevronBig') }), el('h1', { class: 'res-title', text: failed ? 'MISSION FAILED' : 'MISSION COMPLETE' })]),
-      el('div', { class: 'res-op', text: 'OPERATION: SILENT MERIDIAN' }),
-      el('div', { class: 'res-loc', text: failed ? 'ALL REINFORCEMENT BODIES EXPENDED' : 'BLACKSITE MERIDIAN LIBERATED' }),
+      el('div', { class: 'res-op', text: results.opName || 'OPERATION: SILENT MERIDIAN' }),
+      el('div', { class: 'res-loc', text: failed ? 'ALL REINFORCEMENT BODIES EXPENDED' : (results.resultLine || 'BLACKSITE MERIDIAN LIBERATED') }),
     ]));
 
     if (failed) {

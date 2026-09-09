@@ -1,6 +1,6 @@
 # HOSTILE ORBIT
 
-Neon military sci-fi third-person shooter in the browser. Drop onto Khepri-9 as a disposable Meridian Commonwealth Vanguard, destroy the Null Legion jammer, steal the invasion data, rescue two operatives if you feel like it, survive extraction, and put down the Warden. Solo or three-player online co-op.
+Neon military sci-fi third-person shooter in the browser. Two operations: drop onto the canyon blacksite of Khepri-9 (Silent Meridian) or the neon colony city on the dark moon Erebus (Black Lantern) as a disposable Meridian Commonwealth Vanguard, cut the Null Legion's signal, take their data, rescue two prisoners if you feel like it, survive extraction, and put down the Warden. Solo or three-player online co-op. Pick the operation on the war table.
 
 **Play:** https://robot-story.github.io/hostile-orbit/
 

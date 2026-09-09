@@ -8,6 +8,7 @@ import { events } from './core/events.js';
 import { audio } from './audio/audio.js';
 import { World } from './world/world.js';
 import { buildLevel } from './world/level.js';
+import { MAPS, DEFAULT_MAP } from './world/maps/index.js';
 import { M, worldToMap } from './world/terrain.js';
 import { clamp, formatTime } from './core/mathx.js';
 import { Player } from './entities/player.js';
@@ -159,7 +160,7 @@ export class Game {
   _buildApi() {
     const self = this;
     return {
-      settings, save, events, WEAPONS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES, SQUAD_COLORS, MAX_PLAYERS, keyLabel, input,
+      settings, save, events, WEAPONS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES, SQUAD_COLORS, MAX_PLAYERS, MAPS, DEFAULT_MAP, keyLabel, input,
       ui: { click: () => audio.ui('ui_click'), hover: () => audio.ui('ui_hover', { volume: 0.5 }), back: () => audio.ui('ui_back'), confirm: () => audio.ui('ui_confirm'), deploy: () => audio.ui('ui_deploy'), error: () => audio.ui('ui_error'), tab: () => audio.ui('ui_tab', { volume: 0.5 }) },
       say: (id) => audio.say(id, { priority: 2 }),
       music: (state) => audio.setMusicState(state),
@@ -187,7 +188,7 @@ export class Game {
   }
   onLobbyState() {
     if (this._lobbyBound) return; this._lobbyBound = true;
-    net.on(MSG.START, (m) => { if (!net.isHost) this.startDeployment({ difficulty: m.settings.difficulty, dropZone: m.settings.dropZone, loadout: save.profile.loadout, seed: m.seed }); });
+    net.on(MSG.START, (m) => { if (!net.isHost) this.startDeployment({ difficulty: m.settings.difficulty, dropZone: m.settings.dropZone, map: m.settings.map, loadout: save.profile.loadout, seed: m.seed }); });
     events.on('mp:disconnected', () => { if (this.mode === 'play' || this.mode === 'drop') { this.menus.toast('CONNECTION TO HOST LOST', 'warn'); } });
   }
   /** Host: launch the mission for the whole lobby (called from the loadout DEPLOY when all are ready). */
@@ -198,7 +199,7 @@ export class Game {
     const seed = (Math.random() * 1e9) | 0;
     t.setPhase('mission');
     net.send(MSG.START, { seed, settings: t.settings, players: t.players }, { reliable: true });
-    this.startDeployment({ difficulty: t.settings.difficulty, dropZone: t.settings.dropZone, loadout: save.profile.loadout, seed });
+    this.startDeployment({ difficulty: t.settings.difficulty, dropZone: t.settings.dropZone, map: t.settings.map, loadout: save.profile.loadout, seed });
   }
   /** Auto-join from an invite link (?join=CODE). */
   checkInviteLink() {
@@ -211,8 +212,10 @@ export class Game {
   // ---------------- session lifecycle ----------------
   buildSession(config) {
     this.teardownSession();
-    this.world = new World();
+    const map = MAPS[config.map] || MAPS[DEFAULT_MAP]; config.map = map.id;
+    this.world = new World(map);
     const lv = buildLevel(this.world);
+    this.menus.setMapImage?.(map.mapImage);
     // protect gameplay-mutated meshes from the static merge
     const dynamic = [];
     if (lv.jammer?.group) lv.jammer.group.userData.noMerge = true;
@@ -229,10 +232,10 @@ export class Game {
     s.player = new Player(this, this.camera, s.fx, config.loadout); s.player.color = SQUAD_COLORS[net.slot] || SQUAD_COLORS[0]; s.player.name = settings.data.playerName; s.player.id = net.localId;
     this.world.entities.set(s.player.id, s.player);
     s.players = [s.player];
-    s.mission = new Mission(this);
+    s.mission = new (map.Mission || Mission)(this);
     s.director.rng = (() => { let x = (config.seed || 7) >>> 0; return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; }; })();
     s.netsync = net.transport ? new NetSync(this) : null;
-    s.hud = new Hud(this.ui); s.hud.setLives(s.mission.lives, s.mission.lives); s.hud.show(false);
+    s.hud = new Hud(this.ui, map); s.hud.setLives(s.mission.lives, s.mission.lives); s.hud.show(false);
     this.renderer.setScene(this.world.scene, this.camera); this.renderMenuScene = false; this.setBackground(null);
     this.time = 0;
     return s;
@@ -245,12 +248,12 @@ export class Game {
     audio.stopVoice(); audio.setMuffle(0);
   }
   dropPositionFor(config) {
-    const dz = DROP_ZONES[config.dropZone] || DROP_ZONES.main;
+    const zones = this.world.map?.dropZones || DROP_ZONES; const dz = zones[config.dropZone] || Object.values(zones)[0];
     const p = M(dz.mapX, dz.mapY, 0); const slot = net.slot || 0; p.x += (slot === 1 ? -3.5 : slot === 2 ? 3.5 : 0); p.z += slot ? 2.5 : 0; const w = this.world.nav.nearestWalkable(p.x, p.z, 20) || p; p.set(w.x, 0, w.z); p.y = this.world.groundHeight(p.x, p.z); return p;
   }
   async startDeployment(config) {
     this.lastConfig = config;
-    save.setLoadout({ ...config.loadout, difficulty: config.difficulty, dropZone: config.dropZone });
+    save.setLoadout({ ...config.loadout, difficulty: config.difficulty, dropZone: config.dropZone, map: config.map || save.profile.loadout.map || DEFAULT_MAP });
     this.menus.hide(); this.setBackground(null);
     this.mode = 'loading';
     await this.showLoading('PREPARING DEPLOYMENT');
@@ -262,7 +265,7 @@ export class Game {
   }
   async continueOperation() {
     const cp = save.profile.operationInProgress; if (!cp) return;
-    const config = { difficulty: cp.difficulty || save.profile.loadout.difficulty, dropZone: save.profile.loadout.dropZone, loadout: cp.loadout || save.profile.loadout };
+    const config = { difficulty: cp.difficulty || save.profile.loadout.difficulty, dropZone: save.profile.loadout.dropZone, map: cp.map || save.profile.loadout.map, loadout: cp.loadout || save.profile.loadout };
     this.lastConfig = config;
     this.menus.hide(); this.setBackground(null); this.mode = 'loading';
     await this.showLoading('RESTORING OPERATION');
@@ -371,7 +374,7 @@ export class Game {
   async restartFromCheckpoint() {
     const cp = save.profile.operationInProgress;
     this.menus.closePause?.(); this.menus.hide();
-    if (!cp) { const cfg = this.lastConfig || { difficulty: save.profile.loadout.difficulty, dropZone: save.profile.loadout.dropZone, loadout: save.profile.loadout }; return this.startDeployment(cfg); }
+    if (!cp) { const cfg = this.lastConfig || { difficulty: save.profile.loadout.difficulty, dropZone: save.profile.loadout.dropZone, map: save.profile.loadout.map, loadout: save.profile.loadout }; return this.startDeployment(cfg); }
     return this.continueOperation();
   }
   endMission(result) {
