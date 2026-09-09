@@ -38,7 +38,7 @@ export class Player {
     this.hitboxes = true; this.hitRadius = 1.3; this.hitCenter = new THREE.Vector3();
     this.downed = false; this.lastDamageT = -99; this.regenDelay = 9; this.armourHp = 0;
     this.grenadeCharge = -1; this.throwing = 0;
-    this.fuel = 1; this.maxBurn = 2.4; this.jet = false; this.spaceHeld = 0; this.jetSound = null; this.jetFx = 0;
+    this.fuel = 1; this.maxBurn = 3.2; this.jet = false; this.spaceHeld = 0; this.jetSound = null; this.jetFx = 0;
     world.register(this);
     this.equip('primary');
     this.anim.onFootstep = () => { audio.play(this.onMetal ? 'footstep_metal' : 'footstep_dirt', { pos: this.position, volume: 0.6, pitchVar: 0.08 }); audio.play('armor_rustle', { pos: this.position, volume: 0.35, pitchVar: 0.15 }); if (this.fx?.dust && !this.onMetal) this.fx.dust(this.position.clone(), this.sprinting ? 1.2 : 0.5); };
@@ -115,11 +115,11 @@ export class Player {
     // Space: tap = cover/vault, hold = jetpack thrust
     if (input.down('cover')) this.spaceHeld += dt; else { if (this.spaceHeld > 0 && this.spaceHeld < 0.22 && !this.jet) this.tryCoverOrVault(wish); this.spaceHeld = 0; }
     const wantJet = input.down('cover') && this.spaceHeld >= 0.22 && this.fuel > 0.02;
-    if (wantJet && !this.jet) { this.jet = true; this.grounded = false; this.vy = Math.max(this.vy, 3.5); audio.play('kinetic_charge', { pos: this.position, volume: 0.35, pitch: 1.6 }); this.jetSound = audio.play('dropship_engine', { pos: this.position, loop: true, volume: 0.45, pitch: 1.7 }); if (this.fx?.dust) this.fx.dust(this.position.clone(), 2); events.emit('player:jet', true); }
+    if (wantJet && !this.jet) { this.jet = true; this.grounded = false; this.vy = Math.max(this.vy, 6); audio.play('kinetic_charge', { pos: this.position, volume: 0.35, pitch: 1.6 }); this.jetSound = audio.play('dropship_engine', { pos: this.position, loop: true, volume: 0.45, pitch: 1.7 }); if (this.fx?.dust) this.fx.dust(this.position.clone(), 2); events.emit('player:jet', true); }
     if (this.jet) {
       this.fuel = Math.max(0, this.fuel - dt / this.maxBurn);
       if (!wantJet || this.fuel <= 0) { this.jet = false; this.jetSound?.stop(0.25); this.jetSound = null; events.emit('player:jet', false); }
-      else { this.vy = damp(this.vy, this.spaceHeld < 0.9 ? 6.5 : 2.2, 4, dt); this.jetSound?.setPosition(this.position); this.jetFx -= dt; if (this.jetFx <= 0) { this.jetFx = 0.05; const back = new THREE.Vector3(Math.sin(this.yaw) * 0.25, 0.75, Math.cos(this.yaw) * 0.25).add(this.position); this.fx.sparksBurst?.(back, new THREE.Vector3(0, -1, 0), 3, '#7fe9ff'); if (Math.random() < 0.5) this.fx.dust?.(this.position.clone(), 0.3); } }
+      else { this.vy = damp(this.vy, this.spaceHeld < 1.0 ? 11.5 : 5.5, 5, dt); this.jetSound?.setPosition(this.position); this.jetFx -= dt; if (this.jetFx <= 0) { this.jetFx = 0.05; const back = new THREE.Vector3(Math.sin(this.yaw) * 0.25, 0.75, Math.cos(this.yaw) * 0.25).add(this.position); this.fx.sparksBurst?.(back, new THREE.Vector3(0, -1, 0), 3, '#7fe9ff'); if (Math.random() < 0.5) this.fx.dust?.(this.position.clone(), 0.3); } }
     }
     if (this.grounded && !this.jet) this.fuel = Math.min(1, this.fuel + dt / 3.5);
   }
@@ -217,7 +217,7 @@ export class Player {
     // map bounds
     this.position.x = clamp(this.position.x, -196, 196); this.position.z = clamp(this.position.z, -196, 196);
     const g = this.world.groundHeight(this.position.x, this.position.z, this.position.y, 0.55, this.radius);
-    this.vy -= (this.jet ? 9 : 22) * dt;
+    this.vy -= (this.jet ? 6 : 22) * dt;
     let y = this.position.y + this.vy * dt;
     if (y <= g + 0.02 && !(this.jet && this.vy > 0)) { y = this.grounded ? damp(this.position.y, g, 30, dt) : g; if (!this.grounded) { if (this.vy < -6) audio.play('land', { pos: this.position }); this.fx?.dust?.(this.position.clone(), Math.min(3, -this.vy * 0.3 + 0.5)); } this.grounded = true; this.vy = 0; if (g - this.position.y > 0.05) y = damp(this.position.y, g, 25, dt); }
     else this.grounded = y - g < 0.15;

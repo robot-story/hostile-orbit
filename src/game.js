@@ -127,19 +127,10 @@ export class Game {
     this.bgWhich = next;
   }
   _buildBoot() {
-    const el = document.createElement('div'); el.id = 'boot';
-    el.innerHTML = `<div class="logo">HOSTILE ORBIT</div><div class="bar"><i></i></div><div class="status">INITIALISING ORBITAL COMMAND</div><div class="click">CLICK TO AUTHORISE DEPLOYMENT</div>`;
-    this.ui.appendChild(el);
-    const bar = el.querySelector('.bar i'), status = el.querySelector('.status');
-    bar.style.width = '35%'; status.textContent = 'ORBITAL COMMAND ONLINE'; el.classList.add('ready');
-    const go = () => {
-      el.removeEventListener('click', go);
-      audio.init().then(() => events.emit('audio:ready'));
-      audio.resume();
-      el.classList.add('hidden'); setTimeout(() => el.remove(), 700);
-      this.showMainMenu();
-    };
-    el.addEventListener('click', go);
+    // No authorise gate: go straight to the main menu; the audio context unlocks on the first user gesture.
+    const unlock = () => { audio.init().then(() => events.emit('audio:ready')); audio.resume(); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
+    window.addEventListener('pointerdown', unlock); window.addEventListener('keydown', unlock);
+    this.showMainMenu();
   }
   showMainMenu() {
     this.mode = 'menu';
