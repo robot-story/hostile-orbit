@@ -200,7 +200,7 @@ export function preloadCustomModels() {
   const jobs = [
     loadCustomMesh('models/vanguard.glb', { part: 0, height: 1.88, decimate: 0.008 }).then((c) => { CUSTOM.body.vanguard = c; }),
     loadCustomMesh('models/sentinel.glb', { part: 0, height: 1.9, decimate: 0.02 }).then((c) => { CUSTOM.body.sentinel = c; c.noShadow = true; }),
-    loadCustomMesh('models/sentinel.glb', { part: 2, mode: 'weapon', length: 1.08 }).then((c) => { CUSTOM.weapon.viper = c; }),
+    loadCustomMesh('models/sentinel.glb', { part: 2, mode: 'weapon', length: 1.08 }).then((c) => { CUSTOM.weapon.viper = c; const dark = c.material.clone(); dark.color.set('#6f6f78'); CUSTOM.weapon.legion_rifle = { ...c, material: dark }; }),
     loadCustomMesh('models/sentinel.glb', { part: 1, mode: 'weapon', length: 1.32 }).then((c) => { CUSTOM.weapon.longshot = c; }),
     loadCustomMesh('models/sentinel.glb', { part: 3, height: 0.9, decimate: 0.015 }).then((c) => { c.geometry.translate(0, -0.45, 0); c.geometry.computeBoundingBox(); CUSTOM.body.drone = c; }),
   ];

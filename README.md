@@ -22,7 +22,8 @@ Neon military sci-fi third-person shooter in the browser. Two operations: drop o
 | Swap weapon | Tab or mouse wheel |
 | Switch shoulder | Q |
 | Orbital abilities (after the jammer falls) | 1 Kinetic Strike, 2 Gunship Run, 3 Sentry Pod, 4 Supply Pod |
-| Tactical map | M |
+| Tactical map (live pins; also the TAC MAP button on the HUD) | M |
+| Dev menu (toggles, cheats, stage skip) | F9 |
 | Pause | Escape |
 
 ## Co-op
@@ -47,6 +48,8 @@ node tools/generate-images.mjs [--edits]   # menu backdrops (needs OPENAI_API_KE
 
 The OpenAI key is only ever used by the `tools/` scripts at build time. Nothing in `src/` or `public/` touches it.
 
-Testing switches: god mode is on by default for now (F10 toggles, `?mortal` disables at start).
+Testing switches: god mode and all four orbital abilities are on by default (dev menu F9; F10 toggles god mode, `?mortal` disables it at start).
+
+Custom characters: drop Meshy-style GLBs into `public/models/` (`vanguard.glb` for the player, `sentinel.glb` for the Legion rifleman, its rifle meshes drive the Viper and Longshot). Static character sheets are split and auto-skinned to the procedural skeleton at load; see `src/models/glbSoldier.js`.
 
 Deploy: `bash tools/deploy.sh` (builds, verifies, pushes `dist/` to `gh-pages` through a worktree).

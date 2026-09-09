@@ -140,7 +140,7 @@ export function buildLongshot(neon = COLORS.cyan) {
 
 import { CUSTOM, buildCustomWeapon } from './glbSoldier.js';
 const withCustom = (id, fn) => (neon) => (CUSTOM.weapon[id] ? buildCustomWeapon(CUSTOM.weapon[id], id, neon) : fn(neon));
-export const WEAPON_BUILDERS = { viper: withCustom('viper', buildViper), hammer: buildHammer, atlas: buildAtlas, sidearm: buildSidearm, longshot: withCustom('longshot', buildLongshot), legion_rifle: buildLegionRifle, legion_shotgun: buildLegionShotgun, legion_heavy: buildLegionHeavy };
+export const WEAPON_BUILDERS = { viper: withCustom('viper', buildViper), hammer: buildHammer, atlas: buildAtlas, sidearm: buildSidearm, longshot: withCustom('longshot', buildLongshot), legion_rifle: withCustom('legion_rifle', buildLegionRifle), legion_shotgun: buildLegionShotgun, legion_heavy: buildLegionHeavy };
 
 /** Frag grenade model */
 export function buildGrenade() {
