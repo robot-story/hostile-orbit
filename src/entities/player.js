@@ -8,7 +8,8 @@ import { WEAPONS, GRENADE, INJECTOR } from '../gameplay/weapons.js';
 import { input } from '../core/input.js';
 import { audio } from '../audio/audio.js';
 import { events } from '../core/events.js';
-import { clamp, damp, angleDamp, angleDiff, lerp } from '../core/mathx.js';
+import { clamp, damp, angleDamp, angleDiff, angleLerp, lerp } from '../core/mathx.js';
+import { settings } from '../core/settings.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _ray = new THREE.Ray();
 
@@ -54,7 +55,28 @@ export class Player {
   update(dt) {
     this.stateT += dt; this.spawnT += dt;
     const m = input.consumeMouse();
-    if (!this.dead) this.cam.look(m.dx, m.dy);
+    // Aim assist: snap on aim press, soft magnetism while aiming (mouse still adjusts inside the lock)
+    const assist = settings.data.aimAssist !== false;
+    if (assist && input.aimPressed && !this.dead) this.aimTarget = this.findAimTarget(0.26);
+    if (!input.aim()) this.aimTarget = null;
+    const onTarget = assist && this.aimTarget && !this.aimTarget.dead && this.aiming;
+    const sensScale = onTarget ? 1 - 0.45 * (settings.data.aimAssistStrength ?? 0.7) : 1;
+    if (!this.dead) this.cam.look(m.dx * sensScale, m.dy * sensScale);
+    if (onTarget) {
+      const t = this.aimTarget; const c = t.hitCenter || t.position; const aimAt = new THREE.Vector3(c.x, c.y + (t.isBoss ? 0.5 : 0.25), c.z);
+      const d = aimAt.sub(this.cam.camera.position); const dist = d.length(); d.normalize();
+      const wantYaw = Math.atan2(-d.x, -d.z), wantPitch = Math.asin(clamp(d.y, -1, 1));
+      const cone = Math.abs(angleDiff(this.cam.yaw, wantYaw)) + Math.abs(this.cam.pitch - wantPitch);
+      if (cone > 0.5 || dist > 140) this.aimTarget = null;
+      else {
+        const strength = (settings.data.aimAssistStrength ?? 0.7);
+        const snap = this.aimSnapT > 0 ? 30 : 3.6 * strength; // fast initial snap, then gentle pull
+        const moving = Math.min(1, (Math.abs(m.dx) + Math.abs(m.dy)) / 12);
+        const k = 1 - Math.exp(-snap * dt * (this.aimSnapT > 0 ? 1 : 1 - moving * 0.85));
+        this.cam.yaw = angleLerp(this.cam.yaw, wantYaw, k); this.cam.pitch = lerp(this.cam.pitch, wantPitch, k);
+      }
+    }
+    this.aimSnapT = Math.max(0, (this.aimSnapT || 0) - dt);
     if (m.wheel !== 0 || input.pressed('swap')) this.equip(this.slot === 'primary' ? 'secondary' : 'primary');
     if (input.pressed('shoulder')) this.cam.shoulder *= -1;
     const ax = input.moveAxis();
@@ -253,6 +275,20 @@ export class Player {
     if (input.pressed('heal') && this.injectors > 0 && this.health < this.maxHealth && this.healT <= 0) { this.injectors--; this.healT = INJECTOR.duration; audio.play('heal_inject'); events.emit('player:heal'); }
   }
   blindOk() { return this.state === 'cover'; }
+  /** Nearest living enemy within `cone` radians of the crosshair with line of sight. */
+  findAimTarget(cone = 0.26) {
+    const cam = this.cam.camera.position, look = this.cam.lookDir; let best = null, bs = Infinity;
+    for (const e of this.game.director?.enemies || []) {
+      if (e.dead || e.type?.ally) continue;
+      const c = e.hitCenter || e.position; const d = new THREE.Vector3(c.x, c.y + 0.25, c.z).sub(cam); const dist = d.length(); if (dist > 140 || dist < 1.5) continue;
+      d.divideScalar(dist); const ang = Math.acos(clamp(d.dot(look), -1, 1)); if (ang > cone) continue;
+      const score = ang * 2 + dist / 140; if (score >= bs) continue;
+      if (!this.world.hasLOS(cam, new THREE.Vector3(c.x, c.y + 0.25, c.z), { terrainStep: 2 })) continue;
+      bs = score; best = e;
+    }
+    if (best) { this.aimSnapT = 0.2; audio.play('ui_tab', { volume: 0.25 }); }
+    return best;
+  }
   resupply(frac = 1) {
     for (const k of ['primary', 'secondary']) { const w = this.weapons[k]; w.reserve = Math.min(w.def.maxReserve, w.reserve + Math.round(w.def.reserve * frac)); }
     this.grenades = Math.min(GRENADE.maxCount, this.grenades + (frac >= 1 ? 2 : 1)); this.injectors = Math.min(INJECTOR.maxCount, this.injectors + (frac >= 1 ? 2 : 1));

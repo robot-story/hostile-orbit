@@ -27,6 +27,8 @@ export const DEFAULTS = {
   aimSensitivity: 0.75,
   invertY: false,
   aimToggle: false,
+  aimAssist: true,
+  aimAssistStrength: 0.7,
   crouchToggle: true,
   sprintToggle: false,
   binds: { ...DEFAULT_BINDS },
