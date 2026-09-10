@@ -162,6 +162,29 @@ if (process.argv.includes('--robotmats')) {
       const json = await res.json(); const b64 = json.data?.[0]?.b64_json; if (b64) { fs.writeFileSync(file, Buffer.from(b64, 'base64')); console.log('wrote', m.id); } break; } } }));
   process.exit(0);
 }
+
+// Distant horizon vistas: transparent PNG silhouettes wrapped around each map far beyond the playable edge, above a mist ring.
+const VISTA = 'Very wide panoramic strip (aspect 3:2 canvas, the artwork occupies the lower half with a transparent sky above), distant skyline silhouette seen from ground level through haze, no text, no letters, no watermark, soft atmospheric perspective, the bottom edge fades into pale mist, transparent background above the skyline.';
+const VISTAS = [
+  { id: 'vista_meridian_a', prompt: `${VISTA} Alien desert horizon: colossal black glass spires and jagged burnt-orange mesas, distant vein-lit canyon walls glowing faint violet, a wrecked orbital ring segment half-buried in the far dunes, dust haze in turquoise daylight.` },
+  { id: 'vista_meridian_b', prompt: `${VISTA} Alien desert horizon: a distant Commonwealth forward base of cyan-lit towers and landing gantries, columns of black smoke, a row of huge alien bone arches, hazy orange cliffs.` },
+  { id: 'vista_lantern_a', prompt: `${VISTA} Night city horizon on a dark moon: a dense distant megacity skyline of black towers pricked with magenta and cyan windows, giant holographic advertising planes, an orbital tether cable rising into the sky, thin purple haze.` },
+  { id: 'vista_lantern_b', prompt: `${VISTA} Night horizon on a dark moon beyond the city: crater rim mountains in silhouette, a crashed starship hull with cyan running lights, a far refinery flaring orange, purple-black haze near the ground.` },
+];
+if (process.argv.includes('--vistaprobe')) {
+  const m = VISTAS[0]; const res = await fetch('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'gpt-image-1', prompt: m.prompt, size: '1536x1024', quality: 'medium', output_format: 'jpeg', n: 1 }) });
+  console.log('probe status', res.status, res.status !== 200 ? (await res.text()).slice(0, 400) : 'ok'); process.exit(0);
+}
+if (process.argv.includes('--vistas')) {
+  const OUTV = path.join(ROOT, 'public', 'textures', 'vista'); fs.mkdirSync(OUTV, { recursive: true });
+  let k = 0; const w = 2;
+  await Promise.all(Array.from({ length: w }, async () => { while (k < VISTAS.length) { const m = VISTAS[k++]; if (only && !only.includes(m.id)) continue; const file = path.join(OUTV, `${m.id}.png`); if (fs.existsSync(file) && !process.argv.includes('--force')) { console.log('skip', m.id); continue; }
+    for (let attempt = 0; attempt < 4; attempt++) { const res = await fetch('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'gpt-image-1', prompt: m.prompt, size: '1536x1024', quality: 'medium', output_format: 'png', background: 'transparent', n: 1 }) });
+      if (res.status === 429 || res.status >= 500) { console.log('retry', m.id, res.status); await new Promise((r) => setTimeout(r, 6000 * (attempt + 1))); continue; }
+      if (!res.ok) { console.error(m.id, res.status, (await res.text()).slice(0, 300)); break; }
+      const json = await res.json(); const b64 = json.data?.[0]?.b64_json; if (b64) { fs.writeFileSync(file, Buffer.from(b64, 'base64')); console.log('wrote', m.id); } else console.error(m.id, 'no image data'); break; } if (!fs.existsSync(file)) console.error(m.id, 'not written'); } }));
+  process.exit(0);
+}
 if (process.argv.includes('--posters')) {
   const OUTP = path.join(ROOT, 'public', 'textures', 'posters'); fs.mkdirSync(OUTP, { recursive: true });
   let k = 0; const w = 4;

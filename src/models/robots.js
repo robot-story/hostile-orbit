@@ -43,7 +43,7 @@ const capsule = (r, l, m) => new THREE.Mesh(new THREE.CapsuleGeometry(r, l, 6, 1
 /** Chamfered plate: a box with its edges bevelled by scaling a second, slightly smaller box outward. */
 function plate(w, h, d, m, bevel = 0.02) { const g = new THREE.Group(); g.add(box(w - bevel * 2, h, d - bevel * 2, m)); g.add(box(w, h - bevel * 2, d - bevel * 2, m)); g.add(box(w - bevel * 2, h - bevel * 2, d, m)); g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return g; }
 /** Inset light channel: a dark groove plate with a thin emissive core recessed into it (reads as light escaping a seam). */
-function channel(len, c, i = 1.25, wide = 0.026) { const g = new THREE.Group(); const groove = box(len + 0.02, wide, 0.02, new THREE.MeshStandardMaterial({ color: '#0a0b0e', roughness: 0.9 })); groove.position.z = -0.004; g.add(groove); const core = box(len, wide * 0.42, 0.012, neon(c, i)); core.castShadow = false; core.position.z = 0.004; g.add(core); return g; }
+function channel(len, c, i = 0.85, wide = 0.026) { const g = new THREE.Group(); const groove = box(len + 0.02, wide, 0.02, new THREE.MeshStandardMaterial({ color: '#0a0b0e', roughness: 0.9 })); groove.position.z = -0.004; g.add(groove); const core = box(len, wide * 0.42, 0.012, neon(c, i)); core.castShadow = false; core.position.z = 0.004; g.add(core); return g; }
 const strip = (len, c, thick = 0.018, i = 1.8) => { const s = box(len, thick, thick * 0.7, neon(c, i)); s.castShadow = false; return s; };
 
 /** Shared arm build: layered upper arm, forearm plate with a light channel, articulated hand block. */
@@ -125,26 +125,26 @@ function decal(kind, color, w, h) {
 // ------------------------------------------------------------------ A. OUTRIDER (monowheel) -- the protagonist frame
 function buildOutrider(model, opts = {}) {
   const B = model.bones; const N = opts.neon || COLORS.cyan;
-  const ceramic = armour('ceramic'), carbon = armour('carbon'), gun = armour('gunmetal'), gunLight = armour('gunmetal', '#b9bec8');
+  const ceramic = armour('ceramic'), carbon = armour('carbon'), gun = armour('gunmetal'), gunLight = armour('gunmetal', '#b9bec8'), slate = armour('gunmetal', '#6a7486');
   const P = { primary: ceramic, secondary: carbon, accent: N, joint: N, joints: [] };
   const glow = (i = 2) => neonOwn(N, i); const glowS = (i = 2) => neon(N, i);
   model.neonColor = N;
   // ---- pelvis + abdomen: three tapering segment bands with a glow channel down the spine
-  add(B.root, bevelBox(0.5, 0.22, 0.36, carbon, 0.025, 0.04), [0, -0.05, 0]);
-  add(B.root, bevelBox(0.4, 0.12, 0.06, ceramic, 0.015, 0.03), [0, -0.03, 0.19]);
+  add(B.root, bevelBox(0.42, 0.22, 0.32, carbon, 0.025, 0.04), [0, -0.05, 0]);
+  add(B.root, bevelBox(0.34, 0.12, 0.06, slate, 0.015, 0.03), [0, -0.03, 0.17]);
   for (const sx of [-1, 1]) { add(B.root, bevelBox(0.1, 0.2, 0.3, ceramic, 0.02, 0.04), [sx * 0.29, -0.04, 0]); add(B.root, strip(0.16, N, 0.012, 1.4), [sx * 0.345, -0.04, 0.02], [0, 0, 0]).rotation.y = Math.PI / 2; }
   for (const sx of [-1, 1]) { const hip = lathe([[0.04, -0.06], [0.08, -0.06], [0.09, -0.02], [0.09, 0.02], [0.08, 0.06], [0.04, 0.06]], gun, 16); hip.rotation.z = Math.PI / 2; hip.position.set(sx * 0.19, -0.08, 0); add(B.root, hip); }
-  for (let i = 0; i < 3; i++) add(B.spine, bevelBox(0.42 - i * 0.02, 0.07, 0.3 - i * 0.01, i % 2 ? gun : carbon, 0.012), [0, -0.03 + i * 0.075, 0]);
+  for (let i = 0; i < 3; i++) add(B.spine, bevelBox(0.3 + i * 0.03, 0.07, 0.24 + i * 0.015, i % 2 ? slate : carbon, 0.012), [0, -0.03 + i * 0.075, 0]); // waist tapers up into the chest
   add(B.spine, channel(0.14, N, 1.6), [0, 0.02, 0.15], [0, 0, Math.PI / 2]);
   // hip fairings: canted ceramic trapezoids from the saddle down past the wheel top, hazard decal on the inner face
   for (const sx of [-1, 1]) { add(B.root, bevelBox(0.2, 0.4, 0.09, ceramic, 0.02, 0.04), [sx * 0.31, -0.28, 0.02], [0, 0, sx * -0.22]); add(B.root, bevelBox(0.16, 0.34, 0.05, carbon, 0.015), [sx * 0.29, -0.28, 0.0], [0, 0, sx * -0.22]); add(B.root, channel(0.3, N, 1.6, 0.02), [sx * 0.355, -0.28, 0.04], [0, 0, Math.PI / 2 + sx * -0.22]); add(B.root, decal('hazard', N, 0.1, 0.03), [sx * 0.33, -0.44, 0.07], [0, 0, sx * -0.22]); }
   // ---- chest: rib block, angled upper plate, lower plate, collar, hex reactor with a recess ring, side ribs
-  add(B.chest, bevelBox(0.5, 0.34, 0.3, carbon, 0.025), [0, 0.1, 0]);
-  add(B.chest, bevelBox(0.5, 0.18, 0.09, ceramic, 0.025, 0.03), [0, 0.225, 0.15], [0.22, 0, 0]);
-  add(B.chest, bevelBox(0.46, 0.16, 0.08, ceramic, 0.025, 0.03), [0, 0.0, 0.16], [-0.2, 0, 0]);
+  add(B.chest, bevelBox(0.44, 0.34, 0.28, carbon, 0.025), [0, 0.1, 0]);
+  add(B.chest, bevelBox(0.44, 0.18, 0.09, ceramic, 0.025, 0.03), [0, 0.225, 0.14], [0.22, 0, 0]);
+  add(B.chest, bevelBox(0.4, 0.16, 0.08, slate, 0.025, 0.03), [0, 0.0, 0.15], [-0.2, 0, 0]);
   add(B.chest, bevelBox(0.22, 0.04, 0.18, gun, 0.01), [0, 0.28, 0.0]);                                   // collar (low, leaves the neck visible)
   add(B.chest, hexPlate(0.085, 0.05, gun), [0, 0.11, 0.2]);                                                // reactor housing
-  const reactor = add(B.chest, hexPlate(0.055, 0.02, glow(2.6)), [0, 0.11, 0.225]); reactor.castShadow = false; model.reactor = reactor;
+  const reactor = add(B.chest, hexPlate(0.055, 0.02, glow(1.4)), [0, 0.11, 0.225]); reactor.castShadow = false; model.reactor = reactor;
   const reactorRing = add(B.chest, torus(0.068, 0.006, glowS(1.4), 6), [0, 0.11, 0.228]); reactorRing.castShadow = false; model.reactorRing = reactorRing;
   for (const sx of [-1, 1]) { for (let i = 0; i < 3; i++) add(B.chest, bevelBox(0.04, 0.05, 0.22, i === 1 ? ceramic : gun, 0.008), [sx * (0.27 + i * 0.0), 0.0 + i * 0.075, -0.02]); }
   add(B.chest, channel(0.28, N), [0, 0.19, 0.205], [0.22, 0, 0]); add(B.chest, channel(0.16, N), [0, -0.045, 0.205], [-0.2, 0, 0]);
@@ -163,7 +163,7 @@ function buildOutrider(model, opts = {}) {
   add(B.head, bevelBox(0.24, 0.16, 0.05, ceramic, 0.02, 0.03), [0, 0.11, 0.12], [-0.3, 0, 0]);                 // face plate, raked back
   add(B.head, bevelBox(0.28, 0.05, 0.14, ceramic, 0.015, 0.03), [0, 0.2, 0.1], [0.25, 0, 0]);                  // brow overhang
   add(B.head, hexPlate(0.05, 0.03, carbon), [0, 0.11, 0.15]);                                                   // visor recess
-  const visor = add(B.head, hexPlate(0.024, 0.012, glow(1.7)), [0, 0.11, 0.163]); visor.castShadow = false; model.visor = visor;
+  const visor = add(B.head, hexPlate(0.024, 0.012, glow(1.1)), [0, 0.11, 0.163]); visor.castShadow = false; model.visor = visor;
   add(B.head, channel(0.16, N, 2.2, 0.018), [0, 0.135, 0.15], [-0.3, 0, 0]);                                    // visor slit
   for (const sx of [-1, 1]) { add(B.head, bevelBox(0.06, 0.12, 0.14, carbon, 0.01), [sx * 0.15, 0.09, 0.02]); const ear = lathe([[0, 0], [0.035, 0], [0.04, 0.02], [0.03, 0.035], [0, 0.035]], gun, 14); ear.rotation.z = sx * -Math.PI / 2; ear.position.set(sx * 0.18, 0.12, -0.01); add(B.head, ear); const earL = cyl(0.016, 0.016, 0.008, glowS(1.6), 10); earL.rotation.z = Math.PI / 2; earL.position.set(sx * 0.215, 0.12, -0.01); earL.castShadow = false; B.head.add(earL); }
   add(B.head, bevelBox(0.04, 0.03, 0.04, gun, 0.006), [-0.09, 0.275, -0.06]);                                   // sensor mast base
@@ -173,8 +173,8 @@ function buildOutrider(model, opts = {}) {
   for (const side of ['L', 'R']) {
     const sx = side === 'L' ? 1 : -1; const sh = B['shoulder' + side];
     add(sh, sphere(0.075, gun, 16), [sx * 0.02, 0.0, 0]);                                                   // shoulder ball joint
-    add(sh, bevelBox(0.3, 0.16, 0.32, ceramic, 0.03, 0.05), [sx * 0.1, 0.07, 0], [0, 0, sx * 0.18]);
-    add(sh, bevelBox(0.2, 0.09, 0.22, carbon, 0.02, 0.03), [sx * 0.1, -0.04, 0]);
+    add(sh, bevelBox(0.26, 0.15, 0.3, ceramic, 0.03, 0.05), [sx * 0.08, 0.07, 0], [0, 0, sx * 0.18]);
+    add(sh, bevelBox(0.18, 0.09, 0.2, slate, 0.02, 0.03), [sx * 0.08, -0.04, 0]);
     add(sh, channel(0.22, N, 1.8), [sx * 0.1, 0.152, 0.03], [Math.PI / 2, 0, sx * 0.18]);
     add(sh, decal(side === 'L' ? 'unit' : 'chevron', N, 0.14, 0.14), [sx * 0.275, 0.06, 0.0], [0, sx * Math.PI / 2, 0]);
     // upper arm: capsule core, bevel plate, piston pair to the elbow
@@ -202,13 +202,13 @@ function buildOutrider(model, opts = {}) {
   // ---- monowheel: lathe tyre with tread grooves, 24 tread blocks, emissive rim, dished hub with five bevelled spokes,
   //      caliper, mudguard arc, fork arms as tubes from the seat to the axle knuckles, counterweight pods behind.
   model.hideLimb('legL'); model.hideLimb('legR');
-  const R = 0.54; model.ballRadius = R; model.ballRootY = R * 2 - 0.24; B.root.position.y = model.ballRootY; model.root.updateWorldMatrix(true, true);
+  const R = 0.6; model.ballRadius = R; model.ballRootY = R * 2 - 0.3; B.root.position.y = model.ballRootY; model.root.updateWorldMatrix(true, true);
   const wheel = new THREE.Group(); wheel.name = 'wheel';
   const rubber = new THREE.MeshStandardMaterial({ color: '#17181c', roughness: 0.88, metalness: 0.02 });
   const tyre = lathe([[R - 0.2, -0.13], [R - 0.06, -0.13], [R - 0.01, -0.09], [R, -0.04], [R, 0.04], [R - 0.01, 0.09], [R - 0.06, 0.13], [R - 0.2, 0.13]], rubber, 48); tyre.rotation.z = Math.PI / 2; wheel.add(tyre);
   for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2; for (const sx of [-1, 1]) { const t = box(0.09, 0.06, 0.02, rubber); t.position.set(sx * 0.06, Math.sin(a) * (R + 0.004), Math.cos(a) * (R + 0.004)); t.rotation.x = -a; t.rotation.z = sx * 0.3; wheel.add(t); } }
   const groove = torus(R + 0.002, 0.012, new THREE.MeshStandardMaterial({ color: '#0b0c0f', roughness: 0.95 }), 56); groove.rotation.y = Math.PI / 2; wheel.add(groove);
-  const rim = torus(R - 0.16, 0.02, glowS(2.4), 56); rim.rotation.y = Math.PI / 2; rim.castShadow = false; wheel.add(rim);
+  const rim = torus(R - 0.16, 0.02, glowS(1.6), 56); rim.rotation.y = Math.PI / 2; rim.castShadow = false; wheel.add(rim);
   const rimDark = torus(R - 0.16, 0.03, gun, 56); rimDark.rotation.y = Math.PI / 2; rimDark.position.x = 0; wheel.add(rimDark);
   const hub = lathe([[0, -0.15], [0.1, -0.15], [0.15, -0.12], [0.2, -0.06], [0.2, 0.06], [0.15, 0.12], [0.1, 0.15], [0, 0.15]], gunLight, 24); hub.rotation.z = Math.PI / 2; wheel.add(hub);
   for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; const spoke = bevelBox(0.05, R - 0.32, 0.06, gun, 0.01); spoke.position.set(0, Math.sin(a) * (R - 0.26) * 0.5, Math.cos(a) * (R - 0.26) * 0.5); spoke.rotation.x = -a + Math.PI / 2; spoke.rotation.y = 0; wheel.add(spoke); const led = box(0.07, 0.02, 0.04, glowS(1.8)); led.position.set(0.15, Math.sin(a) * 0.12, Math.cos(a) * 0.12); led.rotation.x = -a; led.castShadow = false; wheel.add(led); }
@@ -217,7 +217,8 @@ function buildOutrider(model, opts = {}) {
   const rig = new THREE.Group(); rig.name = 'ballRig'; rig.add(roll);
   // yoke (does not spin): seat dish, fork tubes, knuckles, caliper, mudguard, counterweights, tail lamp
   const collar = new THREE.Group(); collar.name = 'collar';
-  add(collar, lathe([[0.1, -0.02], [0.26, -0.02], [0.28, 0.04], [0.24, 0.1], [0.18, 0.12], [0.1, 0.12]], gun, 24), [0, 0.0, 0]);
+  add(collar, lathe([[0.1, -0.04], [0.3, -0.04], [0.33, 0.04], [0.28, 0.14], [0.2, 0.18], [0.1, 0.18]], gun, 24), [0, 0.0, 0]);
+  add(collar, bevelBox(0.36, 0.16, 0.3, carbon, 0.02, 0.04), [0, 0.14, -0.06]);
   add(collar, torus(0.2, 0.012, glowS(1.6), 32), [0, 0.11, 0], [Math.PI / 2, 0, 0]).castShadow = false;
   for (const sx of [-1, 1]) {
     add(collar, tube([[sx * 0.2, 0.02, 0.0], [sx * 0.32, -0.1, 0.05], [sx * 0.33, -R * 0.55, 0.06], [sx * 0.26, -R * 1.02, 0.0]], 0.045, gunLight, 14));
@@ -226,12 +227,13 @@ function buildOutrider(model, opts = {}) {
     add(collar, decal('tech', N, 0.12, 0.05), [sx * 0.345, -R * 0.45, 0.06], [0, sx * Math.PI / 2, 0]);
   }
   const guardPivot = new THREE.Group(); guardPivot.rotation.y = Math.PI / 2; guardPivot.position.y = 0; collar.add(guardPivot);
-  const guard = new THREE.Mesh(new THREE.TorusGeometry(R + 0.07, 0.045, 8, 36, Math.PI * 0.5), ceramic); guard.rotation.z = Math.PI * 0.06; guard.scale.set(1, 1, 3.2); guard.castShadow = true; guardPivot.add(guard); // in the pivot's XY = the wheel plane; +x there is the model's -z (rear)
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(R + 0.06, 0.035, 8, 36, Math.PI * 0.5), carbon); guard.rotation.z = Math.PI * 0.06; guard.scale.set(1, 1, 2.6); guard.castShadow = true; guardPivot.add(guard); // in the pivot's XY = the wheel plane; +x there is the model's -z (rear)
   const guardLip = new THREE.Mesh(new THREE.TorusGeometry(R + 0.11, 0.008, 6, 36, Math.PI * 0.5), glowS(1.6)); guardLip.rotation.z = Math.PI * 0.06; guardLip.castShadow = false; guardPivot.add(guardLip);
   const shield = new THREE.Group(); shield.rotation.z = Math.PI * 0.56; shield.scale.set(0.001, 0.001, 3.2); guardPivot.add(shield);
-  const shieldArc = new THREE.Mesh(new THREE.TorusGeometry(R + 0.07, 0.05, 8, 36, Math.PI * 0.5), ceramic); shieldArc.castShadow = true; shield.add(shieldArc);
+  const shieldArc = new THREE.Mesh(new THREE.TorusGeometry(R + 0.06, 0.04, 8, 36, Math.PI * 0.5), carbon); shieldArc.castShadow = true; shield.add(shieldArc);
   const shieldLip = new THREE.Mesh(new THREE.TorusGeometry(R + 0.115, 0.009, 6, 36, Math.PI * 0.5), glowS(1.8)); shieldLip.castShadow = false; shield.add(shieldLip);
   const caliper = bevelBox(0.08, 0.14, 0.1, gunLight, 0.01); caliper.position.set(0.22, -R * 0.75, -0.16); collar.add(caliper);
+  for (const sx of [-1, 1]) add(collar, tube([[sx * 0.2, 0.1, -0.1], [sx * 0.12, 0.2, -0.35], [sx * 0.06, 0.12, -0.56]], 0.02, gun, 8)); // mudguard brackets
   const cw = [];
   for (const sx of [-1, 1]) { const arm = new THREE.Group(); arm.position.set(sx * 0.17, 0.0, -0.2); arm.add(add(new THREE.Group(), tube([[0, 0, 0], [sx * 0.05, -0.03, -0.1], [sx * 0.06, -0.05, -0.18]], 0.035, gun, 10))); const pod = lathe([[0, -0.12], [0.07, -0.12], [0.1, -0.06], [0.1, 0.07], [0.07, 0.12], [0, 0.12]], carbon, 16); pod.rotation.x = Math.PI / 2; pod.position.set(sx * 0.07, -0.05, -0.3); arm.add(pod); const cap = bevelBox(0.12, 0.12, 0.04, ceramic, 0.01, 0.03); cap.position.set(sx * 0.07, -0.05, -0.43); arm.add(cap); const lamp = sphere(0.03, neonOwn(COLORS.redOrange, 2), 10); lamp.position.set(sx * 0.07, -0.05, -0.45); lamp.castShadow = false; arm.add(lamp); const ring = torus(0.085, 0.008, glowS(1.2), 20); ring.position.set(sx * 0.07, -0.05, -0.19); ring.castShadow = false; arm.add(ring); collar.add(arm); cw.push(arm); }
   collar.position.y = R; rig.add(collar);
@@ -245,11 +247,11 @@ function buildOutrider(model, opts = {}) {
     const st = model.animState || {}; const firing = (model.animator?.recoil || 0) > 0.05 || (st.aim || 0) > 0.5 || st.cover?.blind;
     if (firing) popT = 0.7; else popT -= dt;
     const want = st.cover ? (popT > 0 ? 0 : 1) : (crouch ? 0.45 : 0);
-    fold = damp(fold, want, want > fold ? 7 : 16, dt); // slow curl in, servo-fast pop out
+    fold = damp(fold, want, want > fold ? 4.5 : 16, dt); // slow curl in, servo-fast pop out
     if (fold > 0.001) {
       const q = Math.round(fold * 14) / 14 * 0.7 + fold * 0.3; // slightly stepped, like servos settling
       const arm = st.cover ? q : 0; // crouch only hunkers the torso; arms stay on the rifle
-      B.root.position.y -= q * 0.3; B.spine.rotation.x += q * 0.5; B.chest.rotation.x += q * 1.1; B.head.rotation.x += q * 0.8;
+      B.root.position.y -= q * 0.34; B.spine.rotation.x += q * 0.55; B.chest.rotation.x += q * 1.3; B.head.rotation.x += q * 0.9;
       for (const side of ['L', 'R']) { B['upperArm' + side].rotation.x += arm * 1.3; B['upperArm' + side].rotation.z += (side === 'L' ? -1 : 1) * arm * 0.4; B['forearm' + side].rotation.x += arm * 1.6; }
       for (let i = 0; i < 2; i++) cw[i].rotation.y += (i ? -1 : 1) * arm * 1.3;
     }
@@ -257,9 +259,9 @@ function buildOutrider(model, opts = {}) {
     lean = damp(lean, clamp(lat * 0.09, -0.35, 0.35), 6, dt); rig.rotation.z = lean; rig.rotation.x = clamp(fwd * 0.012, -0.08, 0.08);
     for (let i = 0; i < 2; i++) cw[i].rotation.y = lean * (i ? -1.6 : 1.6) + Math.sin(performance.now() * 0.002 + i) * 0.04;
     const t = performance.now() * 0.001; const sp = Math.abs(fwd);
-    reactor.material.emissiveIntensity = 2.2 + Math.sin(t * 6) * 0.4 + sp * 0.08; reactorRing.rotation.z = t * 0.8;
-    const jt = 1.3 + sp * 0.06 + (land || 0) * 1.4; for (const j of P.joints) j.material.emissiveIntensity = jt;
-    if (model.visor) model.visor.material.emissiveIntensity = 1.7 + (Math.sin(t * 1.7) > 0.97 ? -1.2 : 0); // occasional blink
+    reactor.material.emissiveIntensity = 1.3 + Math.sin(t * 6) * 0.25 + sp * 0.05; reactorRing.rotation.z = t * 0.8;
+    const jt = 0.9 + sp * 0.05 + (land || 0) * 1.2; for (const j of P.joints) j.material.emissiveIntensity = jt;
+    if (model.visor) model.visor.material.emissiveIntensity = 1.1 + (Math.sin(t * 1.7) > 0.97 ? -0.8 : 0); // occasional blink
     void crouch;
   };
   return model;
@@ -360,7 +362,7 @@ export function applyRobot(model, kind, opts = {}) {
   for (const n in model.bones) model.bones[n].rotation.set(0, 0, 0);
   for (const m of model.meshes) m.visible = false;
   def.build(model, opts);
-  model.root.scale.multiplyScalar(1.18); // mech scale: a head taller than the old soldier
+  model.root.scale.multiplyScalar(kind === 'a' ? 1.06 : 1.18); // OUTRIDER stays near player height so the camera and capsule fit
   // player code toggles `model.custom.visible` for the scope; collect every rigid part so that still works
   const parts = []; model.root.traverse((o) => { if (o.isMesh && !model.meshes.includes(o)) parts.push(o); });
   model.custom = { get visible() { return parts[0]?.visible ?? true; }, set visible(v) { for (const p of parts) p.visible = v; } };

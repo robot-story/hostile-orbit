@@ -26,6 +26,28 @@ export function buildHorizon(world) {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 72, 1, true), new THREE.MeshBasicMaterial({ color: fogColor, map: mistTex, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false, fog: false }));
     m.position.y = h / 2 - 4; m.renderOrder = -1; g.add(m);
   }
+  // procedural vista: layered skyline silhouettes painted to a canvas (used when no generated painting is on disk)
+  const paintedVista = (seed) => {
+    const c = document.createElement('canvas'); c.width = 1536; c.height = 1024; const x = c.getContext('2d');
+    let r = seed; const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+    const horizonY = 700; const haze = fogColor.getStyle();
+    for (let layer = 0; layer < 3; layer++) {
+      const alpha = 0.32 + layer * 0.26; x.fillStyle = city ? `rgba(8,7,16,${alpha})` : `rgba(60,28,14,${alpha})`;
+      x.beginPath(); x.moveTo(0, 1024); let px = 0; const base = horizonY + layer * 70;
+      while (px < 1536) {
+        if (city) { const w = 30 + rnd() * 90, h = 40 + rnd() * (260 - layer * 70); x.lineTo(px, base); x.lineTo(px, base - h); x.lineTo(px + w, base - h); x.lineTo(px + w, base); px += w + rnd() * 30; }
+        else { const w = 120 + rnd() * 260, h = 60 + rnd() * (240 - layer * 60); x.lineTo(px + w * 0.5, base - h); x.lineTo(px + w, base); px += w; }
+      }
+      x.lineTo(1536, 1024); x.closePath(); x.fill();
+      // window lights / vein glints on the nearest layer
+      if (layer === 2) { for (let i = 0; i < (city ? 380 : 60); i++) { x.fillStyle = city ? (rnd() < 0.5 ? 'rgba(0,229,255,0.7)' : 'rgba(255,63,216,0.6)') : 'rgba(155,77,255,0.45)'; x.fillRect(rnd() * 1536, base - 20 - rnd() * 200, city ? 3 : 6, city ? 5 : 2); } }
+      // spires / masts
+      for (let i = 0; i < 5; i++) { const sx = rnd() * 1536, h = 200 + rnd() * 300; x.fillStyle = city ? `rgba(6,6,12,${alpha})` : `rgba(20,10,20,${alpha})`; x.beginPath(); x.moveTo(sx - 6, base); x.lineTo(sx, base - h); x.lineTo(sx + 6, base); x.closePath(); x.fill(); }
+    }
+    // haze bands at the base so the silhouettes sink into the mist
+    const gr = x.createLinearGradient(0, horizonY + 80, 0, 1024); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, haze); x.fillStyle = gr; x.fillRect(0, horizonY, 1536, 1024 - horizonY);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  };
   // vista cards: eight silhouettes around the compass, alternating two paintings, tinted toward the haze
   const base = (import.meta.env.BASE_URL || './') + 'textures/vista/';
   const ids = city ? ['vista_lantern_a', 'vista_lantern_b'] : ['vista_meridian_a', 'vista_meridian_b'];
@@ -39,7 +61,12 @@ export function buildHorizon(world) {
         const a = (i / 8) * Math.PI * 2 + 0.2; const card = new THREE.Mesh(new THREE.PlaneGeometry(cardW, cardH), mat);
         card.position.set(Math.cos(a) * radius, cardH / 2 - 30 + (i % 3) * 8, Math.sin(a) * radius); card.lookAt(0, card.position.y, 0); card.renderOrder = -1; g.add(card);
       }
-    }, undefined, () => { /* painting not generated yet: mist alone */ });
+    }, undefined, () => {
+      // no painting on disk: fall back to the procedural skyline
+      const tex = paintedVista(11 + k * 7 + (city ? 100 : 0));
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, color: tint, fog: false, depthWrite: false, side: THREE.DoubleSide, opacity: 0.9 });
+      for (let i = k; i < 8; i += 2) { const a = (i / 8) * Math.PI * 2 + 0.2; const card = new THREE.Mesh(new THREE.PlaneGeometry(cardW, cardH), mat); card.position.set(Math.cos(a) * radius, cardH / 2 - 30 + (i % 3) * 8, Math.sin(a) * radius); card.lookAt(0, card.position.y, 0); card.renderOrder = -1; g.add(card); }
+    });
   });
   world.scene.add(g);
   return g;
