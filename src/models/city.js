@@ -5,6 +5,8 @@
 // cannot walk through them. Geometries/materials are cached by exact params so the static merge
 // pass (src/world/merge.js) can batch dozens of towers/props sharing a material into few draw calls.
 import * as THREE from 'three';
+import { HOLO_ART } from './props.js';
+let _holoArtIdx = 0;
 import { Mat, COLORS } from '../render/materials.js';
 import { rand, randInt, pick } from '../core/mathx.js';
 import { pointGlow, buildWallSegment, buildGate, buildWatchtower } from './buildings.js';
@@ -270,7 +272,8 @@ export function holoBillboard(world, pos, yaw = 0, opts = {}) {
   const mast = cyl(0.3, 0.4, mastH, Mat.darkMetal()); mast.position.y = mastH / 2; g.add(mast);
   const w = opts.w || 6, h = opts.h || 3.4;
   const [slogan, sub] = citySlogan(); _cityPosterIdx++;
-  const posterMat = Mat.poster(opts.text || slogan, opts.sub || sub, color, _cityPosterIdx++);
+  const useArt = opts.art ?? (Math.random() < 0.5);
+  const posterMat = useArt ? Mat.posterImage(HOLO_ART[_holoArtIdx++ % HOLO_ART.length], { holo: true }).clone() : Mat.poster(opts.text || slogan, opts.sub || sub, color, _cityPosterIdx++);
   posterMat.transparent = true; posterMat.opacity = 0.82; posterMat.side = THREE.DoubleSide; posterMat.depthWrite = false;
   const poster = mesh(planeGeo(w, h), posterMat, false);
   poster.position.y = mastH + h / 2 + 0.4; poster.position.z = 0.06; poster.userData.noMerge = true; g.add(poster); // in front of the backing plate, never inside it
@@ -577,4 +580,32 @@ export function buildRooftopPad(world, center) {
   holoBillboard(world, signPos, Math.PI, { text: 'EXTRACTION', sub: 'AWAIT DROPSHIP', color: COLORS.cyan, mastHeight: deckH + 2, w: 5, h: 1.8, light: true });
 
   return { group: g, extraction: { center: new THREE.Vector3(center.x, y + deckH - 0.02, center.z), radius: R }, deckCollider, rampColliders };
+}
+
+/** Colossal hologram hovering over a plaza: the Commonwealth's face on the sky. Slowly turns and flickers. */
+export function giantHolo(world, pos, opts = {}) {
+  const w = opts.w || 34, h = opts.h || 19, y = (opts.height ?? 58);
+  const mat = Mat.posterImage(opts.art || HOLO_ART[0], { holo: true }).clone(); mat.opacity = 0.55;
+  const plane = new THREE.Mesh(planeGeo(w, h), mat); plane.position.set(pos.x, pos.y + y, pos.z); plane.userData.noMerge = true; world.props.add(plane);
+  const frame = new THREE.Mesh(new THREE.EdgesGeometry(planeGeo(w + 0.6, h + 0.6)), new THREE.LineBasicMaterial({ color: opts.color || '#00e5ff', transparent: true, opacity: 0.35 })); plane.add(frame);
+  // projector beams from four ground pylons to the corners
+  const corners = [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]];
+  const beams = [];
+  for (const [cx, cy] of corners) { const gx = pos.x + Math.sign(cx) * 14, gz = pos.z + (cy < 0 ? -1 : 1) * 10; const g0 = new THREE.Vector3(gx, world.terrain.getHeight(gx, gz), gz); buildPylon(world, g0, 4, opts.color || '#00e5ff'); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.02, 1, 5, 1, true), Mat.glowAdditive(opts.color || '#00e5ff', 0.22)); b.userData.noMerge = true; world.props.add(b); beams.push({ b, g0: g0.clone().setY(g0.y + 4), cx, cy }); }
+  const anim = { t: Math.random() * 10, update: (dt) => { anim.t += dt; plane.rotation.y = Math.sin(anim.t * 0.15) * 0.35; mat.opacity = 0.5 + Math.sin(anim.t * 6) * 0.05 + (Math.random() < 0.02 ? -0.25 : 0); const q = plane.quaternion; for (const it of beams) { const c = new THREE.Vector3(it.cx, it.cy, 0).applyQuaternion(q).add(plane.position); const mid = c.clone().add(it.g0).multiplyScalar(0.5); const len = c.distanceTo(it.g0); it.b.position.copy(mid); it.b.scale.set(1, len, 1); it.b.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), c.clone().sub(it.g0).normalize()); } } };
+  world.addUpdatable(anim);
+  return { plane, anim };
+}
+
+/** Orbital tether: a cable from a spire straight up out of the atmosphere, ringed with climbing lights. */
+export function skyTether(world, pos, opts = {}) {
+  const H = opts.height || 700, color = opts.color || '#ff3fd8';
+  const g = new THREE.Group();
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.9, H, 8, 1, true), new THREE.MeshStandardMaterial({ color: '#1a1c24', roughness: 0.7, metalness: 0.6, emissive: color, emissiveIntensity: 0.12, side: THREE.DoubleSide, fog: false })); cable.position.y = H / 2; g.add(cable);
+  const rings = new THREE.InstancedMesh(new THREE.TorusGeometry(1.4, 0.12, 6, 20), Mat.neon(color, 1.4), 14); const m = new THREE.Matrix4();
+  for (let i = 0; i < 14; i++) { m.makeRotationX(Math.PI / 2); m.setPosition(0, 6 + i * (H / 14), 0); rings.setMatrixAt(i, m); } rings.instanceMatrix.needsUpdate = true; g.add(rings);
+  g.position.set(pos.x, pos.y, pos.z); g.userData.noMerge = true; world.props.add(g);
+  const anim = { t: 0, update: (dt) => { anim.t += dt; rings.position.y = (anim.t * 6) % (H / 14); } };
+  world.addUpdatable(anim);
+  return { group: g, anim };
 }

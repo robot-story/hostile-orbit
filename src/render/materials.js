@@ -44,6 +44,13 @@ export const Mat = {
   blood: () => cached('blood', () => new THREE.MeshStandardMaterial({ color: COLORS.blood, roughness: 0.35, metalness: 0.1, emissive: '#3a0008', emissiveIntensity: 0.6 })),
   gib: () => cached('gib', () => new THREE.MeshStandardMaterial({ color: '#4a1218', roughness: 0.6, metalness: 0.15, emissive: '#2a0006', emissiveIntensity: 0.5 })),
   screen: (v = 0) => cached('screen' + v, () => new THREE.MeshStandardMaterial({ map: Tex.screen(v), emissive: '#ffffff', emissiveMap: Tex.screen(v), emissiveIntensity: 1.6, roughness: 0.3, metalness: 0.2, color: '#222' })),
+  /** Generated propaganda art (public/textures/posters). Cached per url; emissive so it reads at night. */
+  posterImage: (url, opts = {}) => cached('posterImg' + url + (opts.holo ? 'h' : ''), () => {
+    const tex = _loader.load((import.meta.env.BASE_URL || './') + url, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; });
+    return opts.holo
+      ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })
+      : new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.75, roughness: 0.45, metalness: 0.1, color: '#5a5a5a' });
+  }),
   poster: (slogan, sub, accent, idx) => new THREE.MeshStandardMaterial({ map: Tex.poster(slogan, sub, accent, idx), emissive: '#ffffff', emissiveMap: Tex.poster(slogan, sub, accent, idx), emissiveIntensity: 0.9, roughness: 0.4, metalness: 0.1, color: '#666' }),
   emblem: (color = COLORS.cyan) => cached('emblem' + color, () => new THREE.MeshBasicMaterial({ map: Tex.emblem(color), transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })),
   emblemDecal: (color = '#d8d8d8') => cached('emblemDecal' + color, () => new THREE.MeshStandardMaterial({ map: Tex.emblem(color), transparent: true, depthWrite: false, roughness: 0.8, color: '#ffffff', polygonOffset: true, polygonOffsetFactor: -2 })),

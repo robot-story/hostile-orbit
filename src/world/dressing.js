@@ -12,6 +12,7 @@ import {
 import { buildWallSegment, buildGate, buildWatchtower, buildPylon } from '../models/buildings.js';
 import { blackGlassTree, glowPool, boneArch, sporeField, membranePlant } from '../models/alien.js';
 import { rand, pick } from '../core/mathx.js';
+import { giantHolo, skyTether } from '../models/city.js';
 
 // ---------------------------------------------------------------- shared decal materials (cached, batch-friendly)
 let _scorchTex = null, _trackTex = null;
@@ -78,6 +79,33 @@ const onFloor = (world, x, z, margin = -0.6) => world.terrain.isFloor(x, z, marg
 function at(world, mx, my) { const p = M(mx, my); p.y = world.terrain.getHeight(p.x, p.z); return p; }
 function facing(fromMap, toMap) { const a = M(...fromMap), b = M(...toMap); return Math.atan2(-(b.x - a.x), -(b.z - a.z)); }
 function pushRes(info, res) { if (!res) return; if (res.destructible) info.destructibles.push(res.destructible); if (res.supplyCache) info.supplyCaches.push(res.supplyCache); if (res.poster) info.posters.push(res.poster); if (res.posters) info.posters.push(...res.posters); }
+
+/** A Commonwealth frigate that did not make orbit: a 70 m hull ploughed into the canyon rim, still lit. */
+export function crashedFrigate(world, pos, yaw = 0) {
+  const g = new THREE.Group();
+  const hullMat = Mat.panel(2), dark = Mat.darkMetal();
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(70, 9, 13), hullMat); hull.position.set(0, 4, 0); g.add(hull);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(6.5, 16, 6), hullMat); nose.rotation.z = -Math.PI / 2; nose.position.set(43, 4, 0); g.add(nose);
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(12, 7, 8), dark); bridge.position.set(-14, 11, 0); g.add(bridge);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(10, 12, 1.2), dark); fin.position.set(-28, 12, 0); fin.rotation.z = 0.3; g.add(fin);
+  for (const zz of [-4.5, 4.5]) { const eng = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.6, 12, 12), dark); eng.rotation.z = Math.PI / 2; eng.position.set(-38, 3, zz); g.add(eng); const glow = new THREE.Mesh(new THREE.CircleGeometry(2.6, 16), Mat.neon('#ff7a1a', 0.8)); glow.rotation.y = -Math.PI / 2; glow.position.set(-44.2, 3, zz); g.add(glow); }
+  for (let i = 0; i < 6; i++) { const strip = new THREE.Mesh(new THREE.BoxGeometry(9, 0.25, 0.25), Mat.neon('#00e5ff', 1.4)); strip.position.set(-30 + i * 12, 8.7, 6.7); g.add(strip); const s2 = strip.clone(); s2.position.z = -6.7; g.add(s2); }
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(18, 0.8, 26), hullMat); wing.position.set(10, 1, 14); wing.rotation.x = 0.35; g.add(wing);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.position.copy(pos); g.rotation.set(-0.12, yaw, 0.22); // ploughed in nose-down, listing
+  world.props.add(g);
+  world.addBox(new THREE.Vector3(pos.x, pos.y + 5, pos.z), { x: 36, y: 6, z: 8 }, yaw, { material: 'metal', cover: true });
+  for (let i = 0; i < 5; i++) { const sx = pos.x + Math.cos(yaw) * (30 + i * 10) + rand(-6, 6), sz = pos.z - Math.sin(yaw) * (30 + i * 10) + rand(-6, 6); scorchDecal(world, new THREE.Vector3(sx, world.terrain.getHeight(sx, sz), sz), rand(2.5, 4.5)); }
+  return g;
+}
+
+/** Alien bone cathedral: ribs the size of buildings arching over a route. */
+export function boneCathedral(world, pts, opts = {}) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = M(...pts[i]), b = M(...pts[i + 1]); const n = Math.max(1, Math.round(a.distanceTo(b) / (opts.spacing || 26)));
+    for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; const p = a.clone().lerp(b, t); p.y = world.terrain.getHeight(p.x, p.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)) + Math.PI / 2; boneArch(world, p, yaw, { height: rand(opts.minH || 16, opts.maxH || 24) }); }
+  }
+}
 
 // ---------------------------------------------------------------- MERIDIAN vignettes
 export function dressMeridian(world, info) {
@@ -162,6 +190,9 @@ export function dressMeridian(world, info) {
     scorchDecal(world, at(world, 318, 262), 4); scorchDecal(world, at(world, 336, 268), 2.8, { rubble: false });
     boneArch(world, at(world, 356, 236), 1.2, { height: 8 }); blackGlassTree(world, at(world, 352, 266), { height: 8 });
   }
+  // 10. Landmarks: the frigate wreck on the western rim (visible from most of the valley) and the bone cathedral over the trench.
+  { const p = M(48, 210); p.y = world.terrain.getHeight(p.x, p.z) - 2; crashedFrigate(world, p, 0.9); }
+  boneCathedral(world, [[252, 96], [268, 140], [270, 195], [276, 238]], { spacing: 30, minH: 15, maxH: 22 });
   // 9. Ambient strike scars along the enemy roads so the whole valley reads as a war zone, not a sandbox.
   for (const [mx, my] of [[36, 120], [30, 230], [372, 140], [376, 230], [150, 396], [244, 396]]) { const p = at(world, mx, my); if (onFloor(world, p.x, p.z, 1)) scorchDecal(world, p, rand(2.5, 4)); }
 }
@@ -189,6 +220,9 @@ export function dressLantern(world, info, cityFns) {
     for (const [mx, my] of [[300, 300], [340, 300], [332, 344]]) { const g = at(world, mx, my); const top = g.clone(); top.y += 5; buildPylon(world, g, 5, '#ff3fd8'); cableRun(world, spire, top, { radius: 0.06, sag: 3.5 }); }
     pushRes(info, holoBillboard(world, at(world, 286, 288), facing([286, 288], [300, 300]), { text: 'DISSENT DIMS THE LIGHTS', sub: 'LEGION POWER BOARD', color: '#ff3fd8', light: true }));
   }
+  // Landmarks: the Commonwealth's face over Lantern Square, and the orbital tether rising from the substation spire.
+  giantHolo(world, at(world, 200, 125), { height: 56, color: '#00e5ff' });
+  { const sp = at(world, 322, 318); sp.y += 14; skyTether(world, sp, { height: 700, color: '#ff3fd8' }); }
   // Rooftop approach: light rows leading to the pad.
   for (let i = 0; i < 4; i++) { for (const side of [-1, 1]) { const p = at(world, 96 - i * 5 + side * 7, 285 - i * 6); if (onFloor(world, p.x, p.z)) streetLamp(world, p, { color: '#00e5ff', light: i === 1 && side > 0 }); } }
 }

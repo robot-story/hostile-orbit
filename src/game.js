@@ -12,6 +12,7 @@ import { MAPS, DEFAULT_MAP } from './world/maps/index.js';
 import { DevMenu } from './debug/devmenu.js';
 import { preloadCustomModels } from './models/glbSoldier.js';
 import { Hints } from './ui/hints.js';
+import { icon } from './ui/components.js';
 import { M, worldToMap } from './world/terrain.js';
 import { clamp, formatTime } from './core/mathx.js';
 import { Player } from './entities/player.js';
@@ -54,7 +55,6 @@ export class Game {
     events.on('input:keydown', (code) => this.onKey(code));
     events.on('mission:end', (r) => this.endMission(r));
     events.on('menu:open', (name) => this.onMenuOpen(name));
-    events.on('toast', (t, k) => this.menus?.toast(t, k));
     events.on('objective:banner', (b) => this.menus?.banner(b.title, b.sub));
     events.on('hud:interact', (d) => { if (!this.menus) return; if (d) this.menus.showInteract(`[${keyLabel(settings.data.binds.interact)}] ${d.text}`, d.progress); else this.menus.hideInteract(); });
     events.on('fx:shake', (a) => this.localPlayer?.cam.shake(a));
@@ -147,7 +147,43 @@ export class Game {
     const unlock = () => { audio.init().then(() => events.emit('audio:ready')); audio.resume(); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
     window.addEventListener('pointerdown', unlock); window.addEventListener('keydown', unlock);
     this._buildCursor();
-    this.showMainMenu();
+    this.showTitleCard().then(() => this.showMainMenu());
+  }
+  /** Animated title card: dark moon key art, HOSTILE ORBIT reveal, press any key -> main menu. */
+  showTitleCard() {
+    if (new URLSearchParams(location.search).has('join') || new URLSearchParams(location.search).has('notitle')) return Promise.resolve();
+    const el = document.createElement('div'); el.id = 'title';
+    const base = import.meta.env.BASE_URL || '/';
+    el.innerHTML = `<div class="bg" style="background-image:url('${base}textures/menus/title_moon.jpg')"></div><div class="haze"></div><div class="scan"></div>
+      <div class="wrap"><div class="kicker">MERIDIAN COMMONWEALTH // ORBITAL ASSAULT DIVISION</div>
+        <div class="main-title-wrap reveal"><div class="main-title"><div>HOSTILE</div><div>ORBIT</div></div><div class="main-device"><span class="wing left"></span><span class="emblem">${icon('chevronBig')}</span><span class="wing right"></span></div></div>
+        <div class="rule"></div><div class="press">PRESS ANY KEY TO START</div></div>`;
+    if (!document.getElementById('title-css')) { const css = document.createElement('style'); css.id = 'title-css'; css.textContent = `
+      #title{position:absolute;inset:0;z-index:50;background:#02030a;overflow:hidden;font-family:var(--font);pointer-events:auto;cursor:none}
+      #title .bg{position:absolute;inset:-4%;background-size:cover;background-position:center;animation:titleZoom 40s ease-out forwards;filter:saturate(1.05)}
+      #title .haze{position:absolute;inset:0;background:radial-gradient(ellipse at 30% 55%,rgba(0,0,0,.75),rgba(0,0,0,.15) 55%,rgba(0,0,0,.6));}
+      #title .scan{position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px);pointer-events:none}
+      #title .wrap{position:absolute;left:8vw;top:50%;transform:translateY(-52%)}
+      #title .kicker{font-size:11px;letter-spacing:.42em;color:var(--cyan,#5be3ff);opacity:0;animation:titleFade 1.2s .4s forwards}
+      #title .main-title-wrap{align-items:flex-start;text-align:left;margin-top:10px}
+      #title .main-title{font-size:min(11vw,124px)!important;text-align:left!important}
+      #title .reveal{opacity:0;transform:translateY(22px);filter:blur(8px);animation:titleLetter 1.1s .5s cubic-bezier(.2,.8,.2,1) forwards}
+      #title .main-device{margin-top:8px}
+      #title .rule{width:0;height:2px;margin:18px 0 22px;background:linear-gradient(90deg,var(--yellow,#f2c744),transparent);animation:titleRule 1.2s 1.9s forwards}
+      #title .press{font-size:13px;letter-spacing:.42em;color:#fff;opacity:0;animation:titlePress 1.6s 2.6s infinite}
+      #title.out{animation:titleOut .6s forwards}
+      @keyframes titleZoom{from{transform:scale(1.06)}to{transform:scale(1)}}
+      @keyframes titleFade{to{opacity:1}}
+      @keyframes titleLetter{to{opacity:1;transform:none;filter:blur(0)}}
+      @keyframes titleRule{to{width:min(38vw,460px)}}
+      @keyframes titlePress{0%,100%{opacity:.25}50%{opacity:1}}
+      @keyframes titleOut{to{opacity:0;transform:scale(1.04)}}`; document.head.appendChild(css); }
+    this.ui.appendChild(el);
+    this.mode = 'title';
+    return new Promise((resolve) => {
+      const go = (e) => { if (e.type === 'keydown' && (e.code === 'F5' || e.code === 'F12' || e.metaKey || e.ctrlKey)) return; window.removeEventListener('keydown', go); window.removeEventListener('pointerdown', go); audio.play?.('ui_confirm', { volume: 0.8 }); el.classList.add('out'); setTimeout(() => { el.remove(); resolve(); }, 620); };
+      window.addEventListener('keydown', go); window.addEventListener('pointerdown', go);
+    });
   }
   showMainMenu() {
     if (!this._bootMarked) { this._bootMarked = true; try { performance.mark('ho:menu-ready'); console.info('[boot] menu ready at', Math.round(performance.now()), 'ms'); } catch { /* ignore */ } }
@@ -298,35 +334,58 @@ export class Game {
   }
   hideLoading() { const el = document.getElementById('loading'); if (el) el.style.display = 'none'; }
   /** Cinematic pod drop that ends with the player standing at `target`. */
-  /** Recon flyover: a letterboxed camera sweep over the objectives. Doubles as the warm-up pass: every material and
-   *  texture is rendered from several angles here, so the first seconds of play do not stutter on shader compiles. */
+  /** Recon flyover: a letterboxed cinematic sweep over the objectives with telemetry, holographic markers and the
+   *  briefing, ending in a 5-to-1 drop countdown over the pad. Doubles as the warm-up pass: every material is rendered
+   *  from several angles before play, so the first seconds do not stutter on shader compiles. */
   introFlyover() {
     const s = this.session; if (!s || !this.world) return Promise.resolve();
-    const L = this.world.map.locations; const W = this.world;
+    const L = this.world.map.locations; const W = this.world; const mk = this.world.map.markers || [];
     const stops = [
-      { loc: L.extractionCenter, label: 'EXTRACTION PLATFORM', h: 48 }, { loc: L.commsPlaza, label: this.world.map.markers?.[1]?.label || 'COMMUNICATIONS BASE', h: 46 },
-      { loc: L.jammerCenter, label: this.world.map.markers?.[0]?.label || 'JAMMER OUTPOST', h: 44 }, { loc: L.canyonJunction, label: 'APPROACH ROUTES', h: 34 }, { loc: L.dropZone, label: 'DROP ZONE', h: 24 },
+      { loc: L.extractionCenter, label: 'EXTRACTION PLATFORM', sub: 'Dropship recovery point. Hold it when the time comes.', h: 52 },
+      { loc: L.commsPlaza, label: mk[1]?.label || 'COMMUNICATIONS BASE', sub: mk[1]?.desc || '', h: 48 },
+      { loc: L.jammerCenter, label: mk[0]?.label || 'JAMMER OUTPOST', sub: mk[0]?.desc || '', h: 46 },
+      { loc: L.canyonJunction, label: 'APPROACH ROUTES', sub: 'High route, main route, trench. Pick your poison.', h: 34 },
+      { loc: L.dropZone, label: 'DROP ZONE', sub: 'Pod inbound. Brace.', h: 22 },
     ];
     const pts = stops.map((st) => { const p = st.loc.pos.clone(); p.y = W.groundHeight(p.x, p.z) + st.h; return p; });
     const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
     try { this.renderer.renderer.compile(W.scene, this.camera); } catch { /* ignore */ }
     const el = document.createElement('div'); el.id = 'intro';
-    el.innerHTML = `<div class="bar top"></div><div class="bar bottom"></div><div class="feed"><span class="rec"></span>RECON FEED // ${this.world.map.opName || 'OPERATION'}</div><div class="cap"></div><div class="skip">PRESS SPACE TO SKIP</div>`;
+    el.innerHTML = `<div class="bar top"></div><div class="bar bottom"></div>
+      <div class="feed"><span class="rec"></span>RECON FEED // ${this.world.map.opName || 'OPERATION'}</div>
+      <div class="tele"><div>ALT <b class="alt">0000</b> M</div><div>GRID <b class="grid">000.000</b></div><div>SIG <b class="sig">--</b></div></div>
+      <div class="capwrap"><div class="cap"></div><div class="sub"></div></div>
+      <div class="count"><div class="cl">DEPLOYMENT IN</div><div class="cn"></div></div>
+      <div class="skip">PRESS SPACE TO SKIP</div>`;
     if (!document.getElementById('intro-css')) { const css = document.createElement('style'); css.id = 'intro-css'; css.textContent = `
       #intro{position:absolute;inset:0;pointer-events:none;font-family:var(--font)}
-      #intro .bar{position:absolute;left:0;right:0;height:11vh;background:#000;transition:transform .5s ease}
-      #intro .bar.top{top:0} #intro .bar.bottom{bottom:0}
+      #intro .bar{position:absolute;left:0;right:0;height:11vh;background:#000;transform:scaleY(0);transform-origin:top;animation:introBar .7s ease-out forwards}
+      #intro .bar.top{top:0} #intro .bar.bottom{bottom:0;transform-origin:bottom}
       #intro .feed{position:absolute;left:32px;top:12.5vh;font-size:12px;letter-spacing:.3em;color:var(--cyan,#5be3ff);display:flex;align-items:center;gap:10px}
       #intro .rec{width:10px;height:10px;border-radius:50%;background:#ff3b1f;box-shadow:0 0 10px #ff3b1f;animation:introRec 1s steps(2) infinite}
-      #intro .cap{position:absolute;left:50%;bottom:14vh;transform:translateX(-50%);font-family:var(--font-title);font-size:26px;letter-spacing:.14em;color:#fff;text-shadow:0 0 18px rgba(0,229,255,.6);opacity:0;transition:opacity .3s}
-      #intro .cap.on{opacity:1}
+      #intro .tele{position:absolute;right:32px;top:12.5vh;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:rgba(91,227,255,.8);text-align:right;line-height:1.7}
+      #intro .tele b{color:#fff;font-weight:600}
+      #intro .capwrap{position:absolute;left:50%;bottom:21vh;transform:translateX(-50%);text-align:center;opacity:0;transition:opacity .35s}
+      #intro .capwrap.on{opacity:1}
+      #intro .cap{font-family:var(--font-title);font-size:28px;letter-spacing:.16em;color:#fff;text-shadow:0 0 22px rgba(0,229,255,.6)}
+      #intro .sub{margin-top:6px;font-size:12px;letter-spacing:.18em;color:rgba(232,244,248,.8)}
+      #intro .count{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;display:none}
+      #intro .count.on{display:block}
+      #intro .cl{font-size:12px;letter-spacing:.5em;color:var(--yellow,#f2c744)}
+      #intro .cn{font-family:var(--font-title);font-weight:900;font-size:min(22vw,180px);line-height:1;color:#fff;text-shadow:0 0 40px rgba(242,199,68,.55),0 0 90px rgba(0,229,255,.35)}
+      #intro .cn.pop{animation:introPop .95s cubic-bezier(.1,.9,.2,1) forwards}
       #intro .skip{position:absolute;right:32px;bottom:12.5vh;font-size:11px;letter-spacing:.3em;color:rgba(255,255,255,.55)}
-      @keyframes introRec{to{opacity:.2}}`; document.head.appendChild(css); }
+      @keyframes introRec{to{opacity:.2}}
+      @keyframes introBar{to{transform:scaleY(1)}}
+      @keyframes introPop{0%{transform:scale(1.6);opacity:0}18%{transform:scale(1);opacity:1}80%{opacity:1}100%{transform:scale(.92);opacity:0}}`; document.head.appendChild(css); }
     this.ui.appendChild(el);
     s.hud.show(false); this.menus.hide();
     this.mode = 'intro';
+    audio.setMusicState('deploy');
+    const markers = [];
     return new Promise((resolve) => {
-      this.intro = { t: 0, dur: 10.5, curve, stops, el, cap: el.querySelector('.cap'), lastStop: -1, resolve: () => { el.remove(); this.intro = null; resolve(); } };
+      this.intro = { t: 0, dur: 14, countFrom: 5, curve, stops, el, cap: el.querySelector('.capwrap'), capT: el.querySelector('.cap'), subT: el.querySelector('.sub'), count: el.querySelector('.count'), cn: el.querySelector('.cn'), alt: el.querySelector('.alt'), grid: el.querySelector('.grid'), sig: el.querySelector('.sig'), lastStop: -1, lastCount: -1, markers, teleT: 0,
+        resolve: () => { for (const m of markers) m.remove?.(); el.remove(); this.intro = null; this.camera.fov = settings.data.fov; this.camera.rotation.z = 0; this.camera.updateProjectionMatrix(); resolve(); } };
       const skip = (e) => { if ((e.type === 'keydown' && e.code !== 'Space' && e.code !== 'Escape') || !this.intro) return; window.removeEventListener('keydown', skip); window.removeEventListener('pointerdown', skip); this.intro.resolve(); };
       window.addEventListener('keydown', skip); window.addEventListener('pointerdown', skip);
     });
@@ -334,19 +393,30 @@ export class Game {
   updateIntro(dt) {
     const I = this.intro; if (!I) return;
     I.t += dt; const u = Math.min(1, I.t / I.dur); const e = u * u * (3 - 2 * u);
-    const pos = I.curve.getPointAt(e); const ahead = I.curve.getPointAt(Math.min(1, e + 0.05));
-    this.camera.position.copy(pos); const look = ahead.clone(); look.y -= 30; this.camera.lookAt(look); this.camera.userData.focus = look;
+    const pos = I.curve.getPointAt(e); const ahead = I.curve.getPointAt(Math.min(1, e + 0.045)); const behind = I.curve.getPointAt(Math.max(0, e - 0.02));
+    // bank into turns, drift a little (handheld), drop the fov as we come down
+    const dir = ahead.clone().sub(behind).setY(0).normalize(); const prev = I.prevDir || dir.clone(); const turn = prev.x * dir.z - prev.z * dir.x; I.prevDir = dir; I.roll = (I.roll || 0) * 0.96 + turn * 6;
+    const sway = new THREE.Vector3(Math.sin(I.t * 0.9) * 0.6, Math.sin(I.t * 1.3) * 0.35, Math.cos(I.t * 0.7) * 0.6);
+    this.camera.position.copy(pos).add(sway);
+    const look = ahead.clone(); look.y -= 28 - u * 8; this.camera.lookAt(look); this.camera.rotateZ(-I.roll); this.camera.userData.focus = look;
+    this.camera.fov = 78 - u * 12; this.camera.updateProjectionMatrix();
+    // telemetry
+    I.teleT -= dt; if (I.teleT <= 0) { I.teleT = 0.1; const alt = Math.max(0, pos.y - this.world.groundHeight(pos.x, pos.z)); I.alt.textContent = String(Math.round(alt * 10)).padStart(4, '0'); I.grid.textContent = `${(pos.x + 200).toFixed(1)}.${(200 - pos.z).toFixed(0)}`; I.sig.textContent = u > 0.55 ? 'JAMMED' : `${Math.round(60 + Math.random() * 30)}%`; I.sig.style.color = u > 0.55 ? '#ff5a1f' : ''; }
+    // captions + holographic markers at each stop
     const idx = Math.min(I.stops.length - 1, Math.floor(e * I.stops.length));
-    if (idx !== I.lastStop) { I.lastStop = idx; I.cap.textContent = I.stops[idx].label; I.cap.classList.add('on'); audio.play('ui_tab', { volume: 0.35 }); }
+    if (idx !== I.lastStop) { I.lastStop = idx; const st = I.stops[idx]; I.capT.textContent = st.label; I.subT.textContent = st.sub || ''; I.cap.classList.add('on'); audio.play('objective_new', { volume: 0.45 }); const mp = st.loc.pos.clone(); mp.y = this.world.groundHeight(mp.x, mp.z) + 2; const m = this.fx?.marker?.(mp, idx === I.stops.length - 1 ? '#f2c744' : '#00e5ff'); if (m) I.markers.push(m); }
+    // countdown over the final approach
+    const remain = I.dur - I.t; const n = Math.ceil(remain);
+    if (remain <= I.countFrom + 0.999 && n >= 1 && n <= I.countFrom) { I.count.classList.add('on'); I.cap.classList.remove('on'); if (n !== I.lastCount) { I.lastCount = n; I.cn.textContent = String(n); I.cn.classList.remove('pop'); void I.cn.offsetWidth; I.cn.classList.add('pop'); audio.play('countdown_tick', { volume: 0.9, pitch: 1 + (I.countFrom - n) * 0.06 }); events.emit('fx:shake', 0.12); } }
     // let enemies idle-animate so their materials/skins warm up too
     this.session.director.update(dt);
-    if (u >= 1) I.resolve();
+    if (u >= 1) { audio.play('ui_deploy', { volume: 1 }); this.renderer.whiteFlash(0.7); I.resolve(); }
   }
   dropSequence(target, onDone) {
     const s = this.session; const p = s.player;
     this.mode = 'drop';
     p.model.root.visible = false; p.spawnAt(target, Math.PI * 0 + (target.z > 0 ? 0 : Math.PI));
-    const overlay = this.menus.showDropSequence(['DEPLOYMENT AUTHORISED', 'POD SEPARATION', 'ATMOSPHERIC ENTRY', 'IMPACT IMMINENT']);
+    const overlay = this.menus.showDropSequence(['POD SEPARATION', 'ATMOSPHERIC ENTRY', 'RETRO BURN', 'IMPACT']); overlay.setCountdown?.('');
     audio.setMusicState('deploy'); audio.playStinger('stinger_drop', 0.9);
     audio.setAmbience({ ambience_wind: 0.2 });
     const pod = new DropPod(this, target, { kind: 'player', owner: p.id, duration: 4.2, delay: 0.8, onLand: () => { overlay.setStep(3); this.renderer.whiteFlash(0.6); }, onOpen: () => { p.model.root.visible = true; p.respawn(target, p.yaw); p.position.copy(target).add(new THREE.Vector3(Math.sin(p.yaw) * -3.4, 0, Math.cos(p.yaw) * -3.4)); p.position.y = this.world.groundHeight(p.position.x, p.position.z); overlay.remove(); this.beginPlay(); onDone?.(); } });
@@ -358,7 +428,7 @@ export class Game {
     this.dropT += dt;
     pod.update(dt);
     const ov = this.dropOverlay;
-    if (ov) { if (this.dropT > 1.2) ov.setStep(1); if (this.dropT > 2.6) ov.setStep(2); const remain = Math.ceil(Math.max(0, pod.duration - Math.max(0, pod.t))); if (remain !== this._lastCountdown) { this._lastCountdown = remain; ov.setCountdown?.(remain); } }
+    if (ov) { if (this.dropT > 1.2) ov.setStep(1); if (this.dropT > 2.6) ov.setStep(2); }
     // camera: chase the pod from above/behind, then swing to ground level at impact
     const k = clamp(pod.t / pod.duration, 0, 1);
     const podPos = pod.position;

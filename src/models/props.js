@@ -214,6 +214,9 @@ export function lightTower(world, position, yaw = 0, opts = {}) {
 }
 
 // ------------------------------------------------------------ billboard ---
+export const POSTER_ART = ['poster_01', 'poster_03', 'poster_04', 'poster_05', 'poster_06'].map((n) => `textures/posters/${n}.jpg`);
+export const HOLO_ART = ['holo_01', 'holo_02', 'holo_03', 'holo_04'].map((n) => `textures/posters/${n}.jpg`);
+let _artIdx = 0;
 export function billboard(world, position, yaw = 0, opts = {}) {
   const g = new THREE.Group();
   const [slogan, sub] = opts.slogan ? [opts.slogan, opts.sub || 'MERIDIAN COMMONWEALTH'] : randomSlogan();
@@ -223,7 +226,8 @@ export function billboard(world, position, yaw = 0, opts = {}) {
     const post = box(0.2, 4.2, 0.2, Mat.darkMetal()); post.position.set(dx, 2.1, 0); g.add(post);
   }
   const frame = box(w + 0.2, h + 0.2, 0.12, Mat.darkMetal()); frame.position.set(0, 3.4, 0); g.add(frame);
-  const p = mesh(planeGeo(w, h), Mat.poster(slogan, sub, accent, _posterIdx++));
+  const useArt = opts.art ?? (Math.random() < 0.5);
+  const p = useArt ? mesh(planeGeo(w, 2.25), Mat.posterImage(HOLO_ART[_artIdx++ % HOLO_ART.length])) : mesh(planeGeo(w, h), Mat.poster(slogan, sub, accent, _posterIdx++));
   p.position.set(0, 3.4, 0.1); g.add(p);
   place(g, position, yaw);
   world.props.add(g);
@@ -239,7 +243,8 @@ export function posterFrame(world, position, yaw = 0, opts = {}) {
   const accent = opts.accent || COLORS.cyan;
   const w = opts.w || 2.4, h = opts.h || 3;
   const frame = box(w + 0.1, h + 0.1, 0.06, Mat.darkMetal(), false); frame.position.z = -0.02; g.add(frame);
-  const p = mesh(planeGeo(w, h), Mat.poster(slogan, sub, accent, _posterIdx++));
+  const useArt = opts.art ?? (Math.random() < 0.55);
+  const p = mesh(planeGeo(w, h), useArt ? Mat.posterImage(POSTER_ART[_artIdx++ % POSTER_ART.length]) : Mat.poster(slogan, sub, accent, _posterIdx++));
   g.add(p);
   place(g, position, yaw);
   world.props.add(g);
