@@ -30,8 +30,8 @@ export const Mat = {
   panel: (v = 0) => cached('panel' + v, () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.metalPanel(v), roughness: 0.65, metalness: 0.4 }), 'tex_metal_panel', [1 + (v % 2) * 0.5, 1 + (v % 3) * 0.5], { color: ['#d8d8d8', '#b0b4ba', '#c8c8c8', '#a0a4aa'][v % 4] })),
   concrete: () => cached('concrete', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.concrete(), roughness: 0.95, metalness: 0.0, color: '#7a7a78' }), 'tex_concrete', [2, 2], { color: '#8e8e8a' })),
   hazard: () => cached('hazard', () => new THREE.MeshStandardMaterial({ map: Tex.hazard(), roughness: 0.7, metalness: 0.3 })),
-  rock: () => cached('rock', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.rock(), roughness: 0.95, metalness: 0.02, color: '#8a8a8a' }), 'tex_rock', [2, 2], { color: '#8c8c8c' })),
-  rockDust: () => cached('rockDust', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.rock(), roughness: 0.95, metalness: 0.0, color: '#c07a4a' }), 'tex_rock', [2, 2], { color: '#c08a5a' })),
+  rock: () => cached('rock', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.rock(), roughness: 0.95, metalness: 0.02, color: '#8a8a8a' }), 'tex_rock', [2, 2], { color: '#b09078' })),
+  rockDust: () => cached('rockDust', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.rock(), roughness: 0.95, metalness: 0.0, color: '#c07a4a' }), 'tex_rock', [2, 2], { color: '#d09a68' })),
   // Enemies: dark biomechanical chassis with red-orange glow
   legionArmor: () => cached('legionArmor', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.6, metalness: 0.3, color: '#8a8f96' }), 'tex_legion_armor', [1, 1], { color: '#a4aab2' })),
   legionFlesh: () => cached('legionFlesh', () => new THREE.MeshStandardMaterial({ color: '#3a1f24', roughness: 0.85, metalness: 0.1, emissive: '#3a0a10', emissiveIntensity: 0.25 })),
