@@ -85,8 +85,8 @@ export function dressMeridian(world, info) {
   // 1. Landing camp: the Commonwealth's forward foothold around the pad. Containers form an L, sandbags face the canyon,
   //    light towers mark the pad, tyre tracks lead off north, scorch rings from earlier pods.
   {
-    container(world, at(world, 176, 32), 0.1, { faction: 'commonwealth' }); container(world, at(world, 180, 22), Math.PI / 2, { faction: 'commonwealth' });
-    pushRes(info, crateStack(world, at(world, 186, 36), 0.4)); pushRes(info, crate(world, at(world, 190, 30), 1.1)); pushRes(info, ammoCache(world, at(world, 184, 30), 0.2));
+    container(world, at(world, 178, 40), 0.15, { faction: 'commonwealth' }); container(world, at(world, 174, 30), Math.PI / 2, { faction: 'commonwealth' });
+    pushRes(info, crateStack(world, at(world, 184, 44), 0.4)); pushRes(info, crate(world, at(world, 188, 38), 1.1)); pushRes(info, ammoCache(world, at(world, 182, 36), 0.2)); pushRes(info, crate(world, at(world, 218, 36), 0.7)); pushRes(info, crateStack(world, at(world, 222, 42), 2.1));
     for (const [mx, my, yaw] of [[190, 66, 0], [200, 70, 0], [210, 66, 0]]) sandbagWall(world, at(world, mx, my), yaw, { length: 3.6 });
     lightTower(world, at(world, 170, 45), 0, { color: COLORS.cyan }); lightTower(world, at(world, 230, 45), 0, { color: COLORS.cyan });
     pushRes(info, posterFrame(world, at(world, 222, 30), -Math.PI * 0.8, { slogan: 'A CLEANER TOMORROW, TOGETHER.' }));
@@ -155,7 +155,7 @@ export function dressMeridian(world, info) {
   }
   // 8. Extraction approach: blast walls funnel into the platform, a fuel dump waits to go off, light rows guide the ship.
   {
-    for (const side of [-1, 1]) { const s = at(world, 305 + side * 7, 285), e = at(world, 322 + side * 7, 268); buildWallSegment(world, s, e, { height: 2.2, thick: 0.6 }); }
+    for (const side of [-1, 1]) { const s = at(world, 304 + side * 7, 286), e = at(world, 313 + side * 7, 277); buildWallSegment(world, s, e, { height: 1.8, thick: 0.6 }); }
     for (let i = 0; i < 4; i++) { for (const side of [-1, 1]) { const p = at(world, 306 + i * 5 + side * 9, 283 - i * 5); if (onFloor(world, p.x, p.z)) lightTower(world, p, 0, { color: COLORS.cyan, height: 4 }); } }
     for (const [mx, my] of [[344, 232], [345.6, 233.2], [343, 233.9], [344.8, 231]]) pushRes(info, barrel(world, at(world, mx, my), rand(0, 6.28)));
     pushRes(info, posterFrame(world, at(world, 347, 236), Math.PI, { slogan: 'FREEDOM IS ALWAYS LISTENING.' }));
