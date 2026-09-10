@@ -181,6 +181,9 @@ export class Terrain {
       c.setRGB(P.floor[0] + nz * P.floorNoise[0], P.floor[1] + nz * P.floorNoise[1], P.floor[2] + nz * P.floorNoise[2]);
       const rock = new THREE.Color(P.rock[0] + nz * P.rockNoise[0], P.rock[1] + nz * P.rockNoise[1], P.rock[2] + nz * P.rockNoise[2]);
       c.lerp(rock, rockT);
+      // macro variation (large patches) and darker crevices on steep faces so rock reads as strata, not clay
+      const macro = fbm2(x * 0.012 + 40, z * 0.012 + 17, 2) - 0.5; c.multiplyScalar(1 + macro * 0.22);
+      const nrmY = this.getNormal(x, z).y; const steep = 1 - THREE.MathUtils.smoothstep(nrmY, 0.55, 0.9); c.multiplyScalar(1 - steep * 0.35 * (0.5 + rockT * 0.5));
       // slight brighter dust on top ridges
       if (h > 20) c.lerp(new THREE.Color(P.ridge[0], P.ridge[1], P.ridge[2]), smoothstep(20, 32, h) * 0.5);
       colors[k * 3] = c.r; colors[k * 3 + 1] = c.g; colors[k * 3 + 2] = c.b;

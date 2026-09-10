@@ -81,7 +81,7 @@ export function buildTower(world, pos, yaw = 0, opts = {}) {
 
   // shared emissive window panels
   const wMat = windowMat(color);
-  const winCount = randInt(3, 5);
+  const winCount = Math.round((randInt(3, 5)) * 2.2);
   for (let i = 0; i < winCount; i++) {
     const [ww, wh] = pick(WINDOW_SIZES);
     const win = mesh(planeGeo(ww, wh), wMat, false);

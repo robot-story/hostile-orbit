@@ -107,9 +107,9 @@ export const LANTERN = {
   },
   lighting: {
     background: '#06050e', fog: '#150c24', fogDensity: 0.0030,
-    hemiSky: '#5a6cc0', hemiGround: '#3a1a48', hemiIntensity: 1.35,
-    sun: '#b4c4ff', sunIntensity: 2.0, sunOffset: [60, 120, -70],
-    ambient: '#36395f', ambientIntensity: 1.1, envIntensity: 0.18,
+    hemiSky: '#6a7cd0', hemiGround: '#4a2458', hemiIntensity: 1.7,
+    sun: '#c0ccff', sunIntensity: 2.4, sunOffset: [60, 120, -70],
+    ambient: '#3e4270', ambientIntensity: 1.4, envIntensity: 0.22,
   },
   sky: { top: '#020308', mid: '#0b0c1c', horizon: '#3a1650', aurora: 0, space: 0.35, sunDir: [0.3, 0.12, -0.9], sunColor: '#5a4a8a' },
   celestials: 'darkmoon',

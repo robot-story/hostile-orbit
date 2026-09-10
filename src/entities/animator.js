@@ -222,7 +222,7 @@ export class CharacterAnimator {
     const sway = Math.sin(this.breath * 0.6) * 0.012 * (1 - this.speed); // idle weight shift
     const fz = -this.mdz; // body-space forward is -z
     const ballLean = this.model?.ballRadius ? 2.2 : 1;
-    const fwdLean = -this.speed * (s.sprint > 0.8 ? 0.10 : 0.05) * ballLean * Math.max(0, fz) + this.speed * 0.05 * Math.max(0, -fz) - this.accelLean * 0.14 + this.land * 0.22;
+    const fwdLean = -this.speed * (s.sprint > 0.8 ? 0.14 : 0.09) * ballLean * Math.max(0, fz) + this.speed * 0.05 * Math.max(0, -fz) - this.accelLean * 0.14 + this.land * 0.22;
     set('spine', c.spine[0] + this.hit * 0.25 + breathe + fwdLean, c.spine[1] + sw * amp * 0.06 + this.hit * this.hitDir * 0.2 + this.mdx * this.speed * 0.2, c.spine[2] + this.lean * 0.5 + this.strafe * amp * 0.05 - this.mdx * this.speed * 0.09 - this.turnLean * 0.16 * this.speed + sway);
     set('chest', c.chest[0] - this.aimPitch * 0.55 * (s.aim > 0 || s.cover ? 1 : 0.5) + this.recoil * 0.4 + breathe, c.chest[1] - sw * amp * 0.08, c.chest[2] + this.lean * 0.5);
     set('neck', c.neck[0], c.neck[1], c.neck[2]);
@@ -258,6 +258,7 @@ export class CharacterAnimator {
       B.thighR.rotation.x -= kR * 0.5; B.shinR.rotation.x += kR; B.footR.rotation.x -= kR * 0.5;
     } else { this.plantY = damp(this.plantY ?? 0, 0, 12, dt); this.plantL = damp(this.plantL ?? 0, 0, 12, dt); this.plantR = damp(this.plantR ?? 0, 0, 12, dt); }
     B.root.position.y = (this.model?.ballRadius ? this.model.ballRootY : 0.98) + this.rootY + bob + (this.model?.ballRadius ? 0 : (this.plantY || 0));
+    if (this.model?.ball) { const cr = s.crouch > 0.5 ? 1 : 0; this.ballSquash = damp(this.ballSquash ?? 0, cr * 0.22 + (this.land || 0) * 0.14, 10, dt); const sq = this.ballSquash; this.model.ball.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5); if (this.model.ballRig) this.model.ballRig.position.y = -sq * this.model.ballRadius * 0.95; }
     if (s.roll != null) { const k = Math.min(1, s.roll); B.root.rotation.set(-k * Math.PI * 2, 0, 0); B.root.scale.setScalar(1); }
     else if (s.transform != null) {
       // transformer tuck: the frame folds into a compact block, spins once, and unfolds
