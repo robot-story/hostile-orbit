@@ -16,6 +16,7 @@ import {
 import { membranePlant, blackGlassTree, glowPool, boneArch, sporeField } from '../models/alien.js';
 import { LOCATIONS, patrolRoutes, spawnPoints } from './locations.js';
 import { rand, randInt, pick, clamp } from '../core/mathx.js';
+import { dressMeridian } from './dressing.js';
 
 function randSign() { return Math.random() < 0.5 ? -1 : 1; }
 
@@ -264,6 +265,8 @@ export function buildMeridian(world) {
   lightTower(world, new THREE.Vector3(LOCATIONS.dropZoneAlt1.pos.x, world.terrain.getHeight(LOCATIONS.dropZoneAlt1.pos.x, LOCATIONS.dropZoneAlt1.pos.z), LOCATIONS.dropZoneAlt1.pos.z), 0, { color: '#00e5ff' });
   lightTower(world, new THREE.Vector3(LOCATIONS.dropZoneAlt2.pos.x, world.terrain.getHeight(LOCATIONS.dropZoneAlt2.pos.x, LOCATIONS.dropZoneAlt2.pos.z), LOCATIONS.dropZoneAlt2.pos.z), 0, { color: '#00e5ff' });
 
+  // curated vignettes on top of the procedural scatter
+  try { dressMeridian(world, info); } catch (e) { console.warn('[level] dressing failed', e); }
   world.level = info;
   return info;
 }

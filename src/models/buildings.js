@@ -78,6 +78,9 @@ export function buildWallSegment(world, start, end, opts = {}) {
   const mat = opts.mat || Mat.panel(2);
   const { mesh: m, collider } = solidBox(world, world.props, center, { x: len, y: height, z: thick }, yaw, mat, { material: opts.material || 'concrete' });
   const stripe = box(len, 0.14, thick + 0.02, Mat.hazard()); stripe.position.set(midX, y + 0.08, midZ); stripe.rotation.y = yaw; world.props.add(stripe);
+  // structural ribs every ~3 m so long walls read as built panels instead of a slab
+  const ribN = Math.max(2, Math.round(len / 3)); const ux = dx / len, uz = dz / len;
+  for (let i = 0; i <= ribN; i++) { const t = -0.5 + i / ribN; const rib = box(0.18, height + 0.1, thick + 0.16, Mat.panel(0)); rib.position.set(midX + ux * len * t, y + height / 2, midZ + uz * len * t); rib.rotation.y = yaw; world.props.add(rib); }
   const topStrip = cyl(0.04, 0.04, len * 0.92, 4, Mat.neon(opts.neonColor || COLORS.cyan, 2)); topStrip.rotation.z = Math.PI / 2; topStrip.rotation.y = yaw; topStrip.position.set(midX, y + height - 0.15, midZ); topStrip.castShadow = false; world.props.add(topStrip);
   return { mesh: m, collider, start: start.clone(), end: end.clone(), height };
 }

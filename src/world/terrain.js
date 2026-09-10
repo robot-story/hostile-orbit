@@ -192,7 +192,7 @@ export class Terrain {
       // neon veins only in floor cracks and along rock bases, patchy
       const patch = fbm2(x * 0.02 + 11, z * 0.02 + 5, 2);
       // sparse glowing patches: mostly along canyon floors near rock bases
-      vein[k] = (patch > 0.62 ? (patch - 0.62) * 4 : 0) * (1 - rockT * 0.7) * (fd < 6 && fd > -14 ? 1 : (fd <= -14 ? 0.45 : 0.08)) * P.veinScale;
+      vein[k] = (patch > 0.62 ? (patch - 0.62) * 4 : 0) * (1 - rockT * 0.7) * (fd < 6 && fd > -14 ? 1 : (fd <= -14 ? 0.45 : 0.08)) * P.veinScale * (1 - steep); // veins run in the ground, not up the cliff faces
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.setAttribute('aVein', new THREE.BufferAttribute(vein, 1));
