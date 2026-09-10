@@ -270,7 +270,8 @@ export class Game {
     this.buildSession(config);
     this.hideLoading();
     audio.say('ship_deploy', { priority: 3 });
-    audio.say(this.world.map?.briefingLine || 'voss_briefing', { priority: 3, delay: 3 });
+    audio.say(this.world.map?.briefingLine || 'voss_briefing', { priority: 3, delay: 2 });
+    await this.introFlyover();
     this.dropSequence(this.dropPositionFor(config), () => { this.session.mission.start(); });
   }
   async continueOperation() {
@@ -297,6 +298,50 @@ export class Game {
   }
   hideLoading() { const el = document.getElementById('loading'); if (el) el.style.display = 'none'; }
   /** Cinematic pod drop that ends with the player standing at `target`. */
+  /** Recon flyover: a letterboxed camera sweep over the objectives. Doubles as the warm-up pass: every material and
+   *  texture is rendered from several angles here, so the first seconds of play do not stutter on shader compiles. */
+  introFlyover() {
+    const s = this.session; if (!s || !this.world) return Promise.resolve();
+    const L = this.world.map.locations; const W = this.world;
+    const stops = [
+      { loc: L.extractionCenter, label: 'EXTRACTION PLATFORM', h: 48 }, { loc: L.commsPlaza, label: this.world.map.markers?.[1]?.label || 'COMMUNICATIONS BASE', h: 46 },
+      { loc: L.jammerCenter, label: this.world.map.markers?.[0]?.label || 'JAMMER OUTPOST', h: 44 }, { loc: L.canyonJunction, label: 'APPROACH ROUTES', h: 34 }, { loc: L.dropZone, label: 'DROP ZONE', h: 24 },
+    ];
+    const pts = stops.map((st) => { const p = st.loc.pos.clone(); p.y = W.groundHeight(p.x, p.z) + st.h; return p; });
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+    try { this.renderer.renderer.compile(W.scene, this.camera); } catch { /* ignore */ }
+    const el = document.createElement('div'); el.id = 'intro';
+    el.innerHTML = `<div class="bar top"></div><div class="bar bottom"></div><div class="feed"><span class="rec"></span>RECON FEED // ${this.world.map.opName || 'OPERATION'}</div><div class="cap"></div><div class="skip">PRESS SPACE TO SKIP</div>`;
+    if (!document.getElementById('intro-css')) { const css = document.createElement('style'); css.id = 'intro-css'; css.textContent = `
+      #intro{position:absolute;inset:0;pointer-events:none;font-family:var(--font)}
+      #intro .bar{position:absolute;left:0;right:0;height:11vh;background:#000;transition:transform .5s ease}
+      #intro .bar.top{top:0} #intro .bar.bottom{bottom:0}
+      #intro .feed{position:absolute;left:32px;top:12.5vh;font-size:12px;letter-spacing:.3em;color:var(--cyan,#5be3ff);display:flex;align-items:center;gap:10px}
+      #intro .rec{width:10px;height:10px;border-radius:50%;background:#ff3b1f;box-shadow:0 0 10px #ff3b1f;animation:introRec 1s steps(2) infinite}
+      #intro .cap{position:absolute;left:50%;bottom:14vh;transform:translateX(-50%);font-family:var(--font-title);font-size:26px;letter-spacing:.14em;color:#fff;text-shadow:0 0 18px rgba(0,229,255,.6);opacity:0;transition:opacity .3s}
+      #intro .cap.on{opacity:1}
+      #intro .skip{position:absolute;right:32px;bottom:12.5vh;font-size:11px;letter-spacing:.3em;color:rgba(255,255,255,.55)}
+      @keyframes introRec{to{opacity:.2}}`; document.head.appendChild(css); }
+    this.ui.appendChild(el);
+    s.hud.show(false); this.menus.hide();
+    this.mode = 'intro';
+    return new Promise((resolve) => {
+      this.intro = { t: 0, dur: 10.5, curve, stops, el, cap: el.querySelector('.cap'), lastStop: -1, resolve: () => { el.remove(); this.intro = null; resolve(); } };
+      const skip = (e) => { if ((e.type === 'keydown' && e.code !== 'Space' && e.code !== 'Escape') || !this.intro) return; window.removeEventListener('keydown', skip); window.removeEventListener('pointerdown', skip); this.intro.resolve(); };
+      window.addEventListener('keydown', skip); window.addEventListener('pointerdown', skip);
+    });
+  }
+  updateIntro(dt) {
+    const I = this.intro; if (!I) return;
+    I.t += dt; const u = Math.min(1, I.t / I.dur); const e = u * u * (3 - 2 * u);
+    const pos = I.curve.getPointAt(e); const ahead = I.curve.getPointAt(Math.min(1, e + 0.05));
+    this.camera.position.copy(pos); const look = ahead.clone(); look.y -= 30; this.camera.lookAt(look); this.camera.userData.focus = look;
+    const idx = Math.min(I.stops.length - 1, Math.floor(e * I.stops.length));
+    if (idx !== I.lastStop) { I.lastStop = idx; I.cap.textContent = I.stops[idx].label; I.cap.classList.add('on'); audio.play('ui_tab', { volume: 0.35 }); }
+    // let enemies idle-animate so their materials/skins warm up too
+    this.session.director.update(dt);
+    if (u >= 1) I.resolve();
+  }
   dropSequence(target, onDone) {
     const s = this.session; const p = s.player;
     this.mode = 'drop';
@@ -474,6 +519,7 @@ export class Game {
   }
   tick() {
     this._lastTick = performance.now();
+    if (this.cursorEl) this.cursorEl.classList.toggle('hidden', (this.mode === 'play' && !this.mapOpen) || this.mode === 'drop' || (input.locked && this.mode === 'play'));
     const dt = (this._fixedDt != null ? this._fixedDt : Math.min(0.05, this.clock.getDelta())) * (this.dev?.state.timeScale ?? 1);
     if (this.fpsEl) { this._fpsAcc += dt; this._fpsN++; if (this._fpsAcc > 0.5) { this.fpsEl.textContent = `${Math.round(this._fpsN / this._fpsAcc)} FPS`; this._fpsAcc = 0; this._fpsN = 0; } }
     const s = this.session;
@@ -489,6 +535,8 @@ export class Game {
         this.updateLockHint();
         this.renderer.fx.lowHealth = s.player.health < 30 && !s.player.dead ? 1 - s.player.health / 30 : 0;
         if (this.mapOpen) this.menus.showTacticalMap(this.tacticalMapState(s));
+      } else if (this.mode === 'intro') {
+        this.updateIntro(dt);
       } else if (this.mode === 'drop') {
         this.time += dt; this.updateDrop(dt); s.director.update(dt); s.projectiles.update(dt); s.mission.update(dt); s.abilities.update(dt); s.netsync?.update(dt);
       } else if (this.mode === 'pause' || this.mode === 'results') {

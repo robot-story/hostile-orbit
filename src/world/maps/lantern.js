@@ -102,7 +102,7 @@ export const LANTERN = {
   briefingLine: 'voss_lantern_briefing',
   floor: FLOOR_LANTERN,
   terrain: {
-    style: 'city', texture: 'tex_asphalt', repeat: 90, tint: '#c8ccd8', roughness: 0.5, metalness: 0.06, envIntensity: 1.0, veinIntensity: 1.6,
+    style: 'city', texture: 'tex_asphalt', repeat: 90, tint: '#c8ccd8', wallTexture: 'tex_city_wall', wallScale: 1 / 7, wallTint: '#8e94a6', roughness: 0.5, metalness: 0.06, envIntensity: 1.0, veinIntensity: 1.6,
     palette: { floor: [0.22, 0.23, 0.28], floorNoise: [0.04, 0.04, 0.05], rock: [0.07, 0.075, 0.10], rockNoise: [0.03, 0.03, 0.04], ridge: [0.10, 0.10, 0.14], veinScale: 0.5 },
   },
   lighting: {

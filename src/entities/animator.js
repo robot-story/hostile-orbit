@@ -258,7 +258,9 @@ export class CharacterAnimator {
       B.thighL.rotation.x -= kL * 0.5; B.shinL.rotation.x += kL; B.footL.rotation.x -= kL * 0.5;
       B.thighR.rotation.x -= kR * 0.5; B.shinR.rotation.x += kR; B.footR.rotation.x -= kR * 0.5;
     } else { this.plantY = damp(this.plantY ?? 0, 0, 12, dt); this.plantL = damp(this.plantL ?? 0, 0, 12, dt); this.plantR = damp(this.plantR ?? 0, 0, 12, dt); }
-    B.root.position.y = (this.model?.ballRadius ? this.model.ballRootY : 0.98) + this.rootY + bob + (this.model?.ballRadius ? 0 : (this.plantY || 0));
+    const hover = this.model?.ballRadius ? 0.13 + Math.sin(this.breath * 2.3) * 0.015 + Math.sin(this.breath * 3.7) * 0.006 : 0;
+    B.root.position.y = (this.model?.ballRadius ? this.model.ballRootY + hover : 0.98) + this.rootY + bob + (this.model?.ballRadius ? 0 : (this.plantY || 0));
+    if (this.model?.ballCollar) this.model.ballCollar.position.y = this.model.ballRadius + hover + this.rootY * 0.6;
     if (this.model?.ball) { const cr = s.crouch > 0.5 ? 1 : 0; this.ballSquash = damp(this.ballSquash ?? 0, cr * 0.22 + (this.land || 0) * 0.14, 10, dt); const sq = this.ballSquash; this.model.ball.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5); if (this.model.ballRig) this.model.ballRig.position.y = -sq * this.model.ballRadius * 0.95; }
     if (s.roll != null) { const k = Math.min(1, s.roll); B.root.rotation.set(-k * Math.PI * 2, 0, 0); B.root.scale.setScalar(1); }
     else if (s.transform != null) {
@@ -317,13 +319,13 @@ export class CharacterAnimator {
     _ikH.set(0, -a - bb * Math.cos(bend), -bb * Math.sin(bend));
     _ikQ.setFromUnitVectors(_ikH.clone().normalize(), target.clone().normalize());
     // roll elbows outward/down around the target axis for a natural hold
-    _ikQ2.setFromAxisAngle(target.clone().normalize(), (side === 'R' ? 0.55 : -0.45));
+    _ikQ2.setFromAxisAngle(target.clone().normalize(), (side === 'R' ? 0.95 : -0.85));
     _ikQ.premultiply(_ikQ2);
     _ikQb.setFromEuler(up.rotation);
     up.quaternion.copy(_ikQb.slerp(_ikQ, blend));
     _ikE.set(bend, 0, 0); _ikQ.setFromEuler(_ikE); _ikQb.setFromEuler(fo.rotation);
     fo.quaternion.copy(_ikQb.slerp(_ikQ, blend));
-    ha.rotation.set(0.3, 0, 0);
+    if (side === 'L') ha.rotation.set(0.35, 0.2, -0.9); else ha.rotation.set(0.3, -0.1, 0.45); // wrap the foregrip / pistol grip
   }
   kick(amount = 1) { this.recoil = Math.min(1.5, this.recoil + amount); }
   hitReact(dir = 0, amount = 1) { this.hit = Math.min(1.2, this.hit + amount); this.hitDir = dir; }

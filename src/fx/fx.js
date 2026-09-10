@@ -232,7 +232,7 @@ export class FX {
     const idx = this.debris.shell.spawn({ pos, vel, life: 4, scale: 1, bounce: 0.25, color: cfg.color });
     // scale the (unit r=0.5,h=1 cylinder) non-uniformly per axis isn't supported by the
     // pool's uniform scale, so bake a representative size into `scale` instead.
-    this.debris.shell.scale[idx] = cfg.s * 22;
+    this.debris.shell.scale[idx] = cfg.s * 7;
   }
 
   // ---------- impact ----------

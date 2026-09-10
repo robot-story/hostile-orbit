@@ -287,6 +287,12 @@ export function holoBillboard(world, pos, yaw = 0, opts = {}) {
 }
 
 /** Thin street lamp; a PointLight is added only when opts.light is true (global 26-light cap). */
+let _poolTex = null; const _poolMats = new Map();
+function lightPoolMat(color) {
+  if (!_poolTex) { const c = document.createElement('canvas'); c.width = c.height = 128; const ctx = c.getContext('2d'); const g = ctx.createRadialGradient(64, 64, 4, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,0.85)'); g.addColorStop(0.35, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128); _poolTex = new THREE.CanvasTexture(c); }
+  if (!_poolMats.has(color)) _poolMats.set(color, new THREE.MeshBasicMaterial({ map: _poolTex, color, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+  return _poolMats.get(color);
+}
 export function streetLamp(world, pos, opts = {}) {
   const g = new THREE.Group();
   const color = opts.color || COLORS.cyan;
@@ -296,6 +302,7 @@ export function streetLamp(world, pos, opts = {}) {
   const pole = cyl(0.06, 0.09, h, Mat.darkMetal(), 6); pole.position.y = h / 2; g.add(pole);
   const arm = box(0.06, 0.06, 0.7, Mat.darkMetal(), false); arm.position.set(0, h, 0.35); g.add(arm);
   const head = mesh(icoGeo(0.14, 0), Mat.neon(color, 2.4), false); head.position.set(0, h - 0.05, 0.68); g.add(head);
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), lightPoolMat(color)); pool.rotation.x = -Math.PI / 2; pool.position.set(0, 0.05, 0.68); pool.renderOrder = 2; g.add(pool);
   place(g, new THREE.Vector3(pos.x, y0, pos.z), 0);
   world.props.add(g);
   const collider = world.addBox(new THREE.Vector3(pos.x, y0 + h / 2, pos.z), { x: 0.12, y: h / 2, z: 0.12 }, 0, { material: 'metal', cover: false, mesh: pole });

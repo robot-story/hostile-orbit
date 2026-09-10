@@ -252,6 +252,7 @@ export class Mission {
   }
   destroyJammer() {
     const j = this.level.jammer; const p = j.position.clone();
+    for (const c of (this._chargeVisuals || [])) { this.world.removeUpdatable(c.anim); c.m.parent?.remove(c.m); } this._chargeVisuals = [];
     this.fx.explosion(p.clone().setY(p.y + 4), 14, 'jammer');
     this.fx.smokeColumn?.(p.clone(), 5, 30);
     audio.play('jammer_explode', { pos: p, volume: 1, maxDistance: 600, refDistance: 50, important: true });
@@ -396,6 +397,36 @@ export class Mission {
     // low health warning line
     if (p && p.health < 30 && !p.dead && !this._lowSaid) { this._lowSaid = true; audio.say('ship_low_health', { priority: 1 }); setTimeout(() => this._lowSaid = false, 40000); }
   }
+  /** Per-type visual feedback while an interaction is held: the world reacts, not just the HUD bar. */
+  interactFx(it, prog, dt) {
+    this._ifxT = (this._ifxT || 0) - dt; if (this._ifxT > 0) return; this._ifxT = 0.09;
+    const id = it.id, pos = it.position, fx = this.fx; const up = new THREE.Vector3(0, 1, 0);
+    const q = Math.floor(prog * 4); if (q !== this._ifxQ) { this._ifxQ = q; if (q > 0) audio.play(id.startsWith('charge') ? 'countdown_tick' : 'download_beep', { volume: 0.5, pitch: 0.9 + q * 0.1 }); }
+    if (id.startsWith('charge')) { fx.sparksBurst?.(pos.clone().setY(pos.y + 0.9), up, 4, '#ff8a3a'); if (Math.random() < 0.4) fx.sparksBurst?.(pos.clone().setY(pos.y + 1.2), up, 3, '#ff3b1f'); if (!this._chargeGhost || this._chargeGhost.userData.id !== id) this._chargeGhost = this.spawnChargeVisual(pos, id, false); if (this._chargeGhost) { this._chargeGhost.scale.setScalar(0.4 + prog * 0.6); this._chargeGhost.material.emissiveIntensity = 0.6 + prog * 2.2; } }
+    else if (id === 'terminal') { fx.sparksBurst?.(pos.clone().setY(pos.y + 1.3), up, 5, '#7fe9ff'); if (Math.random() < 0.5) fx.beam?.(pos.clone().setY(pos.y + 1.4), pos.clone().setY(pos.y + 2.6 + Math.random() * 1.2), '#00e5ff', 0.25, 0.25); }
+    else if (id.startsWith('cell')) { fx.dust?.(pos.clone(), 0.5); fx.sparksBurst?.(pos.clone().setY(pos.y + 1.0), up, 3, '#ffd23f'); }
+    else if (id === 'board') { fx.dust?.(pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 4, 0, (Math.random() - 0.5) * 4)), 1.2); }
+    else if (id.startsWith('prop')) { fx.sparksBurst?.(pos.clone().setY(pos.y + 1.8), up, 4, '#ff3fd8'); }
+    else { fx.sparksBurst?.(pos.clone().setY(pos.y + 0.7), up, 3, '#7fe9ff'); }
+  }
+  interactDone(it) {
+    const id = it.id, pos = it.position, fx = this.fx; const up = new THREE.Vector3(0, 1, 0);
+    this._ifxQ = -1;
+    if (id.startsWith('charge')) { if (this._chargeGhost) { this._chargeGhost.scale.setScalar(1); this._chargeGhost.userData.armed = true; this._chargeGhost = null; } fx.sparksBurst?.(pos.clone().setY(pos.y + 1), up, 30, '#ff8a3a'); events.emit('fx:shake', 0.3); }
+    else if (id === 'terminal') { fx.beam?.(pos.clone().setY(pos.y + 1.4), pos.clone().setY(pos.y + 40), '#00e5ff', 1.2, 1.6); fx.sparksBurst?.(pos.clone().setY(pos.y + 1.3), up, 30, '#7fe9ff'); events.emit('fx:flash', 0.25); }
+    else if (id.startsWith('cell')) { fx.dust?.(pos.clone(), 3); fx.sparksBurst?.(pos.clone().setY(pos.y + 1.2), up, 20, '#ffd23f'); }
+    else if (id.startsWith('pickup') || id.startsWith('cache')) { fx.sparksBurst?.(pos.clone().setY(pos.y + 0.8), up, 16, '#7fe9ff'); }
+    else if (id.startsWith('prop')) { fx.sparksBurst?.(pos.clone().setY(pos.y + 1.8), up, 24, '#ff3fd8'); events.emit('fx:flash', 0.12); }
+  }
+  /** A visible demolition charge on the spire/jammer: grows while planted, blinks once armed, detonates with it. */
+  spawnChargeVisual(pos, id) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.14), new THREE.MeshStandardMaterial({ color: '#2a2e36', emissive: '#ff5a1f', emissiveIntensity: 0.6, roughness: 0.5, metalness: 0.6 }));
+    m.position.copy(pos).add(new THREE.Vector3(0, 1.0, 0)); m.userData.id = id; this.world.fxGroup.add(m);
+    const light = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshBasicMaterial({ color: '#ff3b1f' })); light.position.set(0, 0.14, 0.08); m.add(light);
+    const anim = { update: (dt) => { anim.t = (anim.t || 0) + dt; if (m.userData.armed) { const on = Math.sin(anim.t * 12) > 0; light.visible = on; m.material.emissiveIntensity = on ? 3 : 0.4; } } };
+    this.world.addUpdatable(anim); (this._chargeVisuals = this._chargeVisuals || []).push({ m, anim });
+    return m;
+  }
   anyPlayerNear(pos, r) { for (const p of this.game.players || []) if (!p.dead && p.position.distanceTo(pos) < r) return true; return false; }
   updateInteract(dt) {
     const p = this.game.localPlayer; if (!p || p.dead) { events.emit('hud:interact', null); return; }
@@ -404,10 +435,10 @@ export class Mission {
     if (best !== this.currentInteract) { this.currentInteract = best; this.interactHold = 0; }
     if (!best) { events.emit('hud:interact', null); return; }
     const holding = input.down('interact') && p.state !== 'roll' && p.state !== 'vault';
-    if (holding) { this.interactHold += dt; p.interacting = true; if (!this._interactSound) { this._interactSound = audio.play('terminal_interact', { volume: 0.5 }); } }
+    if (holding) { this.interactHold += dt; p.interacting = true; if (!this._interactSound) { this._interactSound = audio.play('terminal_interact', { volume: 0.5 }); } this.interactFx(best, clamp(this.interactHold / best.holdTime, 0, 1), dt); }
     else { this.interactHold = Math.max(0, this.interactHold - dt * 2); p.interacting = false; this._interactSound = null; }
     const prog = clamp(this.interactHold / best.holdTime, 0, 1);
     events.emit('hud:interact', { text: best.label, progress: prog, key: 'E' });
-    if (prog >= 1) { this.interactHold = 0; p.interacting = false; best.onComplete?.(p); if (best.once !== false && !best.condition) this.interactables.delete(best.id); this.currentInteract = null; audio.play('objective_complete', { volume: 0.6 }); }
+    if (prog >= 1) { this.interactHold = 0; p.interacting = false; this.interactDone(best); best.onComplete?.(p); if (best.once !== false && !best.condition) this.interactables.delete(best.id); this.currentInteract = null; audio.play('objective_complete', { volume: 0.6 }); }
   }
 }

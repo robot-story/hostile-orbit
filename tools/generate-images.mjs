@@ -68,6 +68,7 @@ const MATERIALS = [
   { id: 'tex_gun_white', prompt: `${TILE} Dirty white polymer and steel weapon receiver surface: matte off-white paint scuffed to bare metal at the edges, small vents and screws, panel lines.` },
 ];
 MATERIALS.push(
+  { id: 'tex_rock_strata', prompt: `${TILE} Layered sedimentary canyon rock face seen straight on: horizontal strata bands of burnt orange, rust, ochre and dark brown, deep shadowed crevices between layers, chipped ledges, fine dust in the cracks, some dark basalt inclusions. Scale roughly 3 m across the image.` },
   { id: 'tex_gun_dark', prompt: `${TILE} Dark gunmetal weapon receiver surface: matte charcoal-grey anodised steel with fine machining marks, small vent slots, worn edges showing lighter bare metal, tiny stencilled serial digits, light dust. Plate scale roughly 15 cm across the image.` },
   { id: 'tex_black_glass', prompt: `${TILE} Alien black volcanic glass surface: glossy obsidian with faint internal violet and green light veins deep inside, conchoidal fracture facets, subtle dust in the cracks. Scale roughly 40 cm across the image.` },
   { id: 'tex_membrane', prompt: `${TILE} Translucent alien membrane skin: pale green-cyan organic tissue with branching darker veins and small bioluminescent pores, slightly wet, backlit look. Scale roughly 30 cm across the image.` },
@@ -113,6 +114,30 @@ const PLANETS = [
   { id: 'results', prompt: `${PLANET} Dawn breaking over the alien world seen from a high ridge: golden-orange light spilling across the vein-lit plains, black glass spires glowing at their tips, the aurora fading, columns of smoke rising far away from a destroyed installation, two moons pale in a turquoise sky, a sense of grim victory.` },
   { id: 'failed', prompt: `${PLANET} Night on the alien world during a violent storm: red-orange lightning tearing through black clouds over the vein-lit plains, black glass spires silhouetted, ash and embers blowing across the frame, the energy veins flaring an angry crimson, ominous and hostile.` },
 ];
+// Propaganda posters and city billboard art (used as emissive textures on posterFrames / billboards / holo boards)
+const POSTER = 'Flat 2D propaganda poster design, portrait 2:3, bold retro-futurist constructivist layout, limited palette of cyan, black, dirty white and one accent of burnt orange, heavy geometric shapes, a stylised heroic white-and-black armoured robot soldier, halftone texture, clean vector look, NO text, NO letters, NO words, NO numbers.';
+const POSTERS = [
+  { id: 'poster_01', prompt: `${POSTER} Motif: the soldier saluting toward a rising planet with a ring of orbital ships.` },
+  { id: 'poster_02', prompt: `${POSTER} Motif: a pointing gloved hand and a giant eye made of circuitry, watching.` },
+  { id: 'poster_03', prompt: `${POSTER} Motif: rows of identical soldiers marching under a crescent moon, arrows pointing up.` },
+  { id: 'poster_04', prompt: `${POSTER} Motif: a smiling family of robots holding a glowing box, sunburst behind them.` },
+  { id: 'poster_05', prompt: `${POSTER} Motif: a fist crushing a shattered violet crystal, cyan light rays.` },
+  { id: 'poster_06', prompt: `${POSTER} Motif: an orbital strike beam hitting a canyon, stylised, celebratory.` },
+  { id: 'holo_01', prompt: `Wide 16:9 flat holographic billboard artwork, dark background, neon cyan and magenta line art of a colossal robot statue with a raised arm over a city skyline, scanline texture, glitch fragments, NO text, NO letters.` },
+  { id: 'holo_02', prompt: `Wide 16:9 flat holographic billboard artwork, dark background, neon magenta and amber: an eye-like surveillance lens with radiating rings and tiny drone silhouettes, scanline texture, NO text, NO letters.` },
+  { id: 'holo_03', prompt: `Wide 16:9 flat holographic billboard artwork, dark background, neon cyan: a stylised map of a moon colony with routes lighting up, glowing nodes, glitch fragments, NO text, NO letters.` },
+  { id: 'holo_04', prompt: `Wide 16:9 flat holographic billboard artwork, dark background, neon amber and cyan: a cheerful robot mascot face giving a thumbs up, halftone, scanlines, NO text, NO letters.` },
+];
+if (process.argv.includes('--posters')) {
+  const OUTP = path.join(ROOT, 'public', 'textures', 'posters'); fs.mkdirSync(OUTP, { recursive: true });
+  let k = 0; const w = 4;
+  await Promise.all(Array.from({ length: w }, async () => { while (k < POSTERS.length) { const m = POSTERS[k++]; if (only && !only.includes(m.id)) continue; const file = path.join(OUTP, `${m.id}.jpg`); if (fs.existsSync(file) && !process.argv.includes('--force')) { console.log('skip', m.id); continue; } const portrait = m.id.startsWith('poster');
+    for (let attempt = 0; attempt < 4; attempt++) { const res = await fetch('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'gpt-image-1', prompt: m.prompt, size: portrait ? '1024x1536' : '1536x1024', quality: 'medium', output_format: 'jpeg', output_compression: 82, n: 1 }) });
+      if (res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, 4000 * (attempt + 1))); continue; }
+      if (!res.ok) { console.error(m.id, res.status, (await res.text()).slice(0, 200)); break; }
+      const json = await res.json(); const b64 = json.data?.[0]?.b64_json; if (b64) { fs.writeFileSync(file, Buffer.from(b64, 'base64')); console.log('wrote', m.id); } break; } } }));
+  process.exit(0);
+}
 if (process.argv.includes('--planets')) {
   let k = 0; const w = 4;
   await Promise.all(Array.from({ length: w }, async () => { while (k < PLANETS.length) { const m = PLANETS[k++]; if (only && !only.includes(m.id)) continue; try { await generate(m); } catch (err) { console.error(String(err.message)); } } }));

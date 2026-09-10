@@ -13,6 +13,7 @@ import { settings } from '../core/settings.js';
 import { net } from '../net/net.js';
 import { SQUAD_COLORS } from '../net/protocol.js';
 import { rollBall } from '../models/glbSoldier.js';
+const RAM_DEF = { id: 'ram', damage: 110, impulse: 7, headMult: 1, range: 4 };
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _ray = new THREE.Ray();
 
@@ -125,6 +126,21 @@ export class Player {
       interact: !!this.interacting, jet: this.jet ? 1 : (!this.grounded && this.state === 'normal' ? 0.5 : 0), robotic: true,
     };
     events.emit('hud:fuel', this.fuel, this.jet);
+    // sprint ram: the ball is a weapon. Rolling into a hostile at speed hits it (through the normal req:hit path).
+    if (this.sprinting && this.grounded && speedN > 0.72 && !this.dead) {
+      const now = this.game.time; const dir = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).normalize();
+      for (const e of this.game.director?.enemies || []) {
+        if (e.dead || e.type?.ally || e.isBoss) continue;
+        const dx = e.position.x - this.position.x, dz = e.position.z - this.position.z; const d = Math.hypot(dx, dz);
+        if (d > 1.35 || Math.abs(e.position.y - this.position.y) > 1.6) continue;
+        if (e._ramT != null && now - e._ramT < 0.7) continue; e._ramT = now;
+        const hit = { entity: e, dist: d, zone: 'chest', point: e.hitCenter.clone(), normal: dir.clone().negate() };
+        this.game.combat.playerHit(hit, RAM_DEF, dir);
+        this.fx.sparksBurst?.(e.hitCenter.clone(), dir, 18, '#7fe9ff'); this.fx.dust?.(e.position.clone(), 1.5);
+        audio.play('impact_metal', { pos: e.position, volume: 1, pitchVar: 0.15 }); events.emit('fx:shake', 0.5);
+        this.velocity.multiplyScalar(0.82);
+      }
+    }
     // onboarding: nudge the cover prompt when standing next to usable cover
     this._coverHintT = (this._coverHintT || 0) - dt; if (this._coverHintT <= 0 && this.state === 'normal' && this.grounded && !this.aiming) { this._coverHintT = 0.6; const facing = new THREE.Vector3(-Math.sin(this.cam.yaw), 0, -Math.cos(this.cam.yaw)); if (this.world.cover.findSnap(this.position, facing, 2.4)) events.emit('hint:cover'); }
     if (this.interacting) { this.velocity.x = damp(this.velocity.x, 0, 12, dt); this.velocity.z = damp(this.velocity.z, 0, 12, dt); }

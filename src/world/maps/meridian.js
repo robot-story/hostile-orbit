@@ -21,7 +21,7 @@ export const MERIDIAN = {
   },
   mapImage: 'textures/menus/map_clean.jpg',
   floor: FLOOR,
-  terrain: { style: 'canyon', texture: 'tex_terrain', repeat: 60, veinIntensity: 1.7, palette: { veinScale: 0.7 } },
+  terrain: { style: 'canyon', texture: 'tex_terrain', repeat: 60, veinIntensity: 1.7, wallTexture: 'tex_rock_strata', wallScale: 1 / 7, wallTint: '#e0a874', palette: { veinScale: 0.7 } },
   lighting: null, // engine defaults (warm canyon daylight)
   sky: {},
   celestials: 'khepri',
