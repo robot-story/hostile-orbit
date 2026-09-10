@@ -241,7 +241,7 @@ export function dressLantern(world, info, cityFns) {
     pushRes(info, holoBillboard(world, at(world, 84, 258), facing([84, 258], [72, 246]), { text: 'EXTRACTION IS A PRIVILEGE', sub: 'NOT A RIGHT', color: '#00e5ff', mastHeight: 6, light: true }));
   }
   // Landmarks: the Commonwealth's face over Lantern Square, and the orbital tether rising from the substation spire.
-  giantHolo(world, at(world, 200, 125), { height: 56, color: '#00e5ff' });
+  giantHolo(world, at(world, 200, 125), { height: 40, color: '#00e5ff' }); // stays under the aurora discs at y=60, which sliced the plane
   { const sp = at(world, 322, 318); sp.y += 14; skyTether(world, sp, { height: 700, color: '#ff3fd8' }); }
   // Rooftop approach: light rows leading to the pad.
   for (let i = 0; i < 4; i++) { for (const side of [-1, 1]) { const p = at(world, 96 - i * 5 + side * 7, 285 - i * 6); if (onFloor(world, p.x, p.z)) streetLamp(world, p, { color: '#00e5ff', light: i === 1 && side > 0 }); } }

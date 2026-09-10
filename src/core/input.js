@@ -29,15 +29,15 @@ class Input {
         this.rebindCapture = null;
         e.preventDefault(); return;
       }
+      if (this.enabled && ['Tab', 'Space', 'AltLeft', 'AltRight', 'F1', 'F3', 'F5'].includes(e.code)) e.preventDefault(); // before the repeat guard: a held Space must never scroll or click a focused button
       if (e.repeat) return;
       this.keys.add(e.code); this.pressedThisFrame.add(e.code);
-      if (this.enabled && ['Tab', 'Space', 'AltLeft', 'AltRight', 'F1', 'F3', 'F5'].includes(e.code)) e.preventDefault();
       if (e.code === 'Tab' && this.locked) e.preventDefault();
       events.emit('input:keydown', e.code, e);
     });
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.code); this.releasedThisFrame.add(e.code);
-      if (['AltLeft', 'AltRight', 'Tab'].includes(e.code)) e.preventDefault();
+      if (['AltLeft', 'AltRight', 'Tab'].includes(e.code) || (this.enabled && e.code === 'Space')) e.preventDefault();
       events.emit('input:keyup', e.code, e);
     });
     window.addEventListener('blur', () => { this.keys.clear(); this.mouseButtons.clear(); });
@@ -80,7 +80,7 @@ class Input {
   releaseLock() { if (this.locked) document.exitPointerLock(); }
   setGameplay(on) {
     this.enabled = on; this.wantLock = on;
-    if (on) this.requestLock(); else this.releaseLock();
+    if (on) { try { document.activeElement?.blur?.(); } catch { /* ignore */ } this.requestLock(); } else this.releaseLock(); // drop button focus so keys cannot re-trigger the last menu click
     this._toggleState = { crouch: false, aim: false, sprint: false };
   }
   bind(action) { return settings.data.binds[action]; }

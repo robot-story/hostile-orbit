@@ -202,24 +202,36 @@ export class Terrain {
     new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/' + texId + '.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.repeat.set(rep, rep); mat.map = tex; if (T.tint) mat.color.set(T.tint); mat.needsUpdate = true; }, undefined, () => {});
     // steep faces get their own facade/rock texture projected along the wall (triplanar), the floor keeps the ground tile
     const wallTex = new THREE.Texture(); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-    new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/' + (T.wallTexture || (this.map?.terrain?.style === 'city' ? 'tex_city_wall' : 'tex_rock_strata')) + '.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; if (mat.userData.shader) { mat.userData.shader.uniforms.uWallMap.value = tex; mat.userData.shader.uniforms.uWallOn.value = 1; } else { mat.userData.pendingWall = tex; } }, undefined, () => {});
+    new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/' + (T.wallTexture || (this.map?.terrain?.style === 'city' ? 'tex_city_wall' : 'tex_rock_strata')) + '.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; mat.userData.pendingWall = tex; if (mat.userData.shader) { mat.userData.shader.uniforms.uWallMap.value = tex; mat.userData.shader.uniforms.uWallOn.value = 1; } }, undefined, () => {});
+    const slopeTex = new THREE.Texture(); slopeTex.wrapS = slopeTex.wrapT = THREE.RepeatWrapping;
+    new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/' + (T.slopeTexture || (this.map?.terrain?.style === 'city' ? 'tex_concrete' : 'tex_rock')) + '.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; mat.userData.pendingSlope = tex; if (mat.userData.shader) { mat.userData.shader.uniforms.uSlopeMap.value = tex; mat.userData.shader.uniforms.uSlopeOn.value = 1; } }, undefined, () => {});
     const wallScale = T.wallScale || (this.map?.terrain?.style === 'city' ? 1 / 6 : 1 / 5);
     const wallTint = new THREE.Color(T.wallTint || (this.map?.terrain?.style === 'city' ? '#9aa0ae' : '#d9a06c'));
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 };
-      shader.uniforms.uWallMap = { value: mat.userData.pendingWall || wallTex }; shader.uniforms.uWallOn = { value: mat.userData.pendingWall ? 1 : 0 }; shader.uniforms.uWallScale = { value: wallScale }; shader.uniforms.uWallTint = { value: wallTint };
+      shader.uniforms.uWallMap = { value: mat.userData.pendingWall || wallTex }; shader.uniforms.uWallOn = { value: mat.userData.pendingWall ? 1 : 0 }; shader.uniforms.uWallScale = { value: wallScale }; shader.uniforms.uWallTint = { value: wallTint }; shader.uniforms.uSlopeMap = { value: mat.userData.pendingSlope || slopeTex }; shader.uniforms.uSlopeOn = { value: mat.userData.pendingSlope ? 1 : 0 };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aVein; varying float vVein; varying vec3 vWPos; varying vec3 vWNrm;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVein = aVein; vWPos = (modelMatrix * vec4(position,1.0)).xyz; vWNrm = normalize(mat3(modelMatrix) * normal);');
-      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVein; varying vec3 vWPos; varying vec3 vWNrm; uniform float uTime; uniform sampler2D uWallMap; uniform float uWallOn; uniform float uWallScale; uniform vec3 uWallTint;')
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVein; varying vec3 vWPos; varying vec3 vWNrm; uniform float uTime; uniform sampler2D uWallMap; uniform float uWallOn; uniform float uWallScale; uniform vec3 uWallTint; uniform sampler2D uSlopeMap; uniform float uSlopeOn;')
         .replace('#include <map_fragment>', `
           #ifdef USE_MAP
             vec4 floorC = texture2D(map, vMapUv);
+            // detail pass: a second sample of the floor tile at 5.3x so the ground never reads as a smooth sheet up close
+            vec4 detailC = texture2D(map, vMapUv * 5.3 + vec2(0.37, 0.61));
+            floorC.rgb *= mix(vec3(1.0), detailC.rgb * 1.9, 0.35);
             vec3 an = abs(normalize(vWNrm));
-            float wallW = uWallOn * smoothstep(0.42, 0.72, 1.0 - an.y);
+            float steep = 1.0 - an.y;
+            float slopeW = uSlopeOn * smoothstep(0.16, 0.42, steep);   // revetment / rock on mid slopes
+            float wallW = uWallOn * smoothstep(0.55, 0.8, steep);       // built facade on near-vertical faces
+            float sideMix = an.x / max(an.x + an.z, 1e-4);
+            vec4 sx = texture2D(uSlopeMap, vWPos.zy * uWallScale * 1.6);
+            vec4 sz = texture2D(uSlopeMap, vWPos.xy * uWallScale * 1.6);
+            vec4 slopeC = mix(sz, sx, sideMix); slopeC.rgb *= mix(vec3(1.0), uWallTint, 0.5);
             vec4 wx = texture2D(uWallMap, vWPos.zy * uWallScale);
             vec4 wz = texture2D(uWallMap, vWPos.xy * uWallScale);
-            vec4 wallC = mix(wz, wx, an.x / max(an.x + an.z, 1e-4)); wallC.rgb *= uWallTint;
-            diffuseColor *= mix(floorC, wallC, wallW);
+            vec4 wallC = mix(wz, wx, sideMix); wallC.rgb *= uWallTint;
+            vec4 groundC = mix(floorC, slopeC, slopeW);
+            diffuseColor *= mix(groundC, wallC, wallW);
           #endif`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n float pulse = 0.7 + 0.3 * sin(uTime * 1.5 + vWPos.x * 0.15 + vWPos.z * 0.11); totalEmissiveRadiance *= vVein * pulse;`);
       mat.userData.shader = shader;

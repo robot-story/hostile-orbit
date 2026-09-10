@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { HOLO_ART } from './props.js';
 let _holoArtIdx = 0;
 import { Mat, COLORS } from '../render/materials.js';
+import { Tex } from '../render/textures.js';
 import { rand, randInt, pick } from '../core/mathx.js';
 import { pointGlow, buildWallSegment, buildGate, buildWatchtower } from './buildings.js';
 import { terminal as terminalProp, ammoCache, barrel, crate, container, barrier as concreteBarrier } from './props.js';
@@ -585,8 +586,11 @@ export function buildRooftopPad(world, center) {
 /** Colossal hologram hovering over a plaza: the Commonwealth's face on the sky. Slowly turns and flickers. */
 export function giantHolo(world, pos, opts = {}) {
   const w = opts.w || 34, h = opts.h || 19, y = (opts.height ?? 58);
-  const mat = Mat.posterImage(opts.art || HOLO_ART[0], { holo: true }).clone(); mat.opacity = 0.55;
-  const plane = new THREE.Mesh(planeGeo(w, h), mat); plane.position.set(pos.x, pos.y + y, pos.z); plane.userData.noMerge = true; world.props.add(plane);
+  const mat = Mat.posterImage(opts.art || HOLO_ART[0], { holo: true }).clone(); mat.opacity = 0.7; mat.fog = false; mat.depthTest = true;
+  const plane = new THREE.Mesh(planeGeo(w, h), mat); plane.position.set(pos.x, pos.y + y, pos.z); plane.userData.noMerge = true; plane.renderOrder = 12; world.props.add(plane);
+  // dark projection plate behind the art so the picture is never an additive smear over stars, plus fine scanlines
+  const plate = new THREE.Mesh(planeGeo(w + 0.4, h + 0.4), new THREE.MeshBasicMaterial({ color: '#03070c', transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide, fog: false })); plate.position.z = -0.15; plate.renderOrder = 11; plane.add(plate);
+  const scan = new THREE.Mesh(planeGeo(w, h), new THREE.MeshBasicMaterial({ map: Tex.holoGrid().clone(), transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, color: opts.color || '#00e5ff' })); scan.material.map.needsUpdate = true; scan.material.map.repeat.set(6, 3); scan.material.map.wrapS = scan.material.map.wrapT = THREE.RepeatWrapping; scan.position.z = 0.1; scan.renderOrder = 13; plane.add(scan);
   const frame = new THREE.Mesh(new THREE.EdgesGeometry(planeGeo(w + 0.6, h + 0.6)), new THREE.LineBasicMaterial({ color: opts.color || '#00e5ff', transparent: true, opacity: 0.35 })); plane.add(frame);
   // projector beams from four ground pylons to the corners
   const corners = [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]];

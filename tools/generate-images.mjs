@@ -129,6 +129,39 @@ const POSTERS = [
   { id: 'holo_03', prompt: `Wide 16:9 flat holographic billboard artwork, dark background, neon cyan: a stylised map of a moon colony with routes lighting up, glowing nodes, glitch fragments, NO text, NO letters.` },
   { id: 'holo_04', prompt: `Wide 16:9 flat holographic billboard artwork, dark background, neon amber and cyan: a cheerful robot mascot face giving a thumbs up, halftone, scanlines, NO text, NO letters.` },
 ];
+
+// Player robot redesign: concept sheets (for review) and seamless armour tiles (used as panel textures by src/models/robots.js)
+const ROBOT_STYLE = 'Concept art character sheet for a modern AAA neon military science-fiction third-person shooter (Helldivers 2 energy, original design). Dark studio backdrop, three-quarter front view large on the left and a smaller back view on the right, full body, clean matte materials: black carbon and dirty-white ceramic plating, glowing neon accent lines, readable heroic silhouette, no text, no letters, no watermark, no weapon bigger than the character.';
+const CONCEPTS = [
+  { id: 'robot_a_monowheel', prompt: `${ROBOT_STYLE} Design A "OUTRIDER": a sleek armoured robot soldier whose lower body is a single large monowheel hub with a glowing cyan rim and spoke lights, the torso mounted on a gyroscopic yoke with two counterweight arms, chest with a hexagonal reactor glowing cyan, narrow visor slit, holding a compact assault rifle two-handed.` },
+  { id: 'robot_b_hover', prompt: `${ROBOT_STYLE} Design B "HALO": an armoured robot soldier with no legs, its torso floating on a wide ring-shaped thruster skirt of six angled engine pods glowing hot cyan-white, sleek layered chest plates, a smooth dome helmet with a single wide cyan visor band, shoulder pauldrons with orange warning chevrons, holding a compact assault rifle two-handed.` },
+  { id: 'robot_c_walker', prompt: `${ROBOT_STYLE} Design C "BULWARK": a heavy bipedal robot soldier with thick digitigrade armoured legs, oversized piston joints glowing amber at the knees and elbows, a squat tank-like chest with layered plating and a ventilation grille glowing cyan, a small angular sensor head with three cyan eyes, holding a compact assault rifle two-handed.` },
+];
+const ROBOT_TILES = [
+  { id: 'tex_robot_ceramic', prompt: `${TILE} Dirty-white ceramic armour plating: large smooth hexagonal plates with thin dark seams, subtle grime in the seams, tiny cyan light channels along some seams, a few small black rivets, worn edges. Colours: off-white, charcoal seams, cyan accents.` },
+  { id: 'tex_robot_carbon', prompt: `${TILE} Black carbon-fibre armour weave with matte layered plates, thin recessed panel lines, faint orange caution stripes on a couple of plates, small vent grilles, subtle scratches. Colours: near-black, graphite, burnt orange accents.` },
+  { id: 'tex_robot_gunmetal', prompt: `${TILE} Heavy brushed gunmetal plating with bolted panel edges, thick weld seams, hydraulic piston details, amber warning chevrons on some panels, chipped paint showing bare steel. Colours: dark grey steel, amber accents.` },
+];
+if (process.argv.includes('--concepts')) {
+  const OUTC = path.join(ROOT, 'screenshot', 'concepts'); fs.mkdirSync(OUTC, { recursive: true });
+  let k = 0; const w = 3;
+  await Promise.all(Array.from({ length: w }, async () => { while (k < CONCEPTS.length) { const m = CONCEPTS[k++]; if (only && !only.includes(m.id)) continue; const file = path.join(OUTC, `${m.id}.jpg`); if (fs.existsSync(file) && !process.argv.includes('--force')) { console.log('skip', m.id); continue; }
+    for (let attempt = 0; attempt < 4; attempt++) { const res = await fetch('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'gpt-image-1', prompt: m.prompt, size: '1536x1024', quality: 'high', output_format: 'jpeg', output_compression: 85, n: 1 }) });
+      if (res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, 4000 * (attempt + 1))); continue; }
+      if (!res.ok) { console.error(m.id, res.status, (await res.text()).slice(0, 200)); break; }
+      const json = await res.json(); const b64 = json.data?.[0]?.b64_json; if (b64) { fs.writeFileSync(file, Buffer.from(b64, 'base64')); console.log('wrote', m.id); } break; } } }));
+  process.exit(0);
+}
+if (process.argv.includes('--robotmats')) {
+  const OUT2 = path.join(ROOT, 'public', 'textures', 'gen'); fs.mkdirSync(OUT2, { recursive: true });
+  let k = 0; const w = 3;
+  await Promise.all(Array.from({ length: w }, async () => { while (k < ROBOT_TILES.length) { const m = ROBOT_TILES[k++]; if (only && !only.includes(m.id)) continue; const file = path.join(OUT2, `${m.id}.jpg`); if (fs.existsSync(file) && !process.argv.includes('--force')) { console.log('skip', m.id); continue; }
+    for (let attempt = 0; attempt < 4; attempt++) { const res = await fetch('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'gpt-image-1', prompt: m.prompt, size: '1024x1024', quality: 'medium', output_format: 'jpeg', output_compression: 85, n: 1 }) });
+      if (res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, 4000 * (attempt + 1))); continue; }
+      if (!res.ok) { console.error(m.id, res.status, (await res.text()).slice(0, 200)); break; }
+      const json = await res.json(); const b64 = json.data?.[0]?.b64_json; if (b64) { fs.writeFileSync(file, Buffer.from(b64, 'base64')); console.log('wrote', m.id); } break; } } }));
+  process.exit(0);
+}
 if (process.argv.includes('--posters')) {
   const OUTP = path.join(ROOT, 'public', 'textures', 'posters'); fs.mkdirSync(OUTP, { recursive: true });
   let k = 0; const w = 4;

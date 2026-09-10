@@ -12,7 +12,63 @@ import * as Props from '../models/props.js';
 import * as Alien from '../models/alien.js';
 import * as City from '../models/city.js';
 import { mergeStaticProps } from '../world/merge.js';
-import { loadCustomMesh } from '../models/glbSoldier.js';
+import { loadCustomMesh, rollBall } from '../models/glbSoldier.js';
+import { ROBOTS } from '../models/robots.js';
+
+/** Robot frame line-up: each frame drives around its home spot through idle / walk / sprint / strafe / crouch / aim /
+ *  jump / turn phases so the locomotion flavour can be judged. `?showcase&robots[&robot=a|b|c][&angle=..&r=..&h=..]` */
+function robotShowcase(game, world, params, base) {
+  const kinds = params.get('robot') && ROBOTS[params.get('robot')] ? [params.get('robot')] : ['a', 'b', 'c'];
+  const spacing = 7; const demos = [];
+  const MAXV = 6.2;
+  const PHASES = [{ n: 'idle', d: 2.2 }, { n: 'walk', d: 3.2, sp: 0.4 }, { n: 'sprint', d: 3.2, sp: 1, sprint: 1 }, { n: 'strafe', d: 3, sp: 0.5, strafe: 1 }, { n: 'crouch', d: 2.4, sp: 0.25, crouch: 1 }, { n: 'aim', d: 2.6, aim: 1, fire: 1 }, { n: 'jump', d: 1.5 }, { n: 'turn', d: 2, turn: 1 }];
+  kinds.forEach((k, i) => {
+    const m = buildSoldier('vanguard', { robot: k }); const a = new CharacterAnimator(m); a.weaponSocket.add(WEAPON_BUILDERS.viper());
+    const home = new THREE.Vector3(base.x + (i - (kinds.length - 1) / 2) * spacing, 0, base.z + 4); home.y = world.groundHeight(home.x, home.z);
+    m.root.position.copy(home); world.actors.add(m.root);
+    // name plate
+    const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgba(0,0,0,0)'; x.fillRect(0, 0, 512, 128); x.font = '700 54px Arial'; x.textAlign = 'center'; x.fillStyle = '#00e5ff'; x.fillText(ROBOTS[k].name, 256, 62); x.font = '400 26px Arial'; x.fillStyle = '#ffffff'; x.fillText(k.toUpperCase() + '  //  ' + ROBOTS[k].blurb, 256, 104);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(4, 1, 1); sp.position.set(home.x, home.y + 2.6, home.z); world.actors.add(sp);
+    demos.push({ k, m, a, home, sprite: sp, pos: home.clone(), yaw: 0, vel: new THREE.Vector3(), idx: 0, t: 0, fireT: 0, jumpT: 0, land: 0, prevSpeed: 0, prevYaw: 0 });
+  });
+  world.finalize();
+  game.renderer.setScene(world.scene, game.camera);
+  game.setBackground(null); game.menus.hide();
+  game.mode = 'showcase';
+  let t = 0; const fixed = params.get('angle');
+  const focus = new THREE.Vector3(base.x, base.y + 1.1, base.z + 4); focus.y = world.groundHeight(focus.x, focus.z) + 1.1;
+  const camH = params.get('h') != null ? +params.get('h') : 1.9; const camR = +(params.get('r') || (kinds.length === 1 ? 5.5 : 12));
+  game.showcaseUpdate = (dt) => {
+    t += dt;
+    for (const d of demos) {
+      const ph = PHASES[d.idx]; d.t += dt; if (d.t >= ph.d) { d.t = 0; d.idx = (d.idx + 1) % PHASES.length; d.jumpT = 0; }
+      const P = PHASES[d.idx];
+      // steering: circle the home spot; strafe keeps the facing and slides sideways; turn phase spins in place
+      const toHome = Math.atan2(-(d.home.x - d.pos.x), -(d.home.z - d.pos.z)); const far = d.pos.distanceTo(d.home) > 3.2;
+      if (P.turn) d.yaw += dt * 2.2; else if (P.sp) { const target = far ? toHome : d.yaw + 0.5; let dy = target - d.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); d.yaw += Math.sign(dy) * Math.min(Math.abs(dy), dt * 1.4); }
+      const dx = P.strafe ? Math.sin(t * 0.9) > 0 ? 1 : -1 : 0, dz = P.strafe ? 0 : -1;
+      const spd = (P.sp || 0) * MAXV;
+      const fx = -Math.sin(d.yaw), fz = -Math.cos(d.yaw), rx = Math.cos(d.yaw), rz = -Math.sin(d.yaw);
+      const vx = (fx * -dz + rx * dx) * spd, vz = (fz * -dz + rz * dx) * spd;
+      d.vel.x = THREE.MathUtils.damp(d.vel.x, vx, 6, dt); d.vel.z = THREE.MathUtils.damp(d.vel.z, vz, 6, dt);
+      d.pos.x += d.vel.x * dt; d.pos.z += d.vel.z * dt;
+      let y = world.groundHeight(d.pos.x, d.pos.z);
+      if (d.idx === 6) { d.jumpT += dt; const u = d.jumpT / 1.5; const arc = Math.max(0, Math.sin(Math.min(1, u) * Math.PI)) * 1.1; y += arc; d.land = u > 0.92 ? 1 : 0; } else d.land = Math.max(0, d.land - dt * 2.5);
+      d.m.root.position.set(d.pos.x, y, d.pos.z); d.m.root.rotation.y = d.yaw; d.sprite.position.set(d.pos.x, y + 2.6, d.pos.z);
+      const gs = Math.hypot(d.vel.x, d.vel.z); const speedN = Math.min(1, gs / 9.4);
+      const accel = (gs - d.prevSpeed) / Math.max(dt, 1e-3); d.prevSpeed = gs; const turn = (d.yaw - d.prevYaw) / Math.max(dt, 1e-3); d.prevYaw = d.yaw;
+      if (P.fire) { d.fireT -= dt; if (d.fireT <= 0) { d.fireT = 0.11; d.a.kick(0.5); } }
+      const llen = Math.hypot(dx, dz) || 1;
+      d.a.update(dt, { speed: speedN, sprint: P.sprint ? 1 : 0, crouch: P.crouch ? 1 : 0, aim: P.aim ? 1 : 0, cover: null, strafe: dx, forward: dz >= -0.3 ? 1 : -1, moveDir: { x: gs > 0.3 ? dx / llen : 0, z: gs > 0.3 ? dz / llen : 1 }, velocity: d.idx === 6 ? 0 : gs, groundAt: (ox, oz) => world.groundHeight(d.pos.x + ox, d.pos.z + oz), accel: THREE.MathUtils.clamp(accel / 12, -1, 1), turn: THREE.MathUtils.clamp(turn / 4, -1, 1), land: d.land, turning: !!P.turn, jet: d.idx === 6 && d.jumpT < 0.7 ? 1 : 0, robotic: true });
+      rollBall(d.m, d.vel.x, d.vel.z, dt, d.land, d.yaw, P.crouch ? 1 : 0);
+    }
+    const ang = fixed != null ? +fixed : t * 0.1;
+    game.camera.position.set(focus.x + Math.sin(ang) * camR, focus.y + camH, focus.z + Math.cos(ang) * camR); game.camera.lookAt(focus); game.camera.userData.focus = focus;
+    world.update(dt, game.camera);
+  };
+  window.HO.robotDemos = demos; window.HO.robotPhases = PHASES;
+  console.info('[showcase] robots ready');
+}
 
 export function startShowcase(game) {
   const params = new URLSearchParams(location.search);
@@ -23,6 +79,7 @@ export function startShowcase(game) {
   const rows = [];
   const put = (obj, col, row, yaw = 0) => { const x = base.x - 21 + col * 6, z = base.z - 12 + row * 8; const y = world.groundHeight(x, z); if (obj.isObject3D) { obj.position.set(x, y, z); obj.rotation.y = yaw; world.actors.add(obj); } return new THREE.Vector3(x, y, z); };
   const anims = [];
+  if (params.has('robots')) return robotShowcase(game, world, params, base);
   // Row 0: characters
   const rig = (style, col, opts = {}) => { const m = buildSoldier(style, { custom: opts.custom }); const a = new CharacterAnimator(m); if (opts.weapon) a.weaponSocket.add(WEAPON_BUILDERS[opts.weapon]()); put(m.root, col, 0, 0); anims.push({ a, s: opts.state || { speed: 0, sprint: 0, crouch: 0, aim: 1, cover: null, weaponLow: 0 } }); return m; };
   rig('vanguard', 0, { weapon: 'viper' });

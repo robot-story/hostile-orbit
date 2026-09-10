@@ -107,6 +107,7 @@ export class CharacterAnimator {
     this.bones.chest.add(this.weaponSocket);
     this.weaponSocket.position.set(-0.17, 0.02, 0.22);
     if (model.torsoScale) this.weaponSocket.scale.setScalar(1 / model.torsoScale);
+    model.animator = this;
     this.weaponPose = { pos: new THREE.Vector3(-0.17, 0.02, 0.22), rot: new THREE.Euler(0, 0, 0) };
     this.weaponPoseTarget = { pos: new THREE.Vector3(-0.17, 0.02, 0.22), rot: new THREE.Euler(0, 0, 0) };
     this.blendRate = 12;

@@ -326,15 +326,54 @@ export class Game {
     this.session.mission.setupInteractables(); this.session.mission.setupGarrisons(); this.session.mission.setupSideMissions();
     this.dropSequence(p, () => { this.session.mission.restore(cp); this.session.hud.setLives(this.session.mission.lives, this.session.difficulty.lives); audio.say('ship_welcome', { priority: 2 }); });
   }
+  /** Loading screen in the title-card language: dark moon key art, kicker, the HOSTILE ORBIT title block, a status line
+   *  that ticks through deployment steps and a progress bar. Shared by PREPARING DEPLOYMENT and RESTORING OPERATION. */
   showLoading(text) {
     return new Promise((res) => {
       let el = document.getElementById('loading');
-      if (!el) { el = document.createElement('div'); el.id = 'loading'; el.innerHTML = `<div class="ltxt"></div><div class="lbar"><i></i></div>`; this.ui.appendChild(el); const css = document.createElement('style'); css.textContent = `#loading{position:absolute;inset:0;background:radial-gradient(ellipse at center,#06202a 0%,#000 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:60}#loading .ltxt{font-size:16px;letter-spacing:.4em;color:var(--cyan);text-transform:uppercase}#loading .lbar{width:360px;height:3px;background:rgba(0,229,255,.15);margin-top:20px;overflow:hidden}#loading .lbar i{display:block;height:100%;width:40%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);animation:lslide 1s ease-in-out infinite alternate}@keyframes lslide{from{margin-left:0}to{margin-left:60%}}`; document.head.appendChild(css); }
-      el.style.display = 'flex'; el.querySelector('.ltxt').textContent = text;
+      const base = import.meta.env.BASE_URL || '/';
+      if (!el) {
+        el = document.createElement('div'); el.id = 'loading';
+        el.innerHTML = `<div class="bg" style="background-image:url('${base}textures/menus/title_moon.jpg')"></div><div class="haze"></div><div class="scan"></div>
+          <div class="wrap"><div class="kicker">MERIDIAN COMMONWEALTH // ORBITAL ASSAULT DIVISION</div>
+            <div class="main-title-wrap"><div class="main-title"><div>HOSTILE</div><div>ORBIT</div></div><div class="main-device"><span class="wing left"></span><span class="emblem">${icon('chevronBig')}</span><span class="wing right"></span></div></div>
+            <div class="rule"></div>
+            <div class="ltxt"></div><div class="lstep"></div><div class="lbar"><i></i></div></div>
+          <div class="corner tl"></div><div class="corner br"></div><div class="tip"></div>`;
+        this.ui.appendChild(el);
+        const css = document.createElement('style'); css.textContent = `
+          #loading{position:absolute;inset:0;z-index:60;background:#02030a;overflow:hidden;font-family:var(--font);display:none}
+          #loading .bg{position:absolute;inset:-4%;background-size:cover;background-position:center;animation:loadZoom 30s ease-out forwards;filter:saturate(1.05) brightness(.85)}
+          #loading .haze{position:absolute;inset:0;background:radial-gradient(ellipse at 30% 55%,rgba(0,0,0,.78),rgba(0,0,0,.2) 55%,rgba(0,0,0,.65))}
+          #loading .scan{position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px);pointer-events:none}
+          #loading .wrap{position:absolute;left:8vw;top:50%;transform:translateY(-52%)}
+          #loading .kicker{font-size:11px;letter-spacing:.42em;color:var(--cyan,#5be3ff)}
+          #loading .main-title-wrap{align-items:flex-start;text-align:left;margin-top:10px}
+          #loading .main-title{font-size:min(9vw,104px)!important;text-align:left!important}
+          #loading .main-device{margin-top:8px}
+          #loading .rule{width:min(38vw,460px);height:2px;margin:18px 0 20px;background:linear-gradient(90deg,var(--yellow,#f2c744),transparent)}
+          #loading .ltxt{font-size:14px;letter-spacing:.42em;color:#fff;text-transform:uppercase}
+          #loading .lstep{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:rgba(91,227,255,.8);margin-top:8px;height:14px}
+          #loading .lbar{width:min(38vw,460px);height:3px;background:rgba(0,229,255,.15);margin-top:14px;overflow:hidden;position:relative}
+          #loading .lbar i{display:block;height:100%;width:38%;background:var(--cyan,#00e5ff);box-shadow:0 0 12px var(--cyan,#00e5ff);animation:lslide 1.1s ease-in-out infinite alternate}
+          #loading .corner{position:absolute;width:38px;height:38px;border:1px solid rgba(91,227,255,.45)}
+          #loading .corner.tl{left:24px;top:24px;border-right:0;border-bottom:0} #loading .corner.br{right:24px;bottom:24px;border-left:0;border-top:0}
+          #loading .tip{position:absolute;right:32px;bottom:34px;max-width:38vw;text-align:right;font-size:11px;letter-spacing:.2em;line-height:1.7;color:rgba(232,244,248,.72)}
+          @keyframes loadZoom{from{transform:scale(1.06)}to{transform:scale(1)}}
+          @keyframes lslide{from{margin-left:0}to{margin-left:62%}}`;
+        document.head.appendChild(css);
+      }
+      el.style.display = 'block'; el.querySelector('.ltxt').textContent = text;
+      const TIPS = ['Hold SPACE to jet. Fuel returns on the ground.', 'Sprint into Legion troopers to ram them. Momentum is a weapon.', 'F to snap to cover. R rolls out of it.', 'M opens the tactical map. Pins are live.', 'Reinforcements are finite. Extraction is not guaranteed.', 'Charge points around the jammer must be held, not touched.', 'Orbital abilities are on cooldown from the moment you land. Plan.', 'Your sacrifice has been pre-approved.'];
+      el.querySelector('.tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
+      const steps = text.startsWith('RESTORING') ? ['REACQUIRING TELEMETRY', 'REBUILDING BATTLESPACE', 'RESTORING SQUAD STATE', 'ARMING REINFORCEMENT POD'] : ['AUTHENTICATING DEPLOYMENT ORDER', 'BUILDING BATTLESPACE', 'COMPILING MATERIALS', 'WARMING RECON FEED', 'ARMING DROP POD'];
+      const stepEl = el.querySelector('.lstep'); let k = 0; stepEl.textContent = steps[0];
+      clearInterval(this._loadStepTimer); this._loadStepTimer = setInterval(() => { k = Math.min(steps.length - 1, k + 1); stepEl.textContent = steps[k]; }, 650);
       setTimeout(res, 120); // never wait on rAF: hidden tabs do not get frames
     });
   }
-  hideLoading() { const el = document.getElementById('loading'); if (el) el.style.display = 'none'; }
+  hideLoading() {
+    clearInterval(this._loadStepTimer); const el = document.getElementById('loading'); if (el) el.style.display = 'none'; }
   /** Cinematic pod drop that ends with the player standing at `target`. */
   /** Warm-up on the loading screen: render the level from every flyover stop so shaders compile and textures upload
    *  before the camera moves. Costs a second or two of loading, saves the hitches during the cinematic. */

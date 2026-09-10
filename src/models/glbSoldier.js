@@ -385,6 +385,7 @@ export function makeNeonMask(material, color) {
 
 /** Roll a ball-mounted body: spin the sphere with ground velocity, squash it on landing. */
 export function rollBall(model, vx, vz, dt, land = 0, rootYaw = 0, crouch = 0) {
+  if (model?.motion) return model.motion(vx, vz, dt, land, rootYaw, crouch);
   if (!model?.ball) return;
   const sp = Math.hypot(vx, vz);
   if (sp > 0.05 && dt > 0) {

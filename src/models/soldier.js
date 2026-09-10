@@ -1,5 +1,6 @@
 // Procedural rigged soldier: one SkinnedMesh per material, rigid-bound to a bone hierarchy we pose in code.
 // Used for the player (Commonwealth white/black + cyan) and Null Legion infantry (dark chassis + red-orange).
+import { applyRobot, selectedRobot } from './robots.js';
 import * as THREE from 'three';
 import { CUSTOM, applyCustomBody } from './glbSoldier.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -254,6 +255,8 @@ export function buildSoldier(styleName = 'vanguard', opts = {}) {
   };
   // Use rest world matrices computed with root at origin: ensure bones' matrixWorld are rest
   // custom GLB bodies: vanguard (player + squad) and the sentinel trooper; procedural parts stay for gibs/ragdoll fallbacks
+  const robotKind = opts.robot !== undefined ? opts.robot : (styleName === 'vanguard' ? selectedRobot() : null);
+  if (robotKind) { try { applyRobot(model, robotKind); return model; } catch (e) { console.warn('[robot] build failed', e); } }
   const customKey = opts.custom !== undefined ? opts.custom : (styleName === 'vanguard' ? 'vanguard' : null);
   if (customKey && CUSTOM.body[customKey]) { try { applyCustomBody(model, CUSTOM.body[customKey], { neon: customKey === 'vanguard' ? style.neon : '#ff3b1f', tint: customKey === 'vanguard' ? null : '#5e6068', noLegs: customKey === 'vanguard', ballRadius: 0.5, torsoScale: 1.3 }); } catch (e) { console.warn('[glb] custom body failed', e); } }
   return model;
