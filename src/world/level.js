@@ -2,6 +2,7 @@
 // the jammer outpost, the comms base (with detention block), and the extraction platform, then
 // dresses everything with cover, signage and alien flora. Returns the LevelInfo object consumed
 // by gameplay/director code (also cached on world.level).
+import { buildHorizon } from './horizon.js';
 import * as THREE from 'three';
 import { M, FLOOR } from './terrain.js';
 import {
@@ -266,6 +267,7 @@ export function buildMeridian(world) {
   lightTower(world, new THREE.Vector3(LOCATIONS.dropZoneAlt2.pos.x, world.terrain.getHeight(LOCATIONS.dropZoneAlt2.pos.x, LOCATIONS.dropZoneAlt2.pos.z), LOCATIONS.dropZoneAlt2.pos.z), 0, { color: '#00e5ff' });
 
   // curated vignettes on top of the procedural scatter
+  try { buildHorizon(world); } catch (e) { console.warn('[level] horizon failed', e); }
   try { dressMeridian(world, info); } catch (e) { console.warn('[level] dressing failed', e); }
   world.level = info;
   return info;

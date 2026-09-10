@@ -125,6 +125,7 @@ export class CharacterAnimator {
    *   roll(0..1 progress)|null, vault(progress)|null, dead:bool, interact:bool, aimPitch(-1..1), weaponLow(0..1), reload(0..1)|null }
    */
   update(dt, s) {
+    if (this.model) this.model.animState = s;
     const T = this.target;
     // Base locomotion pose: blend idle/aim/sprint/crouch
     let base = POSE.idle;
@@ -264,7 +265,7 @@ export class CharacterAnimator {
     if (this.model?.ballCollar) this.model.ballCollar.position.y = this.model.ballRadius + hover + this.rootY * 0.6;
     if (this.model?.ball) { const cr = s.crouch > 0.5 ? 1 : 0; this.ballSquash = damp(this.ballSquash ?? 0, cr * 0.22 + (this.land || 0) * 0.14, 10, dt); const sq = this.ballSquash; this.model.ball.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5); if (this.model.ballRig) this.model.ballRig.position.y = -sq * this.model.ballRadius * 0.95; }
     if (s.roll != null) { const k = Math.min(1, s.roll); B.root.rotation.set(-k * Math.PI * 2, 0, 0); B.root.scale.setScalar(1); }
-    else if (s.transform != null) {
+    else if (s.transform != null && !this.model?.robot) {
       // transformer tuck: the frame folds into a compact block, spins once, and unfolds
       const k = Math.min(1, s.transform), c = Math.sin(k * Math.PI);
       B.root.rotation.set(-k * Math.PI * 2, c * 0.6, 0);

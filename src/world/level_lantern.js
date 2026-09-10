@@ -1,6 +1,7 @@
 // Black Lantern level construction: transit plaza drop zone, Meridian Avenue / skyway / canal routes
 // through neon tower blocks, the substation spire, the broadcast compound with its re-education
 // block, and the rooftop extraction pad. Returns the same LevelInfo shape as buildMeridian().
+import { buildHorizon } from './horizon.js';
 import * as THREE from 'three';
 import { M } from './terrain.js';
 import { buildPylon } from '../models/buildings.js';
@@ -199,6 +200,7 @@ export function buildLantern(world) {
   // wider city skyline beyond the playable edges
   for (let i = 0; i < 40; i++) { const mx = rand(10, 390), my = rand(10, 390); const p = M(mx, my); if (world.terrain.floorDistance(p.x, p.z) < 9) continue; buildTower(world, p.setY(ground(p.x, p.z)), rand(0, Math.PI * 2), { height: rand(18, 48), width: rand(8, 14), color: pick(NEON), antenna: Math.random() < 0.25 }); }
 
+  try { buildHorizon(world); } catch (e) { console.warn('[level] horizon failed', e); }
   try { dressLantern(world, info, { hoverWreck, dumpster, cableSpool, trafficBarrier, neonSign, holoBillboard, streetLamp }); } catch (e) { console.warn('[level] dressing failed', e); }
   world.level = info;
   return info;

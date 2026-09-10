@@ -12,10 +12,10 @@ export const WEAPONS = {
   },
   hammer: {
     id: 'hammer', name: 'HAMMER SHOTGUN', slot: 'primary', kind: 'shotgun',
-    damage: 16, headMult: 2.0, rpm: 75, auto: false, mag: 8, reserve: 48, maxReserve: 72,
-    spread: 0.045, spreadAim: 0.03, bloom: 0.0, bloomMax: 0.0, spreadMove: 0.01,
+    damage: 19, headMult: 2.0, rpm: 75, auto: false, mag: 8, reserve: 48, maxReserve: 72,
+    spread: 0.062, spreadAim: 0.042, bloom: 0.0, bloomMax: 0.0, spreadMove: 0.012,
     recoil: 0.06, recoilYaw: 0.015, kick: 1.1, range: 45, falloffStart: 12,
-    reloadTime: 0.4, reloadType: 'shell', pellets: 10, tracer: '#ffd17f', tracerEvery: 1,
+    reloadTime: 0.4, reloadType: 'shell', pellets: 11, tracer: '#ffd17f', tracerEvery: 1,
     sound: 'hammer_fire', reloadSounds: ['reload_shotgun_shell'],
     stats: { damage: 95, control: 40, mobility: 60, defence: 40 }, impulse: 9,
     description: 'Close-quarters compliance tool. Removes limbs, doors and dissent.',
