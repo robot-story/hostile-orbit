@@ -171,18 +171,29 @@ export function skinToRig(custom, bones, rootGroup) {
   const pos = geo.attributes.position; const n = pos.count;
   const skinIndex = new Uint16Array(n * 4), skinWeight = new Float32Array(n * 4);
   const p = new THREE.Vector3(); const tmp = { sub: new THREE.Vector3(), ap: new THREE.Vector3(), q: new THREE.Vector3() };
-  const cand = [];
+  // hierarchy adjacency: a vertex may only blend between its nearest segment and segments that touch it in the
+  // skeleton (parent/child). Hands never pull on thighs, arms never tear the torso.
+  const PARENT = { spine: 'root', chest: 'spine', neck: 'chest', head: 'neck', upperArmL: 'chest', forearmL: 'upperArmL', handL: 'forearmL', upperArmR: 'chest', forearmR: 'upperArmR', handR: 'forearmR', thighL: 'root', shinL: 'thighL', footL: 'shinL', thighR: 'root', shinR: 'thighR', footR: 'shinR' };
+  const segByName = {}; for (const [a] of SEGMENTS) segByName[a] = SEGMENTS.findIndex((x) => x[0] === a);
+  const adjacent = (a, b) => PARENT[a] === b || PARENT[b] === a || (PARENT[a] && PARENT[a] === PARENT[b] && (a.startsWith('thigh') || a.startsWith('upperArm')) && false);
+  const dists = new Float32Array(segs.length);
+  const BAND = 0.09;
   for (let i = 0; i < n; i++) {
-    p.fromBufferAttribute(pos, i); cand.length = 0;
-    for (const s of segs) { const d = Math.max(0, segDist(p, s.a, s.b, tmp) - s.r * 0.5); cand.push({ d, idx: s.idx }); }
-    cand.sort((x, y) => x.d - y.d);
-    // two nearest with a soft blend; a third only when very close (joint regions)
-    const d0 = cand[0].d, d1 = cand[1].d, d2 = cand[2].d;
-    const w0 = 1 / (d0 + 0.035) ** 2.2, w1 = 1 / (d1 + 0.035) ** 2.2, w2 = d2 - d0 < 0.11 ? 1 / (d2 + 0.035) ** 2.2 : 0;
-    const sum = w0 + w1 + w2;
-    skinIndex[i * 4] = cand[0].idx; skinWeight[i * 4] = w0 / sum;
-    skinIndex[i * 4 + 1] = cand[1].idx; skinWeight[i * 4 + 1] = w1 / sum;
-    skinIndex[i * 4 + 2] = cand[2].idx; skinWeight[i * 4 + 2] = w2 / sum;
+    p.fromBufferAttribute(pos, i);
+    let best = 0;
+    for (let k = 0; k < segs.length; k++) { const sg = segs[k]; dists[k] = Math.max(0, segDist(p, sg.a, sg.b, tmp) - sg.r * 0.5); if (dists[k] < dists[best]) best = k; }
+    const nameBest = SEGMENTS[best][0];
+    let w0 = 1, w1 = 0, w2 = 0, i1 = best, i2 = best;
+    // up to two adjacent segments inside the blend band
+    const cands = [];
+    for (let k = 0; k < segs.length; k++) { if (k === best) continue; if (!adjacent(nameBest, SEGMENTS[k][0])) continue; const dd = dists[k] - dists[best]; if (dd < BAND) cands.push({ k, dd }); }
+    cands.sort((x, y) => x.dd - y.dd);
+    if (cands[0]) { const t = 1 - cands[0].dd / BAND; w1 = 0.5 * t * t; i1 = cands[0].k; }
+    if (cands[1]) { const t = 1 - cands[1].dd / BAND; w2 = 0.3 * t * t; i2 = cands[1].k; }
+    w0 = 1 - w1 - w2;
+    skinIndex[i * 4] = segs[best].idx; skinWeight[i * 4] = w0;
+    skinIndex[i * 4 + 1] = segs[i1].idx; skinWeight[i * 4 + 1] = w1;
+    skinIndex[i * 4 + 2] = segs[i2].idx; skinWeight[i * 4 + 2] = w2;
   }
   geo.setAttribute('skinIndex', new THREE.BufferAttribute(skinIndex, 4));
   geo.setAttribute('skinWeight', new THREE.BufferAttribute(skinWeight, 4));
@@ -208,10 +219,61 @@ export function preloadCustomModels() {
   return Promise.allSettled(jobs).then((r) => { CUSTOM.ready = true; const failed = r.filter((x) => x.status === 'rejected'); if (failed.length) console.warn('[glb] some custom models failed', failed.map((f) => String(f.reason))); else console.info('[glb] custom models ready'); });
 }
 
+/** Estimate joint heights/offsets from the mesh silhouette (crotch, knees, shoulders, wrists, head) once per custom body. */
+export function measureBody(custom) {
+  if (custom.fit) return custom.fit;
+  const pos = custom.geometry.attributes.position; const n = pos.count;
+  custom.geometry.computeBoundingBox(); const H = custom.geometry.boundingBox.max.y;
+  const slab = 0.02; const bins = Math.ceil(H / slab) + 1;
+  const centerCount = new Uint32Array(bins), total = new Uint32Array(bins), armCount = new Uint32Array(bins); const armX = new Float64Array(bins); const legX = new Float64Array(bins); const legCount = new Uint32Array(bins);
+  let armMinY = H, torsoHalfW = 0.2;
+  // torso half-width estimate at 55 % height (below the shoulders, above the hips)
+  { let sum = 0, c = 0; for (let i = 0; i < n; i++) { const y = pos.getY(i); if (Math.abs(y - H * 0.55) < 0.03) { sum += Math.abs(pos.getX(i)); c++; } } if (c) torsoHalfW = Math.min(0.32, Math.max(0.14, (sum / c) * 1.35)); }
+  for (let i = 0; i < n; i++) {
+    const x = pos.getX(i), y = pos.getY(i); const b = Math.min(bins - 1, Math.floor(y / slab));
+    total[b]++;
+    if (Math.abs(x) < 0.045) centerCount[b]++;
+    if (y < H * 0.62 && Math.abs(x) > 0.03) { legX[b] += Math.abs(x); legCount[b]++; }
+    if (Math.abs(x) > torsoHalfW && y > H * 0.3) { armCount[b]++; armX[b] += Math.abs(x); if (y < armMinY) armMinY = y; }
+  }
+  // crotch: lowest slab (scanning upward from the ankles) where the centre line is occupied and stays occupied
+  let crotchY = H * 0.47;
+  for (let b = Math.floor(H * 0.15 / slab); b < Math.floor(H * 0.62 / slab); b++) { const occ = (k) => total[k] > 0 && centerCount[k] / total[k] > 0.06; if (occ(b) && occ(b + 1) && occ(b + 2)) { crotchY = b * slab; break; } }
+  // shoulders: highest slab with substantial arm vertices outside the torso width
+  let shoulderY = H * 0.8;
+  for (let b = bins - 1; b > 0; b--) { if (armCount[b] > 12) { shoulderY = Math.min(H - 0.12, b * slab + 0.02); break; } }
+  // arm centre x just below the shoulder
+  let armCx = torsoHalfW + 0.09; { const b = Math.max(0, Math.floor((shoulderY - 0.12) / slab)); let sx = 0, c = 0; for (let k = b - 2; k <= b + 2; k++) if (k >= 0 && k < bins) { sx += armX[k]; c += armCount[k]; } if (c) armCx = sx / c; }
+  const ankleY = Math.min(0.12, H * 0.06);
+  const wristY = Math.max(crotchY - 0.05, armMinY + 0.09);
+  // hip x: mean |x| of leg vertices around mid-thigh
+  let hipX = 0.12; { const b = Math.floor(((crotchY + ankleY) * 0.62) / slab); let sx = 0, c = 0; for (let k = b - 2; k <= b + 2; k++) if (k >= 0 && k < bins) { sx += legX[k]; c += legCount[k]; } if (c) hipX = THREE.MathUtils.clamp(sx / c, 0.08, 0.2); }
+  const fit = { H, crotchY, kneeY: (crotchY + ankleY) * 0.52, ankleY, shoulderY, armCx: THREE.MathUtils.clamp(armCx, 0.22, 0.42), wristY, hipX };
+  custom.fit = fit; console.info('[glb] body fit', Object.fromEntries(Object.entries(fit).map(([k, v]) => [k, +v.toFixed(3)])));
+  return fit;
+}
+
+/** Move the procedural rig's joints to the measured mesh joints (zero pose). Weapon sockets and IK follow the bones. */
+export function fitRigToMesh(model, custom) {
+  const f = measureBody(custom); const B = model.bones;
+  const rootY = f.crotchY + 0.04;
+  B.root.position.y = rootY;
+  const thigh = Math.max(0.25, f.crotchY - f.kneeY), shin = Math.max(0.25, f.kneeY - f.ankleY);
+  for (const side of ['L', 'R']) { const sgn = side === 'L' ? 1 : -1; B['thigh' + side].position.set(sgn * f.hipX, -0.04, 0); B['shin' + side].position.y = -thigh; B['foot' + side].position.y = -shin; }
+  const chestY = f.shoulderY - 0.20; // shoulders sit 0.20 above the chest bone in this rig
+  B.spine.position.y = 0.10; B.chest.position.y = Math.max(0.12, chestY - (rootY + 0.10));
+  const neckY = Math.max(chestY + 0.14, f.H - 0.30); B.neck.position.y = neckY - chestY; B.head.position.y = 0.08;
+  const upper = Math.max(0.2, (f.shoulderY - f.wristY) * 0.52), fore = Math.max(0.18, (f.shoulderY - f.wristY) * 0.48);
+  for (const side of ['L', 'R']) { const sgn = side === 'L' ? 1 : -1; B['shoulder' + side].position.set(sgn * (f.armCx - 0.06), 0.20, 0); B['upperArm' + side].position.set(sgn * 0.06, -0.02, 0); B['forearm' + side].position.y = -upper; B['hand' + side].position.y = -fore; }
+  model.root.updateWorldMatrix(true, true);
+  return f;
+}
+
 /** Swap a procedural soldier's body for a custom skinned mesh (rig must still be in its zero pose). */
 export function applyCustomBody(model, custom, opts = {}) {
   if (!custom || model.custom) return null;
   for (const n in model.bones) model.bones[n].rotation.set(0, 0, 0);
+  try { fitRigToMesh(model, custom); } catch (e) { console.warn('[glb] rig fit failed', e); }
   const skinned = skinToRig(custom, model.bones, model.root);
   if (opts.neon || opts.tint) { const key = 'mat:' + (opts.neon || '') + ':' + (opts.tint || ''); custom._mats = custom._mats || {}; if (!custom._mats[key]) { const m = custom.material.clone(); if (opts.tint) m.color.set(opts.tint); if (opts.neon) makeNeonMask(m, opts.neon); custom._mats[key] = m; } skinned.material = custom._mats[key]; }
   for (const m of model.meshes) m.visible = false;

@@ -163,3 +163,10 @@ html, body, #app, #ui, #gl { cursor: none !important; }
 #ui > .tac-map .tac-player::before { content: ''; position: absolute; left: -7px; top: -9px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 16px solid #fff; filter: drop-shadow(0 0 6px #00e5ff); }
 #ui > .tac-map .tac-objective { display: none; }
 @keyframes tacPulse { 0%, 100% { box-shadow: 0 0 6px rgba(0,229,255,0.5); } 50% { box-shadow: 0 0 16px rgba(0,229,255,1); } }
+
+/* No visible scrollbars anywhere in the menu layer (content is designed to fit; lists scroll invisibly) */
+#ui *, #ui { scrollbar-width: none; -ms-overflow-style: none; }
+#ui *::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.scr-footer { display: none !important; }
+.loadout-screen { padding-bottom: 24px; }
+.op-screen .scr-header, .scr-header { justify-content: flex-start; }

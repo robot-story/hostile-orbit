@@ -170,12 +170,7 @@ export class CharacterAnimator {
       const c = this.cur[n], t = T[n];
       if (!robotic) { c[0] += (t[0] - c[0]) * k; c[1] += (t[1] - c[1]) * k; c[2] += (t[2] - c[2]) * k; continue; }
       // servo feel without jank: quicker approach with a critically-damped settle (no detents, no visible overshoot)
-      const v = this.vel[n];
-      for (let i = 0; i < 3; i++) {
-        const d = t[i] - c[i];
-        v[i] = v[i] * Math.exp(-18 * dt) + d * 6 * dt;
-        c[i] += d * k + v[i] * 0.12;
-      }
+      for (let i = 0; i < 3; i++) { const d = t[i] - c[i]; c[i] += d * k; }
     }
     this.rootY = damp(this.rootY, rootTarget - (this.land || 0) * 0.22, 10, dt);
     this.lean = damp(this.lean, leanTarget, 10, dt);

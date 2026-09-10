@@ -24,7 +24,7 @@ export function createMainScreen(api, mgr) {
     const list = el('div', { class: 'main-menu-list stagger' });
     const items = [
       hasOp && menuButton(api, { label: 'Continue Operation', onClick: () => { api.continueOperation(); } }),
-      menuButton(api, { label: inLobby ? 'Return to Squad' : 'New Deployment', onClick: () => mgr.show('operation') }),
+      inLobby && menuButton(api, { label: 'Return to Squad', onClick: () => mgr.show('operation') }),
       !inLobby && menuButton(api, { label: 'Single Player', onClick: () => mgr.show('operation') }),
       menuButton(api, { label: 'Multiplayer', onClick: () => mgr.show('multiplayer') }),
       menuButton(api, { label: 'Armoury', onClick: () => mgr.show('armoury') }),

@@ -243,15 +243,15 @@ export function screenHeader(api, { title, tabs, activeTab, onTab } = {}) {
     el('div', { class: 'hd-res' }, [el('span', { class: 'hd-res-icon', html: icon('intel') }), el('span', { class: 'hd-res-val', text: profile.intel })]),
     el('div', { class: 'hd-level', text: `LEVEL ${profile.level}` }),
   ]);
+  void right; void tabs; void activeTab; void onTab;
   return el('div', { class: 'scr-header' }, [
     el('div', { class: 'hd-title' }, [el('span', { class: 'hd-emblem', html: icon('chevronBig') }), el('span', { class: 'hd-title-text', text: title })]),
-    tabs && tabs.length ? tabStrip(api, tabs, activeTab, onTab) : el('div', { class: 'hd-tabs-spacer' }),
-    right,
+    el('div', { class: 'hd-tabs-spacer' }),
   ]);
 }
 
 export function screenFooter(hints = []) {
-  return el('div', { class: 'scr-footer' }, hints.map((h) => el('div', { class: 'ft-hint' }, [el('span', { class: 'keycap small', text: h.key }), el('span', { class: 'ft-label', text: h.label })])));
+  void hints; return el('div', { class: 'scr-footer', style: { display: 'none' } }, [].map((h) => el('div', { class: 'ft-hint' }, [el('span', { class: 'keycap small', text: h.key }), el('span', { class: 'ft-label', text: h.label })])));
 }
 
 /* ---------------------------------------------------------------- stars */

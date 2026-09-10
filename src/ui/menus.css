@@ -155,7 +155,7 @@
 .begin-btn { font-size: 16px; padding: 14px 30px; }
 
 /* ============================================================ LOADOUT */
-.loadout-screen { position: absolute; inset: 0; height: 100%; box-sizing: border-box; padding: 0 26px; padding-top: 70px; padding-bottom: 60px; display: flex; gap: 20px; }
+.loadout-screen { position: absolute; inset: 0; height: 100%; box-sizing: border-box; padding: 0 26px; padding-top: 70px; padding-bottom: 24px; display: flex; gap: 20px; }
 .loadout-screen > * { min-height: 0; max-height: 100%; overflow-y: auto; }
 .lo-col-left { width: 340px; display: flex; flex-direction: column; gap: 8px; }
 .lo-col-center { flex: 1 1 auto; }
