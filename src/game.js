@@ -355,7 +355,7 @@ export class Game {
     try {
       // captures always render at 1280x720 (a hidden pane collapses the canvas to 0x0, and critics want consistent frames)
       const R = this.renderer; const W = 1280, H = 720;
-      R.renderer.setSize(W, H, false); R.composer?.setSize(W, H);
+      R.renderer.setSize(W, H, false); R.composer?.setSize(W, H); R.width = W; R.height = H;
       const cam = this.mode === 'showcase' || this.session ? this.camera : (this.menuScene?.camera || this.camera);
       const prevAspect = cam.aspect; cam.aspect = W / H; cam.updateProjectionMatrix();
       R.render(0);
