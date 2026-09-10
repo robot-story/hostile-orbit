@@ -379,7 +379,7 @@ export function makeNeonMask(material, color) {
   }
   ctx.putImageData(id, 0, 0);
   const em = new THREE.CanvasTexture(cv); em.colorSpace = THREE.SRGBColorSpace; em.flipY = tex.flipY; em.wrapS = tex.wrapS; em.wrapT = tex.wrapT;
-  material.emissiveMap = em; material.emissive = new THREE.Color('#ffffff'); material.emissiveIntensity = 1.6; material.needsUpdate = true;
+  material.emissiveMap = em; material.emissive = new THREE.Color('#ffffff'); material.emissiveIntensity = 0.9; material.needsUpdate = true;
 }
 
 /** Roll a ball-mounted body: spin the sphere with ground velocity, squash it on landing. */

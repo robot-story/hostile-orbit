@@ -129,7 +129,7 @@ export function hoverWreck(world, position, yaw = 0, opts = {}) {
   const hull = box(4, 0.9, 2, bodyMat); hull.position.y = 0.6; g.add(hull);
   const cabin = box(2.2, 0.6, 1.7, Mat.panel(1)); cabin.position.set(-0.3, 1.25, 0); g.add(cabin);
   const skirt = box(4.2, 0.3, 2.2, Mat.darkMetal()); skirt.position.y = 0.18; g.add(skirt);
-  const deadNeon = mesh(boxGeo(2.6, 0.06, 0.06), new THREE.MeshStandardMaterial({ color: '#1a1a1c', emissive: '#3a1020', emissiveIntensity: 0.25 }), false);
+  const deadNeon = mesh(boxGeo(2.6, 0.06, 0.06), new THREE.MeshStandardMaterial({ color: '#1a1a1c', emissive: '#3a1020', emissiveIntensity: 0.45 }), false);
   deadNeon.position.set(0, 0.95, 1.02); g.add(deadNeon);
   place(g, position, yaw);
   world.props.add(g);
@@ -156,7 +156,7 @@ export function planter(world, position, yaw = 0, opts = {}) {
   const g = new THREE.Group();
   const pot = cyl(0.55, 0.65, 0.6, Mat.concrete()); pot.position.y = 0.3; g.add(pot);
   const stalk = cyl(0.04, 0.07, 1.0, Mat.darkMetal(), 5); stalk.position.y = 1.0; g.add(stalk);
-  const bulb = mesh(icoGeo(0.22, 0), new THREE.MeshStandardMaterial({ color: '#0a1216', emissive: COLORS.cyanDim, emissiveIntensity: 0.5, roughness: 0.6 }), false);
+  const bulb = mesh(icoGeo(0.22, 0), new THREE.MeshStandardMaterial({ color: '#0a1216', emissive: COLORS.cyanDim, emissiveIntensity: 0.90, roughness: 0.6 }), false);
   bulb.position.y = 1.5; g.add(bulb);
   place(g, position, yaw);
   world.props.add(g);
