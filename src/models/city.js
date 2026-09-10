@@ -273,8 +273,8 @@ export function holoBillboard(world, pos, yaw = 0, opts = {}) {
   const posterMat = Mat.poster(opts.text || slogan, opts.sub || sub, color, _cityPosterIdx++);
   posterMat.transparent = true; posterMat.opacity = 0.82; posterMat.side = THREE.DoubleSide; posterMat.depthWrite = false;
   const poster = mesh(planeGeo(w, h), posterMat, false);
-  poster.position.y = mastH + h / 2 + 0.4; poster.userData.noMerge = true; g.add(poster);
-  const frame = box(w + 0.2, h + 0.2, 0.06, Mat.darkMetal(), false); frame.position.y = poster.position.y; g.add(frame);
+  poster.position.y = mastH + h / 2 + 0.4; poster.position.z = 0.06; poster.userData.noMerge = true; g.add(poster); // in front of the backing plate, never inside it
+  const frame = box(w + 0.2, h + 0.2, 0.06, Mat.darkMetal(), false); frame.position.y = poster.position.y; frame.position.z = -0.02; g.add(frame);
   const glow = pointGlow(color, 6, 12); glow.position.y = poster.position.y; if (opts.light) g.add(glow);
   place(g, new THREE.Vector3(pos.x, y0, pos.z), yaw);
   g.userData.noMerge = true;
