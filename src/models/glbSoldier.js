@@ -292,7 +292,9 @@ function legless(custom) {
   if (custom.leglessGeo) return custom.leglessGeo;
   const f = measureBody(custom); const geo = custom.geometry; const pos = geo.attributes.position, nrm = geo.attributes.normal, uv = geo.attributes.uv; const idx = geo.index;
   const tri = idx ? idx.count / 3 : pos.count / 3; const P = [], Nn = [], U = []; const I = []; const remap = new Int32Array(pos.count).fill(-1);
-  const isLeg = (i) => pos.getY(i) < f.crotchY + 0.05 && Math.abs(pos.getX(i)) < f.hipX + 0.16;
+  const cutY = f.crotchY + 0.16; // waist line: everything below goes, except the hanging arms/hands
+  const isLeg = (i) => pos.getY(i) < cutY && !(Math.abs(pos.getX(i)) > f.armCx - 0.1 && pos.getY(i) > f.crotchY - 0.2);
+  custom.waistCut = cutY;
   const push = (i) => { if (remap[i] >= 0) return remap[i]; remap[i] = P.length / 3; P.push(pos.getX(i), pos.getY(i), pos.getZ(i)); if (nrm) Nn.push(nrm.getX(i), nrm.getY(i), nrm.getZ(i)); if (uv) U.push(uv.getX(i), uv.getY(i)); return remap[i]; };
   for (let t = 0; t < tri; t++) {
     const a = idx ? idx.getX(t * 3) : t * 3, b = idx ? idx.getX(t * 3 + 1) : t * 3 + 1, c = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
@@ -317,16 +319,14 @@ export function attachBall(model, radius = 0.44) {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.98, 0.018, 8, 48), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.1, roughness: 0.3 }));
   ring.rotation.x = Math.PI / 2; g.add(ring);
 
-  // gyro housing between ball and pelvis (does not roll): matte band, radial struts, overlapping skirt plates, thin inner ring
+  // waist collar at the top of the ball (does not roll): matte ring, four short struts, thin emissive lip, two vents
   const collar = new THREE.Group(); collar.name = 'collar';
   const matte = new THREE.MeshStandardMaterial({ color: '#2c3038', roughness: 0.55, metalness: 0.7 });
-  const plate = new THREE.MeshStandardMaterial({ color: '#d8d8dc', roughness: 0.5, metalness: 0.3 });
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.62, radius * 0.7, 0.16, 24, 1, true), new THREE.MeshStandardMaterial({ color: '#2c3038', roughness: 0.55, metalness: 0.7, side: THREE.DoubleSide })); band.position.y = radius * 0.86; collar.add(band);
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.5, radius * 0.5, 0.08, 20), matte); hub.position.y = radius * 1.0; collar.add(hub);
-  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; const strut = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.05), matte); strut.position.set(Math.cos(a) * radius * 0.6, radius * 0.78, Math.sin(a) * radius * 0.6); strut.rotation.z = Math.cos(a) * 0.35; strut.rotation.x = -Math.sin(a) * 0.35; collar.add(strut); }
-  for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const sk = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.14), plate); sk.position.set(Math.cos(a) * radius * 0.74, radius * 0.72, Math.sin(a) * radius * 0.74); sk.rotation.y = -a; sk.rotation.z = 0.5; collar.add(sk); }
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.56, 0.014, 8, 40), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.6 })); lip.rotation.x = Math.PI / 2; lip.position.y = radius * 0.94; collar.add(lip);
-  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2 + 0.3; const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.06, 8), matte); vent.position.set(Math.cos(a) * radius * 0.66, radius * 0.66, Math.sin(a) * radius * 0.66); vent.rotation.z = Math.cos(a) * 0.9; vent.rotation.x = -Math.sin(a) * 0.9; collar.add(vent); }
+  const ringM = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.48, 0.045, 10, 40), matte); ringM.rotation.x = Math.PI / 2; ringM.position.y = radius * 0.9; collar.add(ringM);
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.46, radius * 0.6, 0.14, 24, 1, true), new THREE.MeshStandardMaterial({ color: '#2c3038', roughness: 0.55, metalness: 0.7, side: THREE.DoubleSide })); cup.position.y = radius * 0.8; collar.add(cup);
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; const strut = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 0.06), matte); strut.position.set(Math.cos(a) * radius * 0.54, radius * 0.72, Math.sin(a) * radius * 0.54); strut.rotation.z = Math.cos(a) * 0.5; strut.rotation.x = -Math.sin(a) * 0.5; collar.add(strut); }
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.5, 0.014, 8, 40), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.6 })); lip.rotation.x = Math.PI / 2; lip.position.y = radius * 0.96; collar.add(lip);
+  for (let i = 0; i < 2; i++) { const a = i * Math.PI + 0.6; const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.07, 8), matte); vent.position.set(Math.cos(a) * radius * 0.62, radius * 0.6, Math.sin(a) * radius * 0.62); vent.rotation.z = Math.cos(a) * 1.0; vent.rotation.x = -Math.sin(a) * 1.0; collar.add(vent); }
   const roll = new THREE.Group(); roll.add(g); roll.position.y = radius;
   const holder = new THREE.Group(); holder.name = 'ballRig'; holder.add(roll); collar.position.y = radius; holder.add(collar);
   model.root.add(holder);
@@ -344,7 +344,7 @@ export function applyCustomBody(model, custom, opts = {}) {
     const sub = custom._legless || (custom._legless = { ...custom, geometry: legless(custom), skinnedGeo: null, _mats: custom._mats, fit: custom.fit });
     custom._legless.fit = custom.fit; skinned = skinToRig(sub, model.bones, model.root); custom._legless = sub;
     // torso rides higher: pelvis sits on top of the ball
-    const r = opts.ballRadius || 0.44; model.bones.root.position.y = r * 2 + 0.02; model.root.updateWorldMatrix(true, true);
+    const r = opts.ballRadius || 0.58; const cut = custom.waistCut ?? (custom.fit.crotchY + 0.16); model.ballRootY = (custom.fit.crotchY + 0.04) + (r * 2 - 0.05 - cut); model.bones.root.position.y = model.ballRootY; model.root.updateWorldMatrix(true, true);
     attachBall(model, r);
   } else skinned = skinToRig(custom, model.bones, model.root);
   if (opts.neon || opts.tint) { const key = 'mat:' + (opts.neon || '') + ':' + (opts.tint || ''); custom._mats = custom._mats || {}; if (!custom._mats[key]) { const m = custom.material.clone(); if (opts.tint) m.color.set(opts.tint); if (opts.neon) makeNeonMask(m, opts.neon); custom._mats[key] = m; } skinned.material = custom._mats[key]; }

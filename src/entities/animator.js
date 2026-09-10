@@ -256,7 +256,7 @@ export class CharacterAnimator {
       B.thighL.rotation.x -= kL * 0.5; B.shinL.rotation.x += kL; B.footL.rotation.x -= kL * 0.5;
       B.thighR.rotation.x -= kR * 0.5; B.shinR.rotation.x += kR; B.footR.rotation.x -= kR * 0.5;
     } else { this.plantY = damp(this.plantY ?? 0, 0, 12, dt); this.plantL = damp(this.plantL ?? 0, 0, 12, dt); this.plantR = damp(this.plantR ?? 0, 0, 12, dt); }
-    B.root.position.y = (this.model?.ballRadius ? this.model.ballRadius * 2 + 0.02 : 0.98) + this.rootY + bob + (this.model?.ballRadius ? 0 : (this.plantY || 0));
+    B.root.position.y = (this.model?.ballRadius ? this.model.ballRootY : 0.98) + this.rootY + bob + (this.model?.ballRadius ? 0 : (this.plantY || 0));
     if (s.roll != null) { const k = Math.min(1, s.roll); B.root.rotation.set(-k * Math.PI * 2, 0, 0); B.root.scale.setScalar(1); }
     else if (s.transform != null) {
       // transformer tuck: the frame folds into a compact block, spins once, and unfolds
