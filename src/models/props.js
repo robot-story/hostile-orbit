@@ -130,20 +130,47 @@ export function sandbagWall(world, position, yaw = 0, opts = {}) {
 
 // --------------------------------------------------------------- wrecks ---
 export function wreckedTransport(world, position, yaw = 0, opts = {}) {
+  // A Commonwealth dropship that came in hard: fuselage with a snapped tail boom, one wing sheared off, engine
+  // nacelles, a dropped rear ramp spilling crates, and hull plates peeled back with red-orange fire glow inside.
   const g = new THREE.Group();
   const flicker = new THREE.MeshStandardMaterial({ color: COLORS.redOrange, emissive: COLORS.redOrange, emissiveIntensity: 1.6, roughness: 0.5 });
-  const hull = box(10, 3, 3.4, Mat.darkMetal()); hull.rotation.z = 0.12; hull.position.set(0, 1.6, 0); g.add(hull);
-  const nose = mesh(cylGeo(0, 1.6, 3, 8), Mat.darkMetal()); nose.rotation.z = Math.PI / 2; nose.position.set(5.6, 1.9, 0); g.add(nose);
-  const tail = box(3.2, 2, 3, Mat.panel(2)); tail.rotation.z = -0.35; tail.position.set(-5.5, 2.6, 0.4); g.add(tail);
-  const wingL = box(4.2, 0.25, 1.4, Mat.darkMetal()); wingL.rotation.set(0, 0.3, 0.5); wingL.position.set(-1, 2.6, 2.3); g.add(wingL);
-  for (const [dx, dz] of [[2, 1.5], [-2.5, -1.4]]) {
-    const glow = box(0.5, 0.1, 0.1, flicker, false); glow.position.set(dx, 1.9, dz); g.add(glow);
+  const dark = Mat.darkMetal(); const skin = Mat.panel(2); const skin2 = Mat.panel(1);
+  const body = new THREE.Group(); body.rotation.z = 0.1; body.rotation.x = -0.06; body.position.y = 1.5; g.add(body);
+  const fuse = mesh(cylGeo(1.7, 1.7, 9, 10), skin); fuse.rotation.z = Math.PI / 2; body.add(fuse);
+  const belly = box(7, 0.8, 3.2, dark); belly.position.set(0, -1.4, 0); body.add(belly);
+  const spine = box(8.5, 0.5, 1.2, skin2); spine.position.set(0, 1.55, 0); body.add(spine);
+  const cockpit = mesh(cylGeo(0.7, 1.7, 3.2, 10), skin2); cockpit.rotation.z = -Math.PI / 2; cockpit.position.set(6.1, 0.05, 0); body.add(cockpit);
+  const canopy = box(1.6, 0.9, 1.9, Mat.neon('#101a20', 0.2)); canopy.position.set(5.2, 0.9, 0); canopy.rotation.z = 0.35; body.add(canopy);
+  // engine nacelles on stub pylons, one torn open
+  for (const sz of [-1, 1]) {
+    const pylon = box(2.2, 0.5, 1.6, dark); pylon.position.set(0.5, 0.5, sz * 2.2); body.add(pylon);
+    const nac = mesh(cylGeo(0.85, 0.95, 3.6, 10), skin2); nac.rotation.z = Math.PI / 2; nac.position.set(0.3, 0.6, sz * 3.4); body.add(nac);
+    const intake = mesh(cylGeo(0.62, 0.62, 0.3, 10), Mat.neon(sz > 0 ? '#1a0d08' : COLORS.redOrange, sz > 0 ? 0.2 : 1.4)); intake.rotation.z = Math.PI / 2; intake.position.set(-1.6, 0.6, sz * 3.4); intake.castShadow = false; body.add(intake);
   }
+  // one wing intact and bent, the other sheared into a stub with torn spars
+  const wingL = box(5.5, 0.22, 2.6, skin); wingL.rotation.set(0.15, 0.1, 0.42); wingL.position.set(-0.5, 0.9, 4.6); body.add(wingL);
+  const stub = box(1.8, 0.22, 2.4, skin); stub.position.set(-0.5, 0.9, -3.2); body.add(stub);
+  for (let i = 0; i < 3; i++) { const spar = box(1.2, 0.08, 0.1, dark); spar.position.set(-1.2 + i * 0.6, 0.9 + i * 0.05, -4.4 - i * 0.15); spar.rotation.y = 0.3 * (i - 1); body.add(spar); }
+  // snapped tail boom lying behind the hull at an angle, fin still attached
+  const boom = mesh(cylGeo(0.7, 1.2, 5, 8), skin); boom.rotation.z = Math.PI / 2 + 0.55; boom.rotation.y = 0.4; boom.position.set(-7.6, 0.9, 1.6); g.add(boom);
+  const fin = box(1.8, 2.4, 0.15, skin2); fin.position.set(-9.6, 2.6, 2.4); fin.rotation.set(0.2, 0.4, -0.3); g.add(fin);
+  const finStrip = box(1.5, 0.06, 0.2, Mat.neon(COLORS.cyan, 1.2)); finStrip.position.set(-9.6, 3.6, 2.4); finStrip.rotation.set(0.2, 0.4, -0.3); finStrip.castShadow = false; g.add(finStrip);
+  // rear ramp dropped, crates spilled down it
+  const ramp = box(3.4, 0.2, 2.6, dark); ramp.position.set(-5.9, 0.45, -0.4); ramp.rotation.z = 0.5; g.add(ramp);
+  for (let i = 0; i < 3; i++) { const c = box(0.9, 0.9, 0.9, i === 1 ? skin2 : Mat.panel(0)); c.position.set(-7.4 - i * 0.9, 0.45, -0.7 + (i % 2) * 0.9); c.rotation.y = i * 0.7; g.add(c); }
+  // peeled hull plates and internal fire glow
+  for (const [px, py, pz, ry] of [[1.5, 3.05, 1.1, 0.5], [-1.8, 3.0, -1.3, -0.7], [3.2, 2.2, -1.7, 0.2]]) { const plate = box(1.6, 0.08, 1.2, skin); plate.position.set(px, py, pz); plate.rotation.set(ry, 0.3, ry * 0.6); g.add(plate); }
+  for (const [dx, dy, dz] of [[1.2, 2.2, 1.4], [-1.9, 2.1, -1.5], [-5.6, 1.3, -0.4]]) { const glow = box(0.8, 0.5, 0.5, flicker, false); glow.position.set(dx, dy, dz); g.add(glow); const pl = new THREE.PointLight(COLORS.redOrange, 2.2, 7, 2); pl.position.set(dx, dy + 0.3, dz); pl.castShadow = false; g.add(pl); }
+  // strip lighting still alive on the spine
+  const spineStrip = box(6, 0.05, 0.08, Mat.neon(COLORS.cyan, 0.8)); spineStrip.position.set(0, 3.35, 0.65); spineStrip.castShadow = false; g.add(spineStrip);
   place(g, position, yaw);
   world.props.add(g);
+  const cx = Math.cos(yaw), sx = Math.sin(yaw);
+  const local = (lx, lz) => new THREE.Vector3(position.x + cx * lx + sx * lz, 0, position.z - sx * lx + cx * lz);
   const colliders = [
-    world.addBox(new THREE.Vector3(position.x, position.y + 1.6, position.z), { x: 5, y: 1.5, z: 1.6 }, yaw, { material: 'metal', mesh: hull }),
-    world.addBox(new THREE.Vector3(position.x - 5.3, position.y + 2.4, position.z + 0.4), { x: 1.5, y: 1, z: 1.5 }, yaw, { material: 'metal', mesh: tail }),
+    world.addBox(local(1.2, 0).setY(position.y + 1.6), { x: 6.2, y: 1.7, z: 2.2 }, yaw, { material: 'metal', mesh: fuse }),
+    world.addBox(local(0.3, 3.4).setY(position.y + 2), { x: 1.8, y: 0.9, z: 0.95 }, yaw, { material: 'metal', mesh: g }),
+    world.addBox(local(-7.6, 1.6).setY(position.y + 0.9), { x: 2.4, y: 1.0, z: 1.8 }, yaw, { material: 'metal', mesh: boom }),
   ];
   const animated = { update: (dt) => { flicker.emissiveIntensity = 1.2 + Math.sin(performance.now() * 0.006 + position.x) * 0.6 + (Math.random() < 0.02 ? -1 : 0); } };
   world.addUpdatable(animated);
@@ -243,10 +270,14 @@ export function posterFrame(world, position, yaw = 0, opts = {}) {
   const accent = opts.accent || COLORS.cyan;
   const w = opts.w || 2.4, h = opts.h || 3;
   const frame = box(w + 0.1, h + 0.1, 0.06, Mat.darkMetal(), false); frame.position.z = -0.02; g.add(frame);
+  // free-standing (ground position): lift the board onto two legs with a light strip along the top edge
+  const lift = opts.stand ? h / 2 + 0.55 : 0;
+  if (opts.stand) { for (const dx of [-w / 2 + 0.1, w / 2 - 0.1]) { const leg = box(0.12, lift + h / 2 - 0.2, 0.12, Mat.darkMetal()); leg.position.set(dx, -lift + (lift + h / 2 - 0.2) / 2, -0.06); g.add(leg); } const strip = box(w, 0.05, 0.08, Mat.neon(accent, 1.3)); strip.position.set(0, h / 2 + 0.08, 0.02); strip.castShadow = false; g.add(strip); }
   const useArt = opts.art ?? (Math.random() < 0.55);
   const p = mesh(planeGeo(w, h), useArt ? Mat.posterImage(POSTER_ART[_artIdx++ % POSTER_ART.length]) : Mat.poster(slogan, sub, accent, _posterIdx++));
+  p.position.z = 0.04; // in front of the frame plate (the plate is 0.06 thick and would otherwise swallow the poster)
   g.add(p);
-  place(g, position, yaw);
+  place(g, position, yaw); g.position.y += lift;
   world.props.add(g);
   opts.postersOut && opts.postersOut.push(p);
   return { group: g, poster: p };

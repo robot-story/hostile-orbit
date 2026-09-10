@@ -117,7 +117,7 @@ export function dressMeridian(world, info) {
     pushRes(info, crateStack(world, at(world, 184, 44), 0.4)); pushRes(info, crate(world, at(world, 188, 38), 1.1)); pushRes(info, ammoCache(world, at(world, 182, 36), 0.2)); pushRes(info, crate(world, at(world, 218, 36), 0.7)); pushRes(info, crateStack(world, at(world, 222, 42), 2.1));
     for (const [mx, my, yaw] of [[190, 66, 0], [200, 70, 0], [210, 66, 0]]) sandbagWall(world, at(world, mx, my), yaw, { length: 3.6 });
     lightTower(world, at(world, 170, 45), 0, { color: COLORS.cyan }); lightTower(world, at(world, 230, 45), 0, { color: COLORS.cyan });
-    pushRes(info, posterFrame(world, at(world, 222, 30), -Math.PI * 0.8, { slogan: 'A CLEANER TOMORROW, TOGETHER.' }));
+    pushRes(info, posterFrame(world, at(world, 222, 30), -Math.PI * 0.8, { stand: true,  slogan: 'A CLEANER TOMORROW, TOGETHER.' }));
     pushRes(info, billboard(world, at(world, 226, 24), -Math.PI * 0.75, { accent: COLORS.cyan }));
     scorchDecal(world, at(world, 214, 52), 3.2, { rubble: false }); scorchDecal(world, at(world, 186, 54), 2.6, { rubble: false });
     groundStrip(world, [[200, 60], [200, 90], [200, 125]], 2.4);
@@ -133,7 +133,7 @@ export function dressMeridian(world, info) {
     boneArch(world, at(world, 200, 150), 0, { height: 10 });
     for (const [mx, my, h] of [[178, 140, 7], [181, 146, 5], [176, 147, 6]]) blackGlassTree(world, at(world, mx, my), { height: h });
     sporeField(world, at(world, 180, 143), { count: 50, radius: 9, color: COLORS.violet });
-    pushRes(info, posterFrame(world, at(world, 214, 120), -Math.PI / 2, { slogan: 'YOUR SACRIFICE HAS BEEN PRE-APPROVED.' }));
+    pushRes(info, posterFrame(world, at(world, 214, 120), -Math.PI / 2, { stand: true,  slogan: 'YOUR SACRIFICE HAS BEEN PRE-APPROVED.' }));
   }
   // 3. Main route: wayfinding pylons every ~35 m and the scars of the first orbital barrage.
   {
@@ -169,7 +169,7 @@ export function dressMeridian(world, info) {
     lightTower(world, at(world, 128, 294), 0, { color: '#ff5a1f' }); lightTower(world, at(world, 100, 316), 0, { color: '#ff5a1f' });
     const jam = at(world, 70, 320); jam.y += 9;
     for (const [mx, my] of [[92, 306], [50, 338], [84, 342]]) { const g = at(world, mx, my); const top = g.clone(); top.y += 4; buildPylon(world, g, 4, '#ff5a1f'); cableRun(world, jam, top, { radius: 0.07, sag: 3 }); cableRun(world, jam.clone().setY(jam.y - 0.6), top.clone().setY(top.y - 0.3), { radius: 0.03, sag: 3.4, neon: '#ff5a1f' }); }
-    pushRes(info, posterFrame(world, at(world, 116, 288), gateYaw + Math.PI, { slogan: 'THE FUTURE NEEDS FEWER QUESTIONS.' }));
+    pushRes(info, posterFrame(world, at(world, 116, 288), gateYaw + Math.PI, { stand: true,  slogan: 'THE FUTURE NEEDS FEWER QUESTIONS.' }));
     scorchDecal(world, at(world, 112, 296), 3);
   }
   // 7. Comms approach: antenna farm, a mega-billboard shouting at the canyon, container walls and floodlights.
@@ -186,9 +186,19 @@ export function dressMeridian(world, info) {
     for (const side of [-1, 1]) { const s = at(world, 304 + side * 7, 286), e = at(world, 313 + side * 7, 277); buildWallSegment(world, s, e, { height: 1.8, thick: 0.6 }); }
     for (let i = 0; i < 4; i++) { for (const side of [-1, 1]) { const p = at(world, 306 + i * 5 + side * 9, 283 - i * 5); if (onFloor(world, p.x, p.z)) lightTower(world, p, 0, { color: COLORS.cyan, height: 4 }); } }
     for (const [mx, my] of [[344, 232], [345.6, 233.2], [343, 233.9], [344.8, 231]]) pushRes(info, barrel(world, at(world, mx, my), rand(0, 6.28)));
-    pushRes(info, posterFrame(world, at(world, 347, 236), Math.PI, { slogan: 'FREEDOM IS ALWAYS LISTENING.' }));
+    pushRes(info, posterFrame(world, at(world, 347, 236), Math.PI, { stand: true,  slogan: 'FREEDOM IS ALWAYS LISTENING.' }));
     scorchDecal(world, at(world, 318, 262), 4); scorchDecal(world, at(world, 336, 268), 2.8, { rubble: false });
     boneArch(world, at(world, 356, 236), 1.2, { height: 8 }); blackGlassTree(world, at(world, 352, 266), { height: 8 });
+  }
+  // 9b. Propaganda pass: posters cluster where the Commonwealth wants eyes (gates, plazas, the cells).
+  {
+    const gateY = 0; // poster fronts face south, toward the road
+    for (let i = 0; i < 3; i++) { const p = at(world, 191 + i * 2.6, 281); if (onFloor(world, p.x, p.z, -0.5)) pushRes(info, posterFrame(world, p, gateY, { stand: true, w: 2.2, h: 2.8 })); }
+    for (let i = 0; i < 3; i++) { const p = at(world, 206 + i * 2.6, 281); if (onFloor(world, p.x, p.z, -0.5)) pushRes(info, posterFrame(world, p, gateY, { stand: true, w: 2.2, h: 2.8 })); }
+    pushRes(info, billboard(world, at(world, 216, 330), Math.PI / 2, { accent: COLORS.cyan })); pushRes(info, billboard(world, at(world, 194, 344), -Math.PI / 2, { accent: '#ff5a1f' }));
+    for (let i = 0; i < 2; i++) pushRes(info, posterFrame(world, at(world, 250, 350 + i * 3.4), -Math.PI / 2, { stand: true,  slogan: i ? 'REHABILITATION BEGINS WITH SILENCE.' : 'YOUR CELL IS A GIFT.', accent: '#ff5a1f' }));
+    for (const [mx, my] of [[124, 288], [96, 304]]) pushRes(info, posterFrame(world, at(world, mx, my), facing([110, 300], [70, 320]) + Math.PI, { stand: true, accent: '#ff5a1f', w: 2, h: 2.6 }));
+    pushRes(info, billboard(world, at(world, 300, 292), facing([300, 292], [330, 250]) + Math.PI, { accent: COLORS.cyan })); pushRes(info, billboard(world, at(world, 322, 296), facing([322, 296], [330, 250]) + Math.PI, { accent: COLORS.cyan }));
   }
   // 10. Landmarks: the frigate wreck on the western rim (visible from most of the valley) and the bone cathedral over the trench.
   { const p = M(48, 210); p.y = world.terrain.getHeight(p.x, p.z) - 2; crashedFrigate(world, p, 0.9); }
@@ -219,6 +229,16 @@ export function dressLantern(world, info, cityFns) {
     const spire = at(world, 322, 318); spire.y += 12;
     for (const [mx, my] of [[300, 300], [340, 300], [332, 344]]) { const g = at(world, mx, my); const top = g.clone(); top.y += 5; buildPylon(world, g, 5, '#ff3fd8'); cableRun(world, spire, top, { radius: 0.06, sag: 3.5 }); }
     pushRes(info, holoBillboard(world, at(world, 286, 288), facing([286, 288], [300, 300]), { text: 'DISSENT DIMS THE LIGHTS', sub: 'LEGION POWER BOARD', color: '#ff3fd8', light: true }));
+  }
+  // Second content pass: the avenue is lined with screens; every block has something to say.
+  {
+    const lines = [['CURFEW 21:00', 'LIGHTS OFF, DOORS LOCKED'], ['REPORT UNLIT WINDOWS', 'LEGION POWER BOARD'], ['SMILE FOR THE LANTERN', 'IT IS WATCHING FOR YOU'], ['RATION CARDS RESET', 'QUEUE WITH DIGNITY'], ['THE MOON IS OURS', 'MERIDIAN COMMONWEALTH'], ['DISSENT DIMS THE LIGHTS', 'STAY BRIGHT']];
+    let k = 0;
+    for (const my of [100, 140, 180, 220, 255]) { const side = (k % 2) ? -1 : 1; const p = at(world, 200 + side * 14.5, my); if (onFloor(world, p.x, p.z, -0.5)) { const [text, sub] = lines[k % lines.length]; pushRes(info, holoBillboard(world, p, side > 0 ? Math.PI / 2 : -Math.PI / 2, { text, sub, color: k % 3 === 0 ? '#ff3fd8' : k % 3 === 1 ? '#00e5ff' : '#ffb347', mastHeight: 7 + (k % 2) * 3, light: k % 2 === 0 })); } k++; }
+    pushRes(info, holoBillboard(world, at(world, 182, 342), Math.PI / 2, { text: 'UPLINK SECURED', sub: 'BY ORDER OF THE BOARD', color: '#00e5ff', mastHeight: 8 }));
+    pushRes(info, holoBillboard(world, at(world, 208, 346), -Math.PI / 2, { text: 'SILENCE IS SERVICE', sub: 'COMMS DIRECTORATE', color: '#ff3fd8', mastHeight: 8 }));
+    pushRes(info, neonSign(world, at(world, 150, 350), Math.PI / 2, { text: 'HOLDING FACILITY 7', sub: 'VISITING HOURS: NEVER', color: '#ffb347', mount: 'pole' }));
+    pushRes(info, holoBillboard(world, at(world, 84, 258), facing([84, 258], [72, 246]), { text: 'EXTRACTION IS A PRIVILEGE', sub: 'NOT A RIGHT', color: '#00e5ff', mastHeight: 6, light: true }));
   }
   // Landmarks: the Commonwealth's face over Lantern Square, and the orbital tether rising from the substation spire.
   giantHolo(world, at(world, 200, 125), { height: 56, color: '#00e5ff' });

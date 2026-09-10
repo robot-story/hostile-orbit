@@ -148,6 +148,7 @@ export class Player {
     this.lastAnimState = s;
     this.anim.update(dt, s);
     rollBall(this.model, this.grounded ? this.velocity.x : this.velocity.x * 0.3, this.grounded ? this.velocity.z : this.velocity.z * 0.3, dt, this.anim.land || 0, this.model.root.rotation.y, this.crouching ? 1 : 0);
+    if (this.model.ball && this.grounded && speedN > 0.2 && !this.onMetal) { const sp = Math.hypot(this.velocity.x, this.velocity.z); this._trackD = (this._trackD || 0) + sp * dt; if (this._trackD > 0.55 && sp > 0.5) { this._trackD = 0; const hd = Math.atan2(this.velocity.x, this.velocity.z); this.fx?.trackMark?.(this.position.clone().add(new THREE.Vector3(-this.velocity.x / sp * 0.3, 0, -this.velocity.z / sp * 0.3)), hd, 1.15, 0.46 + speedN * 0.08); } }
     if (this.model.ball && this.grounded && speedN > 0.3) { this._rollDustT = (this._rollDustT || 0) - dt; if (this._rollDustT <= 0) { this._rollDustT = 0.16 - speedN * 0.08; this.fx.dust?.(this.position.clone().add(new THREE.Vector3(-this.velocity.x * 0.05, 0.05, -this.velocity.z * 0.05)), 0.25 + speedN * 0.4); } }
     this.model.root.position.copy(this.position);
     this.model.root.rotation.y = this.yaw + Math.PI;
@@ -280,6 +281,7 @@ export class Player {
     this.vy -= (this.jet ? 6 : 22) * dt;
     let y = this.position.y + this.vy * dt;
     if (y <= g + 0.02 && !(this.jet && this.vy > 0)) { y = this.grounded ? damp(this.position.y, g, 30, dt) : g; if (!this.grounded) { this.landT = Math.min(0.5, Math.max(0.16, -this.vy * 0.05)); if (this.vy < -6) audio.play('land', { pos: this.position }); this.fx?.dust?.(this.position.clone(), Math.min(3, -this.vy * 0.3 + 0.5)); } this.grounded = true; this.vy = 0; if (g - this.position.y > 0.05) y = damp(this.position.y, g, 25, dt); }
+    else if (this.grounded && !this.jet && this.vy <= 0 && y - g < 0.6) { y = g; this.vy = 0; } // ground stick: follow descending slopes instead of drifting off them
     else this.grounded = y - g < 0.15;
     if (this.grounded && y < g) y = g;
     this.position.y = y;

@@ -325,7 +325,7 @@ export class CharacterAnimator {
     up.quaternion.copy(_ikQb.slerp(_ikQ, blend));
     _ikE.set(bend, 0, 0); _ikQ.setFromEuler(_ikE); _ikQb.setFromEuler(fo.rotation);
     fo.quaternion.copy(_ikQb.slerp(_ikQ, blend));
-    if (side === 'L') ha.rotation.set(0.35, 0.2, -0.9); else ha.rotation.set(0.3, -0.1, 0.45); // wrap the foregrip / pistol grip
+    if (side === 'L') ha.rotation.set(0.7, 0.55, -1.35); else ha.rotation.set(0.3, -0.1, 0.45); // wrap the foregrip / pistol grip
   }
   kick(amount = 1) { this.recoil = Math.min(1.5, this.recoil + amount); }
   hitReact(dir = 0, amount = 1) { this.hit = Math.min(1.2, this.hit + amount); this.hitDir = dir; }

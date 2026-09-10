@@ -85,6 +85,27 @@ export function buildWallSegment(world, start, end, opts = {}) {
   return { mesh: m, collider, start: start.clone(), end: end.clone(), height };
 }
 
+/** Perimeter fence panel: two posts, a solid lower plate and a slatted upper section with horizontal gun slits, with
+ *  a visible gap at each post so the ring reads as bolted panels rather than one poured wall. One collider per panel. */
+export function buildFencePanel(world, start, end, opts = {}) {
+  const height = opts.height ?? 2.5, thick = 0.16;
+  const dx = end.x - start.x, dz = end.z - start.z; const len = Math.hypot(dx, dz); if (len < 0.5) return null;
+  const yaw = yawAlong(dx, dz); const midX = (start.x + end.x) / 2, midZ = (start.z + end.z) / 2; const y = world.terrain.getHeight(midX, midZ);
+  const g = new THREE.Group(); g.position.set(midX, y, midZ); g.rotation.y = yaw;
+  const panelLen = len - 0.7;
+  for (const sx of [-1, 1]) { const post = box(0.32, height + 0.3, 0.32, Mat.panel(0)); post.position.set(sx * (len / 2 - 0.16), (height + 0.3) / 2, 0); g.add(post); const cap = box(0.4, 0.08, 0.4, Mat.neon(opts.neonColor || COLORS.cyan, 1.6)); cap.position.set(sx * (len / 2 - 0.16), height + 0.32, 0); cap.castShadow = false; g.add(cap); }
+  const lower = box(panelLen, 1.15, thick, Mat.panel(2)); lower.position.set(0, 0.6, 0); g.add(lower);
+  const stripe = box(panelLen, 0.12, thick + 0.02, Mat.hazard()); stripe.position.set(0, 0.1, 0); g.add(stripe);
+  // slatted upper section: three slats with two gun slits between them
+  for (let i = 0; i < 3; i++) { const slat = box(panelLen, 0.3, thick, Mat.panel(1)); slat.position.set(0, 1.35 + i * 0.44, 0); g.add(slat); }
+  for (let i = 0; i < 2; i++) { const slit = box(panelLen - 0.3, 0.05, thick + 0.04, Mat.neon(opts.neonColor || COLORS.cyan, 0.45)); slit.position.set(0, 1.57 + i * 0.44, 0); slit.castShadow = false; g.add(slit); }
+  const rail = box(panelLen, 0.1, thick + 0.1, Mat.darkMetal()); rail.position.set(0, height - 0.05, 0); g.add(rail);
+  const brace = box(0.12, height - 0.2, thick + 0.12, Mat.darkMetal()); brace.position.set(0, height / 2, 0); g.add(brace);
+  world.props.add(g);
+  const collider = world.addBox(new THREE.Vector3(midX, y + height / 2, midZ), { x: len / 2, y: height / 2, z: 0.2 }, yaw, { material: 'metal' });
+  return { group: g, collider, start: start.clone(), end: end.clone(), height };
+}
+
 /** A gate opening: two lit pillars + overhead beam marking a gap left in a wall ring. No collider blocks the opening. */
 export function buildGate(world, center, yaw, width = 6, opts = {}) {
   const g = new THREE.Group();
@@ -355,7 +376,7 @@ export function buildExtractionPlatform(world, center) {
     if (skip) continue;
     const p0 = new THREE.Vector3(center.x + Math.cos(a0) * wallR, 0, center.z + Math.sin(a0) * wallR);
     const p1 = new THREE.Vector3(center.x + Math.cos(a1) * wallR, 0, center.z + Math.sin(a1) * wallR);
-    buildWallSegment(world, p0, p1, { height: 2.4, material: 'concrete', neonColor: COLORS.cyan });
+    buildFencePanel(world, p0, p1, { height: 2.5, neonColor: COLORS.cyan });
   }
   for (const oa of openings) {
     const px = center.x + Math.cos(oa) * (wallR + 2.5), pz = center.z + Math.sin(oa) * (wallR + 2.5);

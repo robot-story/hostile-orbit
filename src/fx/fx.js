@@ -20,6 +20,17 @@ const BONE_PARENT = Object.fromEntries(BONES.map((b) => [b[0], b[1]]));
 function unitBox() { return new THREE.BoxGeometry(1, 1, 1); }
 function tetra() { return new THREE.TetrahedronGeometry(0.6, 0); }
 
+/** Soft dark streak for tyre/ball tracks in sand: darker centre, feathered edges, slight tread noise. */
+function makeTrackTex() {
+  const c = document.createElement('canvas'); c.width = 32; c.height = 64; const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 32, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.3, 'rgba(255,255,255,0.9)'); g.addColorStop(0.7, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 32, 64);
+  const v = ctx.createLinearGradient(0, 0, 0, 64); v.addColorStop(0, 'rgba(0,0,0,1)'); v.addColorStop(0.15, 'rgba(0,0,0,0)'); v.addColorStop(0.85, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = v; ctx.fillRect(0, 0, 32, 64);
+  for (let i = 0; i < 12; i++) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(6 + Math.random() * 20, i * 5.3, 6, 1.5); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
 export class FX {
   constructor(world) {
     this.world = world;
@@ -52,7 +63,7 @@ export class FX {
   _buildTextures() {
     this.tex = {
       dot: Tex.dot(), glow: Tex.glow(), smoke: Tex.smoke(),
-      bulletHole: Tex.bulletHole(), scorch: Tex.scorch(),
+      bulletHole: Tex.bulletHole(), scorch: Tex.scorch(), track: makeTrackTex(),
       blood: [Tex.bloodSplat(0), Tex.bloodSplat(1), Tex.bloodSplat(2), Tex.bloodSplat(3)],
     };
   }
@@ -121,6 +132,13 @@ export class FX {
   }
 
   // ---------- per-frame ----------
+  /** A short ground track segment behind a rolling/driving thing. Colour follows the map: damp sand in the canyon, tyre rubber in the city. */
+  trackMark(pos, yaw, len = 0.7, width = 0.36) {
+    const city = this.world.map?.terrain?.style === 'city';
+    const y = this.world.groundHeight(pos.x, pos.z, pos.y);
+    _v.set(pos.x, y, pos.z);
+    this.decals.spawn(_v, UP, { texture: this.tex.track, color: city ? '#0a0a0e' : '#3a2211', size: width, aspect: len / width, life: 45, opacity: city ? 0.34 : 0.55, yaw: -yaw });
+  }
   update(dt, camera) {
     this.camera = camera || this.camera;
     dt = Math.min(dt, 1 / 20);

@@ -29,17 +29,17 @@ export class DecalPool {
     }
   }
   /** Place a decal. normal defaults to world up. */
-  spawn(point, normal, { texture, color = '#ffffff', size = 1, life = 60, opacity = 1, emissive = null, emissiveIntensity = 0 } = {}) {
+  spawn(point, normal, { texture, color = '#ffffff', size = 1, life = 60, opacity = 1, emissive = null, emissiveIntensity = 0, yaw = null, aspect = 1 } = {}) {
     const s = this.slots[this.cursor];
     this.cursor = (this.cursor + 1) % this.capacity;
     const n = normal && normal.lengthSq() > 0.001 ? normal : _up;
     s.mesh.position.copy(point).addScaledVector(n, 0.015);
     _q.setFromUnitVectors(_up, n);
     _axis.copy(n);
-    _spin.setFromAxisAngle(_axis, Math.random() * Math.PI * 2);
+    _spin.setFromAxisAngle(_axis, yaw != null ? yaw : Math.random() * Math.PI * 2);
     _q.multiply(_spin);
     s.mesh.quaternion.copy(_q);
-    s.mesh.scale.set(size, size, size);
+    s.mesh.scale.set(size, size * aspect, size);
     s.mat.map = texture || null;
     s.mat.color.set(color);
     s.mat.opacity = opacity;
