@@ -169,14 +169,12 @@ export class CharacterAnimator {
     for (const n of BONE_NAMES) {
       const c = this.cur[n], t = T[n];
       if (!robotic) { c[0] += (t[0] - c[0]) * k; c[1] += (t[1] - c[1]) * k; c[2] += (t[2] - c[2]) * k; continue; }
-      // servo: fast approach, tiny overshoot and a hard settle, with angle quantisation while the joint is travelling
+      // servo feel without jank: quicker approach with a critically-damped settle (no detents, no visible overshoot)
       const v = this.vel[n];
       for (let i = 0; i < 3; i++) {
         const d = t[i] - c[i];
-        v[i] = v[i] * Math.exp(-14 * dt) + d * 10 * dt;          // spring-ish velocity toward target
-        let nc = c[i] + d * k + v[i] * 0.35 * dt * 60 * 0.016;    // blend + overshoot term
-        if (Math.abs(d) > 0.06) nc = Math.round(nc / 0.025) * 0.025; // stepped travel (servo detents)
-        c[i] = nc;
+        v[i] = v[i] * Math.exp(-18 * dt) + d * 6 * dt;
+        c[i] += d * k + v[i] * 0.12;
       }
     }
     this.rootY = damp(this.rootY, rootTarget - (this.land || 0) * 0.22, 10, dt);
@@ -194,7 +192,7 @@ export class CharacterAnimator {
     this.turnShuffle = damp(this.turnShuffle ?? 0, s.turning ? 1 : 0, 10, dt);
     const stride = s.sprint > 0.8 ? 1.6 : (s.sprint > 0.3 ? 1.4 : (s.crouch > 0.5 ? 1.0 : 1.25));
     // step length per state (metres per footfall); the phase advances with the real ground speed so feet stop sliding
-    const stepLen = s.sprint > 0.8 ? 1.9 : (s.sprint > 0.3 ? 1.45 : (s.crouch > 0.5 ? 0.85 : 1.15));
+    const stepLen = s.sprint > 0.8 ? 2.4 : (s.sprint > 0.3 ? 1.85 : (s.crouch > 0.5 ? 1.1 : 1.5));
     const groundSpeed = s.velocity != null ? s.velocity : this.speed * 9.4;
     const freq = groundSpeed > 0.05 ? Math.PI * groundSpeed / stepLen : (s.sprint > 0.8 ? 11.5 : s.sprint > 0.3 ? 9.8 : 8.5) * (s.crouch > 0.5 ? 0.85 : 1);
     if ((this.speed > 0.02 || this.turnShuffle > 0.2) && !s.dead && s.roll == null && s.vault == null) this.phase += dt * (this.speed > 0.02 ? (s.velocity != null ? freq : freq * clamp(this.speed, 0.35, 1)) : 6 * this.turnShuffle);
@@ -204,7 +202,7 @@ export class CharacterAnimator {
     const amp = this.speed * stride * (s.cover ? 0.45 : 1) * 0.9;
     // fore/aft swing follows the forward component; sideways stepping follows the strafe component
     const legSwing = amp * 0.55 * (Math.abs(this.mdz) < 0.15 ? 0.15 * Math.sign(this.mdz || 1) : this.mdz);
-    const sideStep = amp * 0.5 * this.mdx;
+    const sideStep = amp * 0.32 * this.mdx;
     const shuffle = this.turnShuffle * 0.12;
     const thighL = this.cur.thighL, thighR = this.cur.thighR, shinL = this.cur.shinL, shinR = this.cur.shinR;
     const bendL = Math.max(0, -sw) * amp * 0.9, bendR = Math.max(0, sw) * amp * 0.9;
