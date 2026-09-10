@@ -62,7 +62,7 @@ export class ThirdPersonCamera {
     _pivot.set(target.position.x, target.position.y + h, target.position.z);
     // offsets in camera space
     const sideNormal = 0.68, sideAim = 0.62, sideSprint = 0.6, sideCover = 0.85;
-    const distNormal = 2.9, distAim = (target.zoom && target.zoom < 0.5) ? 0.9 : 1.9, distSprint = 3.5, distCover = 3.1;
+    const distNormal = 2.9, distAim = (target.zoom && target.zoom < 0.5) ? 0.9 : (target.robot ? 2.2 : 1.9), distSprint = 3.5, distCover = 3.1;
     let side = lerp(sideNormal, sideAim, this.aim); side = lerp(side, sideSprint, this.sprint * (1 - this.aim)); side = lerp(side, sideCover, this.cover * (1 - this.aim) * 0.8);
     let dist = lerp(distNormal, distAim, this.aim); dist = lerp(dist, distSprint, this.sprint * (1 - this.aim)); dist = lerp(dist, distCover, this.cover * (1 - this.aim));
     let up = lerp(0.12, 0.05, this.aim) + this.sprint * 0.1;
