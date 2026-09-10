@@ -12,6 +12,7 @@ import { clamp, damp, angleDamp, angleDiff, angleLerp, lerp } from '../core/math
 import { settings } from '../core/settings.js';
 import { net } from '../net/net.js';
 import { SQUAD_COLORS } from '../net/protocol.js';
+import { rollBall } from '../models/glbSoldier.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _ray = new THREE.Ray();
 
@@ -130,6 +131,7 @@ export class Player {
     this.anim.aimPitch = clamp(this.cam.pitch / 1.1, -1, 1);
     this.lastAnimState = s;
     this.anim.update(dt, s);
+    rollBall(this.model, this.grounded ? this.velocity.x : this.velocity.x * 0.3, this.grounded ? this.velocity.z : this.velocity.z * 0.3, dt, this.anim.land || 0, this.model.root.rotation.y);
     this.model.root.position.copy(this.position);
     this.model.root.rotation.y = this.yaw + Math.PI;
     this.cam.update(dt, { position: this.position, height: this.eyeHeight, aim: this.aiming, sprint: this.sprinting && speedN > 0.3, crouch: this.crouching, cover: s.cover, dead: this.dead, zoom: this.weapon.def.zoom });

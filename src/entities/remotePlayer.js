@@ -1,6 +1,7 @@
 // Remote squadmate: interpolated soldier driven by network snapshots; damageable so enemies and friendly fire can hit it.
 import * as THREE from 'three';
 import { buildSoldier } from '../models/soldier.js';
+import { rollBall } from '../models/glbSoldier.js';
 import { WEAPON_BUILDERS } from '../models/weapons.js';
 import { CharacterAnimator } from './animator.js';
 import { WEAPONS } from '../gameplay/weapons.js';
@@ -76,6 +77,7 @@ export class RemotePlayer {
     this._vel = this._vel || { x: 0, z: 0 }; this._vel.x += (vx - this._vel.x) * Math.min(1, dt * 12); this._vel.z += (vz - this._vel.z) * Math.min(1, dt * 12);
     const ry = this.model.root.rotation.y - Math.PI; const lx = this._vel.x * Math.cos(-ry) + this._vel.z * Math.sin(-ry), lz = -this._vel.x * Math.sin(-ry) + this._vel.z * Math.cos(-ry); const ll = Math.hypot(lx, lz) || 1;
     this.anim.update(dt, { speed: a.speed || 0, strafe: a.strafe || 0, forward: a.forward ?? 1, moveDir: { x: ll > 0.3 ? lx / ll : 0, z: ll > 0.3 ? lz / ll : -1 }, velocity: Math.min(ll, 10), groundAt: (ox, oz) => this.game.world.groundHeight(this.position.x + ox, this.position.z + oz, this.position.y), sprint: a.sprint || 0, crouch: a.crouch || 0, aim: a.aim || 0, cover: a.cover || null, dead: this.dead, weaponLow: 0, roll: a.roll ?? null, vault: a.vault ?? null, reload: a.reload ?? null });
+    rollBall(this.model, this._vel.x, this._vel.z, dt, this.anim.land || 0, this.model.root.rotation.y);
     this.model.root.position.copy(this.position); this.model.root.rotation.y = this.yaw + Math.PI;
     this.model.root.visible = !stale && !(this.dead && this.state === 'dead' && performance.now() - this.lastSnapT > 6000);
     this.hitCenter.copy(this.position).setY(this.position.y + 1);

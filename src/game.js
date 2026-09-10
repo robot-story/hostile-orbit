@@ -347,6 +347,9 @@ export class Game {
     this.dropT = 0; this.dropOverlay = overlay;
     s.hud.show(false);
   }
+  /** Dev: capture the next rendered frame to screenshot/auto/<name>.png via tools/shotserver.mjs. */
+  snap(name = 'shot') { (this._snapQueue = this._snapQueue || []).push(name); return name; }
+  _flushSnap() { if (!this._snapQueue?.length) return; const name = this._snapQueue.shift(); try { const data = this.canvas.toDataURL('image/png'); fetch('http://127.0.0.1:5174/shot?name=' + encodeURIComponent(name), { method: 'POST', body: data }).then((r) => r.text()).then((t) => console.info('[snap]', t)).catch(() => {}); } catch (e) { console.warn('[snap] failed', e); } }
   /** Live pins for the tactical map (map coords). */
   tacticalMapState(s) {
     const mp = (v) => { const m = worldToMap(v.x, v.z); return [m.mx, m.my]; };
@@ -479,13 +482,14 @@ export class Game {
       s.fx.update(dt, this.camera);
       this.world.update(dt, this.camera);
       audio.updateListener(this.camera);
-    } else if (this.mode === 'showcase' && this.showcaseUpdate) { this.showcaseUpdate(dt); this.renderer.render(dt); input.endFrame(); return;
+    } else if (this.mode === 'showcase' && this.showcaseUpdate) { this.showcaseUpdate(dt); this.renderer.render(dt); this._flushSnap(); input.endFrame(); return;
     } else if (this.renderMenuScene && this.menuScene) {
       this.menuScene.update(dt);
       audio.updateListener(this.menuScene.camera);
     }
     audio.update(dt);
     if (this.mode !== 'boot' && (s || this.renderMenuScene)) this.renderer.render(dt);
+    this._flushSnap();
     input.endFrame();
   }
 }

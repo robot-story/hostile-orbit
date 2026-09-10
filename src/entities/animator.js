@@ -181,8 +181,9 @@ export class CharacterAnimator {
     // continuous move direction in body space (x = right, z = forward), so legs step where the body is going
     this.mdx = damp(this.mdx ?? 0, s.moveDir?.x ?? 0, 9, dt);
     this.mdz = damp(this.mdz ?? 1, s.moveDir?.z ?? 1, 9, dt);
-    this.accelLean = damp(this.accelLean ?? 0, s.accel || 0, 8, dt);
-    this.turnLean = damp(this.turnLean ?? 0, s.turn || 0, 8, dt);
+    const ballK = this.model?.ballRadius ? 1.7 : 1;
+    this.accelLean = damp(this.accelLean ?? 0, (s.accel || 0) * ballK, 8, dt);
+    this.turnLean = damp(this.turnLean ?? 0, (s.turn || 0) * ballK, 8, dt);
     this.land = damp(this.land ?? 0, (s.land || 0) * (s.robotic ? 1.4 : 1), s.land ? 30 : 6, dt);
     this.turnShuffle = damp(this.turnShuffle ?? 0, s.turning ? 1 : 0, 10, dt);
     const stride = s.sprint > 0.8 ? 1.6 : (s.sprint > 0.3 ? 1.4 : (s.crouch > 0.5 ? 1.0 : 1.25));
@@ -190,7 +191,8 @@ export class CharacterAnimator {
     const stepLen = s.sprint > 0.8 ? 2.4 : (s.sprint > 0.3 ? 1.85 : (s.crouch > 0.5 ? 1.1 : 1.5));
     const groundSpeed = s.velocity != null ? s.velocity : this.speed * 9.4;
     const freq = groundSpeed > 0.05 ? Math.PI * groundSpeed / stepLen : (s.sprint > 0.8 ? 11.5 : s.sprint > 0.3 ? 9.8 : 8.5) * (s.crouch > 0.5 ? 0.85 : 1);
-    if ((this.speed > 0.02 || this.turnShuffle > 0.2) && !s.dead && s.roll == null && s.vault == null) this.phase += dt * (this.speed > 0.02 ? (s.velocity != null ? freq : freq * clamp(this.speed, 0.35, 1)) : 6 * this.turnShuffle);
+    if (s.phaseLock != null) this.phase = s.phaseLock;
+    else if ((this.speed > 0.02 || this.turnShuffle > 0.2) && !s.dead && s.roll == null && s.vault == null) this.phase += dt * (this.speed > 0.02 ? (s.velocity != null ? freq : freq * clamp(this.speed, 0.35, 1)) : 6 * this.turnShuffle);
     // servo gait: sharpened sine so legs snap between poses like actuators, with a short dwell
     const rawSw = Math.sin(this.phase);
     const sw = Math.sign(rawSw) * Math.pow(Math.abs(rawSw), 0.55), sw2 = Math.sin(this.phase * 2);
@@ -237,7 +239,7 @@ export class CharacterAnimator {
     set('footR', c.footR[0] + Math.max(0, sw) * amp * -0.3, c.footR[1], c.footR[2]);
     // slope foot planting: drop the pelvis to the lower foot, bend the knee of the higher foot (2-bone leg 0.46 + 0.46)
     let plant = 0;
-    if (s.groundAt && !s.dead && s.roll == null && s.vault == null && s.transform == null && !s.jet) {
+    if (s.groundAt && !this.model?.ballRadius && !s.dead && s.roll == null && s.vault == null && s.transform == null && !s.jet) {
       const yaw = B.root.parent ? B.root.parent.rotation.y : 0; // model root yaw (facing = yaw + PI convention handled by caller)
       const sx = Math.cos(yaw), sz = -Math.sin(yaw);
       const hipOff = 0.14, base = s.groundAt(0, 0);
@@ -252,7 +254,7 @@ export class CharacterAnimator {
       B.thighL.rotation.x -= kL * 0.5; B.shinL.rotation.x += kL; B.footL.rotation.x -= kL * 0.5;
       B.thighR.rotation.x -= kR * 0.5; B.shinR.rotation.x += kR; B.footR.rotation.x -= kR * 0.5;
     } else { this.plantY = damp(this.plantY ?? 0, 0, 12, dt); this.plantL = damp(this.plantL ?? 0, 0, 12, dt); this.plantR = damp(this.plantR ?? 0, 0, 12, dt); }
-    B.root.position.y = 0.98 + this.rootY + bob + (this.plantY || 0);
+    B.root.position.y = (this.model?.ballRadius ? this.model.ballRadius * 2 + 0.02 : 0.98) + this.rootY + bob + (this.model?.ballRadius ? 0 : (this.plantY || 0));
     if (s.roll != null) { const k = Math.min(1, s.roll); B.root.rotation.set(-k * Math.PI * 2, 0, 0); B.root.scale.setScalar(1); }
     else if (s.transform != null) {
       // transformer tuck: the frame folds into a compact block, spins once, and unfolds

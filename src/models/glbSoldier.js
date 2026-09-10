@@ -149,6 +149,7 @@ function segDist(p, a, b, out) {
  * match the mesh's rest pose). Bone world matrices must be current. Returns the SkinnedMesh.
  */
 export function skinToRig(custom, bones, rootGroup) {
+  const fit = custom.fit || null;
   // skin weights depend only on the rig layout in its zero pose, so one weighted geometry is shared by every instance
   if (custom.skinnedGeo) { const sk = new THREE.SkinnedMesh(custom.skinnedGeo, custom.material); sk.castShadow = !custom.noShadow; sk.frustumCulled = true; sk.name = 'part:custom'; rootGroup.add(sk); rootGroup.updateWorldMatrix(true, true); sk.bind(new THREE.Skeleton(Object.keys(bones).map((n) => bones[n]))); return sk; }
   const geo = custom.geometry.clone();
@@ -177,11 +178,21 @@ export function skinToRig(custom, bones, rootGroup) {
   const segByName = {}; for (const [a] of SEGMENTS) segByName[a] = SEGMENTS.findIndex((x) => x[0] === a);
   const adjacent = (a, b) => PARENT[a] === b || PARENT[b] === a || (PARENT[a] && PARENT[a] === PARENT[b] && (a.startsWith('thigh') || a.startsWith('upperArm')) && false);
   const dists = new Float32Array(segs.length);
-  const BAND = 0.09;
+  const BAND = 0.9; // in normalised-radius units
   for (let i = 0; i < n; i++) {
     p.fromBufferAttribute(pos, i);
     let best = 0;
-    for (let k = 0; k < segs.length; k++) { const sg = segs[k]; dists[k] = Math.max(0, segDist(p, sg.a, sg.b, tmp) - sg.r * 0.5); if (dists[k] < dists[best]) best = k; }
+    const inLegColumn = fit && p.y < fit.crotchY + 0.12 && Math.abs(p.x) < fit.hipX + 0.11;   // thigh/shin region: arms may not claim it
+    const inArmZone = fit && p.y > fit.crotchY - 0.05 && Math.abs(p.x) > fit.armCx - 0.09;     // hanging arm region: legs may not claim it
+    best = -1;
+    for (let k = 0; k < segs.length; k++) {
+      const sg = segs[k]; const nm = SEGMENTS[k][0];
+      const isArm = nm.startsWith('upperArm') || nm.startsWith('forearm') || nm.startsWith('hand');
+      const isLeg = nm.startsWith('thigh') || nm.startsWith('shin') || nm.startsWith('foot');
+      let d = segDist(p, sg.a, sg.b, tmp) / sg.r;            // radius-normalised distance (1 = on the capsule surface)
+      if (isArm && inLegColumn) d += 4; if (isLeg && inArmZone) d += 4;
+      dists[k] = d; if (best < 0 || d < dists[best]) best = k;
+    }
     const nameBest = SEGMENTS[best][0];
     let w0 = 1, w1 = 0, w2 = 0, i1 = best, i2 = best;
     // up to two adjacent segments inside the blend band
@@ -269,12 +280,60 @@ export function fitRigToMesh(model, custom) {
   return f;
 }
 
+/** Drop the leg triangles (below the crotch, inside the leg column) so the torso can ride a ball. Cached per custom. */
+function legless(custom) {
+  if (custom.leglessGeo) return custom.leglessGeo;
+  const f = measureBody(custom); const geo = custom.geometry; const pos = geo.attributes.position, nrm = geo.attributes.normal, uv = geo.attributes.uv; const idx = geo.index;
+  const tri = idx ? idx.count / 3 : pos.count / 3; const P = [], Nn = [], U = []; const I = []; const remap = new Int32Array(pos.count).fill(-1);
+  const isLeg = (i) => pos.getY(i) < f.crotchY + 0.05 && Math.abs(pos.getX(i)) < f.hipX + 0.16;
+  const push = (i) => { if (remap[i] >= 0) return remap[i]; remap[i] = P.length / 3; P.push(pos.getX(i), pos.getY(i), pos.getZ(i)); if (nrm) Nn.push(nrm.getX(i), nrm.getY(i), nrm.getZ(i)); if (uv) U.push(uv.getX(i), uv.getY(i)); return remap[i]; };
+  for (let t = 0; t < tri; t++) {
+    const a = idx ? idx.getX(t * 3) : t * 3, b = idx ? idx.getX(t * 3 + 1) : t * 3 + 1, c = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+    if (isLeg(a) && isLeg(b) && isLeg(c)) continue;
+    I.push(push(a), push(b), push(c));
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  if (nrm) g.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); if (uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+  g.setIndex(I); g.computeBoundingBox(); g.computeBoundingSphere();
+  custom.leglessGeo = g; return g;
+}
+
+/** Mount a rolling ball under the torso (Sentinel sphere hull when loaded, neon sphere otherwise). */
+export function attachBall(model, radius = 0.44) {
+  const g = new THREE.Group(); g.name = 'ball';
+  const hull = CUSTOM.body.drone;
+  let mesh;
+  if (hull) { mesh = new THREE.Mesh(hull.geometry, hull.material); const s0 = radius / 0.45; mesh.scale.setScalar(s0); }
+  else { mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 16), new THREE.MeshStandardMaterial({ color: '#c8c8cc', roughness: 0.45, metalness: 0.35 })); }
+  mesh.castShadow = true; g.add(mesh);
+  // neon equator ring so the roll reads clearly
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.98, 0.018, 8, 48), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.1, roughness: 0.3 }));
+  ring.rotation.x = Math.PI / 2; g.add(ring);
+  const ring2 = ring.clone(); ring2.rotation.set(0, 0, Math.PI / 2); ring2.scale.setScalar(0.92); g.add(ring2);
+  // axle housing: static collar between ball and pelvis (does not roll)
+  const collar = new THREE.Group(); collar.name = 'collar';
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.55, radius * 0.72, 0.12, 20, 1, true), new THREE.MeshStandardMaterial({ color: '#2a2e36', roughness: 0.6, metalness: 0.6, side: THREE.DoubleSide })); cup.position.y = radius * 0.92; collar.add(cup);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.6, 0.02, 8, 32), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.6 })); lip.rotation.x = Math.PI / 2; lip.position.y = radius * 0.98; collar.add(lip);
+  const roll = new THREE.Group(); roll.add(g); roll.position.y = radius;
+  const holder = new THREE.Group(); holder.name = 'ballRig'; holder.add(roll); collar.position.y = radius; holder.add(collar);
+  model.root.add(holder);
+  model.ball = g; model.ballRig = holder; model.ballRadius = radius; model.ballCollar = collar;
+  return holder;
+}
+
 /** Swap a procedural soldier's body for a custom skinned mesh (rig must still be in its zero pose). */
 export function applyCustomBody(model, custom, opts = {}) {
   if (!custom || model.custom) return null;
   for (const n in model.bones) model.bones[n].rotation.set(0, 0, 0);
   try { fitRigToMesh(model, custom); } catch (e) { console.warn('[glb] rig fit failed', e); }
-  const skinned = skinToRig(custom, model.bones, model.root);
+  let skinned;
+  if (opts.noLegs) {
+    const sub = custom._legless || (custom._legless = { ...custom, geometry: legless(custom), skinnedGeo: null, _mats: custom._mats, fit: custom.fit });
+    custom._legless.fit = custom.fit; skinned = skinToRig(sub, model.bones, model.root); custom._legless = sub;
+    // torso rides higher: pelvis sits on top of the ball
+    const r = opts.ballRadius || 0.44; model.bones.root.position.y = r * 2 + 0.02; model.root.updateWorldMatrix(true, true);
+    attachBall(model, r);
+  } else skinned = skinToRig(custom, model.bones, model.root);
   if (opts.neon || opts.tint) { const key = 'mat:' + (opts.neon || '') + ':' + (opts.tint || ''); custom._mats = custom._mats || {}; if (!custom._mats[key]) { const m = custom.material.clone(); if (opts.tint) m.color.set(opts.tint); if (opts.neon) makeNeonMask(m, opts.neon); custom._mats[key] = m; } skinned.material = custom._mats[key]; }
   for (const m of model.meshes) m.visible = false;
   model.custom = skinned; model.customMeshes = [skinned];
@@ -308,3 +367,16 @@ export function makeNeonMask(material, color) {
   const em = new THREE.CanvasTexture(cv); em.colorSpace = THREE.SRGBColorSpace; em.flipY = tex.flipY; em.wrapS = tex.wrapS; em.wrapT = tex.wrapT;
   material.emissiveMap = em; material.emissive = new THREE.Color('#ffffff'); material.emissiveIntensity = 1.6; material.needsUpdate = true;
 }
+
+/** Roll a ball-mounted body: spin the sphere with ground velocity, squash it on landing. */
+export function rollBall(model, vx, vz, dt, land = 0, rootYaw = 0) {
+  if (!model?.ball) return;
+  const sp = Math.hypot(vx, vz);
+  if (sp > 0.05 && dt > 0) {
+    const inv = 1 / sp; let ax = vz * inv, az = -vx * inv;                  // world axis = up x velocity
+    const c = Math.cos(-rootYaw), s = Math.sin(-rootYaw); const lx = ax * c + az * s, lz = -ax * s + az * c; // into root-local space
+    _axis.set(lx, 0, lz).normalize(); _q.setFromAxisAngle(_axis, sp * dt / model.ballRadius); model.ball.quaternion.premultiply(_q);
+  }
+  model.ball.scale.set(1 + land * 0.08, 1 - land * 0.14, 1 + land * 0.08);
+}
+const _axis = new THREE.Vector3(), _q = new THREE.Quaternion();
