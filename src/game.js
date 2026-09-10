@@ -349,7 +349,22 @@ export class Game {
   }
   /** Dev: capture the next rendered frame to screenshot/auto/<name>.png via tools/shotserver.mjs. */
   snap(name = 'shot') { (this._snapQueue = this._snapQueue || []).push(name); return name; }
-  _flushSnap() { if (!this._snapQueue?.length) return; const name = this._snapQueue.shift(); try { const data = this.canvas.toDataURL('image/png'); fetch('http://127.0.0.1:5174/shot?name=' + encodeURIComponent(name), { method: 'POST', body: data }).then((r) => r.text()).then((t) => console.info('[snap]', t)).catch(() => {}); } catch (e) { console.warn('[snap] failed', e); } }
+  _flushSnap() {
+    if (!this._snapQueue?.length) return;
+    const name = this._snapQueue.shift();
+    try {
+      // captures always render at 1280x720 (a hidden pane collapses the canvas to 0x0, and critics want consistent frames)
+      const R = this.renderer; const W = 1280, H = 720;
+      R.renderer.setSize(W, H, false); R.composer?.setSize(W, H);
+      const cam = this.mode === 'showcase' || this.session ? this.camera : (this.menuScene?.camera || this.camera);
+      const prevAspect = cam.aspect; cam.aspect = W / H; cam.updateProjectionMatrix();
+      R.render(0);
+      const data = this.canvas.toDataURL('image/png');
+      cam.aspect = prevAspect; cam.updateProjectionMatrix(); R.resize();
+      if (data.length < 64) console.warn('[snap] empty capture', this.canvas.width, this.canvas.height);
+      fetch('http://127.0.0.1:5174/shot?name=' + encodeURIComponent(name), { method: 'POST', body: data }).then((r) => r.text()).then((t) => console.info('[snap]', t)).catch(() => {});
+    } catch (e) { console.warn('[snap] failed', e); }
+  }
   /** Live pins for the tactical map (map coords). */
   tacticalMapState(s) {
     const mp = (v) => { const m = worldToMap(v.x, v.z); return [m.mx, m.my]; };

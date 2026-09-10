@@ -172,6 +172,7 @@ export class CharacterAnimator {
       // servo feel without jank: quicker approach with a critically-damped settle (no detents, no visible overshoot)
       for (let i = 0; i < 3; i++) { const d = t[i] - c[i]; c[i] += d * k; }
     }
+    if (this.model?.ballRadius) rootTarget = Math.max(rootTarget, -0.14); // ball mode: torso cannot sink into the housing
     this.rootY = damp(this.rootY, rootTarget - (this.land || 0) * 0.22, 10, dt);
     this.lean = damp(this.lean, leanTarget, 10, dt);
     // gait
