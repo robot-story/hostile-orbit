@@ -221,7 +221,7 @@ export class CharacterAnimator {
     const c = this.cur;
     const sway = Math.sin(this.breath * 0.6) * 0.012 * (1 - this.speed); // idle weight shift
     const fz = -this.mdz; // body-space forward is -z
-    const ballLean = this.model?.ballRadius ? 2.2 : 1;
+    const ballLean = this.model?.ballRadius ? 3.0 : 1;
     const fwdLean = -this.speed * (s.sprint > 0.8 ? 0.14 : 0.09) * ballLean * Math.max(0, fz) + this.speed * 0.05 * Math.max(0, -fz) - this.accelLean * 0.14 + this.land * 0.22;
     set('spine', c.spine[0] + this.hit * 0.25 + breathe + fwdLean, c.spine[1] + sw * amp * 0.06 + this.hit * this.hitDir * 0.2 + this.mdx * this.speed * 0.2, c.spine[2] + this.lean * 0.5 + this.strafe * amp * 0.05 - this.mdx * this.speed * 0.09 - this.turnLean * 0.16 * this.speed + sway);
     set('chest', c.chest[0] - this.aimPitch * 0.55 * (s.aim > 0 || s.cover ? 1 : 0.5) + this.recoil * 0.4 + breathe, c.chest[1] - sw * amp * 0.08, c.chest[2] + this.lean * 0.5);
@@ -288,8 +288,9 @@ export class CharacterAnimator {
     // muzzle climb via recoil kicks weapon up slightly
     ws.position.z -= this.recoil * 0.08;
     // Arm IK: plant hands on the weapon grips whenever a weapon is held and the arms are not doing something else
-    const weapon = ws.children[0]?.children?.[0] || ws.children[0];
-    const grips = weapon?.userData?.gripR ? weapon.userData : (weapon?.children?.[0]?.userData?.gripR ? weapon.children[0].userData : null);
+    // grip sockets may live on the weapon group itself or on a wrapper child; search the held object
+    let grips = null; const held = ws.children[0];
+    if (held) { if (held.userData?.gripR) grips = held.userData; else held.traverse((o) => { if (!grips && o.userData?.gripR) grips = o.userData; }); }
     const armsFree = s.dead || s.roll != null || s.transform != null || s.vault != null || s.interact || s.cover?.blind;
     if (grips && !armsFree) {
       this.bones.root.updateMatrixWorld(true);
@@ -301,7 +302,7 @@ export class CharacterAnimator {
   _ikArm(side, gripObj, blend) {
     if (blend <= 0) return;
     const B = this.bones; const up = B['upperArm' + side], fo = B['forearm' + side], ha = B['hand' + side];
-    const a = 0.30, b = 0.27, handLen = 0.09;
+    const a = Math.abs(fo.position.y) || 0.30, b = Math.abs(ha.position.y) || 0.27, handLen = 0.09 * (b / 0.27);
     const target = _ikT; gripObj.getWorldPosition(target);
     // into the upper arm's parent (shoulder) frame, then relative to the upper arm origin
     _ikM.copy(up.parent.matrixWorld).invert(); target.applyMatrix4(_ikM).sub(up.position);

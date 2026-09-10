@@ -44,11 +44,11 @@ export function createSky(opts = {}) {
             float fi = float(i);
             float band = sin(d.x * (3.0 + fi) + uTime * (0.15 + fi * 0.05) + noise(d.xz * 4.0 + uTime * 0.05) * 3.0) * 0.5 + 0.5;
             float y0 = 0.18 + fi * 0.16 + band * 0.1 + (noise(vec2(d.x * 2.5 + fi * 7.0, d.z * 2.5)) - 0.5) * 0.12;
-            float w = 0.05 + 0.06 * noise(vec2(d.x * 6.0 + fi, uTime * 0.1));
+            float w = 0.09 + 0.09 * noise(vec2(d.x * 6.0 + fi, uTime * 0.1));
             a += smoothstep(w, 0.0, abs(h - y0)) * (0.35 + 0.65 * noise(vec2(d.x * 8.0 + fi * 10.0, uTime * 0.2))) * (0.6 + 0.4 * noise(vec2(d.x * 20.0, d.z * 20.0 + fi)));
           }
           vec3 ac = mix(vec3(0.0, 0.9, 0.7), vec3(0.55, 0.15, 1.0), sin(d.x * 2.0 + uTime * 0.1) * 0.5 + 0.5);
-          col += ac * a * 0.13 * uAurora;
+          col += ac * a * 0.085 * uAurora;
         }
         gl_FragColor = vec4(col, 1.0);
       }`,

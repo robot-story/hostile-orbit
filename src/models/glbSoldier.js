@@ -376,7 +376,7 @@ export function makeNeonMask(material, color) {
   for (let i = 0; i < d.length; i += 4) {
     const r = d[i], g = d[i + 1], b = d[i + 2];
     const neon = b > 150 && g > 140 && r < 120 && (b - r) > 90; // cyan-ish emissive strips in the texture
-    if (neon) { d[i] = col.r * 255; d[i + 1] = col.g * 255; d[i + 2] = col.b * 255; d[i + 3] = 255; } else { d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = 255; }
+    if (neon) { d[i] = col.r * 255; d[i + 1] = col.g * 255; d[i + 2] = col.b * 255; d[i + 3] = 255; } else { d[i] = d[i + 1] = d[i + 2] = 36; d[i + 3] = 255; }
   }
   ctx.putImageData(id, 0, 0);
   const em = new THREE.CanvasTexture(cv); em.colorSpace = THREE.SRGBColorSpace; em.flipY = tex.flipY; em.wrapS = tex.wrapS; em.wrapT = tex.wrapT;
