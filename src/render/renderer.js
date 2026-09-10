@@ -66,7 +66,7 @@ const GradeShader = {
 export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, depth: true });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, depth: true, preserveDrawingBuffer: !!import.meta.env.DEV });
     this.contextLost = false;
     canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.contextLost = true; console.warn('[renderer] WebGL context lost - waiting for restore'); }, false);
     canvas.addEventListener('webglcontextrestored', () => { this.contextLost = false; console.warn('[renderer] WebGL context restored'); try { this.resize(); } catch { /* ignore */ } }, false);

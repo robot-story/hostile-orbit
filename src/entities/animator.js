@@ -219,7 +219,8 @@ export class CharacterAnimator {
     const c = this.cur;
     const sway = Math.sin(this.breath * 0.6) * 0.012 * (1 - this.speed); // idle weight shift
     const fz = -this.mdz; // body-space forward is -z
-    const fwdLean = -this.speed * (s.sprint > 0.8 ? 0.10 : 0.04) * Math.max(0, fz) + this.speed * 0.05 * Math.max(0, -fz) - this.accelLean * 0.14 + this.land * 0.22;
+    const ballLean = this.model?.ballRadius ? 2.2 : 1;
+    const fwdLean = -this.speed * (s.sprint > 0.8 ? 0.10 : 0.05) * ballLean * Math.max(0, fz) + this.speed * 0.05 * Math.max(0, -fz) - this.accelLean * 0.14 + this.land * 0.22;
     set('spine', c.spine[0] + this.hit * 0.25 + breathe + fwdLean, c.spine[1] + sw * amp * 0.06 + this.hit * this.hitDir * 0.2 + this.mdx * this.speed * 0.2, c.spine[2] + this.lean * 0.5 + this.strafe * amp * 0.05 - this.mdx * this.speed * 0.09 - this.turnLean * 0.16 * this.speed + sway);
     set('chest', c.chest[0] - this.aimPitch * 0.55 * (s.aim > 0 || s.cover ? 1 : 0.5) + this.recoil * 0.4 + breathe, c.chest[1] - sw * amp * 0.08, c.chest[2] + this.lean * 0.5);
     set('neck', c.neck[0], c.neck[1], c.neck[2]);

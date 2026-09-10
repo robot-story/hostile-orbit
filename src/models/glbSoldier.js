@@ -90,7 +90,12 @@ function normaliseWeapon(geo, opts) {
   const barrelY = b3.min.y + (b3.max.y - b3.min.y) * 0.62;
   geo.applyMatrix4(new THREE.Matrix4().makeTranslation(-cx, 0.055 - barrelY, -0.33 - b3.min.z));
   geo.computeVertexNormals(); geo.computeBoundingBox(); geo.computeBoundingSphere();
-  return { geometry: geo, length: b3.max.z - b3.min.z, muzzle: new THREE.Vector3(0, 0.055, geo.boundingBox.max.z - 0.01) };
+  // grips: lowest points of the mesh in two z-windows (pistol grip behind the magazine, foregrip under the handguard)
+  const pos2 = geo.attributes.position; let gR = null, gL = null;
+  for (let i = 0; i < pos2.count; i++) { const z = pos2.getZ(i), y = pos2.getY(i), x = pos2.getX(i); if (Math.abs(x) > 0.05) continue; if (z > -0.12 && z < 0.12 && (!gR || y < gR.y)) gR = new THREE.Vector3(x, y, z); if (z > 0.22 && z < 0.5 && (!gL || y < gL.y)) gL = new THREE.Vector3(x, y, z); }
+  const gripR = gR ? new THREE.Vector3(0.02, gR.y + 0.07, gR.z + 0.01) : new THREE.Vector3(0.02, -0.02, 0.04);
+  const gripL = gL ? new THREE.Vector3(-0.02, gL.y + 0.05, gL.z) : new THREE.Vector3(-0.02, 0.0, 0.34);
+  return { geometry: geo, length: b3.max.z - b3.min.z, muzzle: new THREE.Vector3(0, 0.055, geo.boundingBox.max.z - 0.01), gripR, gripL };
 }
 
 /** Connected components by shared quantised positions; grouped into `figures` clusters along `axis`. */
@@ -197,10 +202,12 @@ export function skinToRig(custom, bones, rootGroup) {
     let w0 = 1, w1 = 0, w2 = 0, i1 = best, i2 = best;
     // up to two adjacent segments inside the blend band
     const cands = [];
-    for (let k = 0; k < segs.length; k++) { if (k === best) continue; if (!adjacent(nameBest, SEGMENTS[k][0])) continue; const dd = dists[k] - dists[best]; if (dd < BAND) cands.push({ k, dd }); }
+    for (let k = 0; k < segs.length; k++) { if (k === best) continue; if (!adjacent(nameBest, SEGMENTS[k][0])) continue; const dd = dists[k] - dists[best]; if (dd < BAND * 1.8) cands.push({ k, dd }); }
     cands.sort((x, y) => x.dd - y.dd);
-    if (cands[0]) { const t = 1 - cands[0].dd / BAND; w1 = 0.5 * t * t; i1 = cands[0].k; }
-    if (cands[1]) { const t = 1 - cands[1].dd / BAND; w2 = 0.3 * t * t; i2 = cands[1].k; }
+    const armJoint = nameBest.startsWith('upperArm') || nameBest.startsWith('forearm') || nameBest.startsWith('hand');
+    const band = armJoint ? BAND * 1.8 : BAND;
+    if (cands[0] && cands[0].dd < band) { const t = 1 - cands[0].dd / band; w1 = (armJoint ? 0.5 : 0.5) * t; i1 = cands[0].k; }
+    if (cands[1] && cands[1].dd < band) { const t = 1 - cands[1].dd / band; w2 = 0.25 * t * t; i2 = cands[1].k; }
     w0 = 1 - w1 - w2;
     skinIndex[i * 4] = segs[best].idx; skinWeight[i * 4] = w0;
     skinIndex[i * 4 + 1] = segs[i1].idx; skinWeight[i * 4 + 1] = w1;
@@ -303,17 +310,23 @@ export function attachBall(model, radius = 0.44) {
   const g = new THREE.Group(); g.name = 'ball';
   const hull = CUSTOM.body.drone;
   let mesh;
-  if (hull) { mesh = new THREE.Mesh(hull.geometry, hull.material); const s0 = radius / 0.45; mesh.scale.setScalar(s0); }
+  if (hull) { const hm = hull.material.clone(); hm.color.set('#8c8f98'); hm.emissive = new THREE.Color('#000000'); hm.emissiveIntensity = 0; hm.envMapIntensity = 0.5; mesh = new THREE.Mesh(hull.geometry, hm); const s0 = radius / 0.45; mesh.scale.setScalar(s0); }
   else { mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 16), new THREE.MeshStandardMaterial({ color: '#c8c8cc', roughness: 0.45, metalness: 0.35 })); }
   mesh.castShadow = true; g.add(mesh);
   // neon equator ring so the roll reads clearly
   const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.98, 0.018, 8, 48), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.1, roughness: 0.3 }));
   ring.rotation.x = Math.PI / 2; g.add(ring);
-  const ring2 = ring.clone(); ring2.rotation.set(0, 0, Math.PI / 2); ring2.scale.setScalar(0.92); g.add(ring2);
-  // axle housing: static collar between ball and pelvis (does not roll)
+
+  // gyro housing between ball and pelvis (does not roll): matte band, radial struts, overlapping skirt plates, thin inner ring
   const collar = new THREE.Group(); collar.name = 'collar';
-  const cup = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.55, radius * 0.72, 0.12, 20, 1, true), new THREE.MeshStandardMaterial({ color: '#2a2e36', roughness: 0.6, metalness: 0.6, side: THREE.DoubleSide })); cup.position.y = radius * 0.92; collar.add(cup);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.6, 0.02, 8, 32), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.6 })); lip.rotation.x = Math.PI / 2; lip.position.y = radius * 0.98; collar.add(lip);
+  const matte = new THREE.MeshStandardMaterial({ color: '#2c3038', roughness: 0.55, metalness: 0.7 });
+  const plate = new THREE.MeshStandardMaterial({ color: '#d8d8dc', roughness: 0.5, metalness: 0.3 });
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.62, radius * 0.7, 0.16, 24, 1, true), new THREE.MeshStandardMaterial({ color: '#2c3038', roughness: 0.55, metalness: 0.7, side: THREE.DoubleSide })); band.position.y = radius * 0.86; collar.add(band);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.5, radius * 0.5, 0.08, 20), matte); hub.position.y = radius * 1.0; collar.add(hub);
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; const strut = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.05), matte); strut.position.set(Math.cos(a) * radius * 0.6, radius * 0.78, Math.sin(a) * radius * 0.6); strut.rotation.z = Math.cos(a) * 0.35; strut.rotation.x = -Math.sin(a) * 0.35; collar.add(strut); }
+  for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const sk = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.14), plate); sk.position.set(Math.cos(a) * radius * 0.74, radius * 0.72, Math.sin(a) * radius * 0.74); sk.rotation.y = -a; sk.rotation.z = 0.5; collar.add(sk); }
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.56, 0.014, 8, 40), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.6 })); lip.rotation.x = Math.PI / 2; lip.position.y = radius * 0.94; collar.add(lip);
+  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2 + 0.3; const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.06, 8), matte); vent.position.set(Math.cos(a) * radius * 0.66, radius * 0.66, Math.sin(a) * radius * 0.66); vent.rotation.z = Math.cos(a) * 0.9; vent.rotation.x = -Math.sin(a) * 0.9; collar.add(vent); }
   const roll = new THREE.Group(); roll.add(g); roll.position.y = radius;
   const holder = new THREE.Group(); holder.name = 'ballRig'; holder.add(roll); collar.position.y = radius; holder.add(collar);
   model.root.add(holder);
@@ -345,8 +358,8 @@ export function buildCustomWeapon(custom, id, neon) {
   const g = new THREE.Group(); g.name = 'weapon:' + id;
   const mesh = new THREE.Mesh(custom.geometry, custom.material); mesh.castShadow = true; g.add(mesh);
   const muzzle = new THREE.Object3D(); muzzle.name = 'muzzle'; muzzle.position.copy(custom.muzzle); g.add(muzzle);
-  const gripR = new THREE.Object3D(); gripR.name = 'gripR'; gripR.position.set(0.02, -0.02, 0.04); g.add(gripR);
-  const gripL = new THREE.Object3D(); gripL.name = 'gripL'; gripL.position.set(-0.02, 0.0, Math.min(custom.muzzle.z * 0.45, 0.34)); g.add(gripL);
+  const gripR = new THREE.Object3D(); gripR.name = 'gripR'; gripR.position.copy(custom.gripR || new THREE.Vector3(0.02, -0.02, 0.04)); g.add(gripR);
+  const gripL = new THREE.Object3D(); gripL.name = 'gripL'; gripL.position.copy(custom.gripL || new THREE.Vector3(-0.02, 0.0, Math.min(custom.muzzle.z * 0.45, 0.34))); g.add(gripL);
   const flash = new THREE.Object3D(); flash.name = 'ejector'; flash.position.set(0.03, 0.05, 0.05); g.add(flash);
   g.userData.gripR = gripR; g.userData.gripL = gripL; g.userData.muzzle = muzzle; g.userData.ejector = flash; g.userData.custom = true;
   return g;
