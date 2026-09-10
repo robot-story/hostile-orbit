@@ -254,6 +254,7 @@ export class Game {
   }
   // ---------------- session lifecycle ----------------
   buildSession(config) {
+    this.dropPod = null; this.intro = null;
     this.teardownSession();
     const map = MAPS[config.map] || MAPS[DEFAULT_MAP]; config.map = map.id;
     this.world = new World(map);
@@ -304,11 +305,12 @@ export class Game {
     this.mode = 'loading';
     await this.showLoading('PREPARING DEPLOYMENT');
     this.buildSession(config);
+    await this.prewarm();
     this.hideLoading();
     audio.say('ship_deploy', { priority: 3 });
     audio.say(this.world.map?.briefingLine || 'voss_briefing', { priority: 3, delay: 2 });
-    await this.introFlyover();
-    this.dropSequence(this.dropPositionFor(config), () => { this.session.mission.start(); });
+    const target = this.dropPositionFor(config);
+    await this.introFlyover(target, () => this.dropSequence(target, () => { this.session.mission.start(); }));
   }
   async continueOperation() {
     const cp = save.profile.operationInProgress; if (!cp) return;
@@ -334,20 +336,37 @@ export class Game {
   }
   hideLoading() { const el = document.getElementById('loading'); if (el) el.style.display = 'none'; }
   /** Cinematic pod drop that ends with the player standing at `target`. */
+  /** Warm-up on the loading screen: render the level from every flyover stop so shaders compile and textures upload
+   *  before the camera moves. Costs a second or two of loading, saves the hitches during the cinematic. */
+  async prewarm() {
+    const W = this.world; if (!W) return;
+    const L = W.map.locations; const R = this.renderer;
+    try { R.renderer.compile(W.scene, this.camera); } catch { /* ignore */ }
+    const views = [L.extractionCenter, L.commsPlaza, L.jammerCenter, L.canyonJunction, L.dropZone];
+    for (let i = 0; i < views.length; i++) {
+      const p = views[i].pos; const g = W.groundHeight(p.x, p.z);
+      this.camera.position.set(p.x + 20, g + 40, p.z + 20); this.camera.lookAt(p.x, g, p.z); this.camera.userData.focus = p;
+      W.update(0.016, this.camera); R.render(0.016);
+      this.camera.position.set(p.x - 6, g + 2, p.z + 8); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    // FX materials: spawn one of each cheap effect off-screen so their shaders are compiled too
+    try { const fx = this.session?.fx; const off = new THREE.Vector3(0, -50, 0); fx?.sparksBurst?.(off, new THREE.Vector3(0, 1, 0), 2); fx?.dust?.(off, 0.1); fx?.muzzleFlash?.(off, new THREE.Vector3(0, 0, 1), '#8ff0ff', 0.1); fx?.blood?.(off, new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), 0.1); R.render(0.016); } catch { /* ignore */ }
+  }
   /** Recon flyover: a letterboxed cinematic sweep over the objectives with telemetry, holographic markers and the
    *  briefing, ending in a 5-to-1 drop countdown over the pad. Doubles as the warm-up pass: every material is rendered
    *  from several angles before play, so the first seconds do not stutter on shader compiles. */
-  introFlyover() {
-    const s = this.session; if (!s || !this.world) return Promise.resolve();
+  introFlyover(target, launchPod) {
+    const s = this.session; if (!s || !this.world) { launchPod?.(); return Promise.resolve(); }
     const L = this.world.map.locations; const W = this.world; const mk = this.world.map.markers || [];
     const stops = [
       { loc: L.extractionCenter, label: 'EXTRACTION PLATFORM', sub: 'Dropship recovery point. Hold it when the time comes.', h: 52 },
       { loc: L.commsPlaza, label: mk[1]?.label || 'COMMUNICATIONS BASE', sub: mk[1]?.desc || '', h: 48 },
       { loc: L.jammerCenter, label: mk[0]?.label || 'JAMMER OUTPOST', sub: mk[0]?.desc || '', h: 46 },
       { loc: L.canyonJunction, label: 'APPROACH ROUTES', sub: 'High route, main route, trench. Pick your poison.', h: 34 },
-      { loc: L.dropZone, label: 'DROP ZONE', sub: 'Pod inbound. Brace.', h: 22 },
+      { loc: { pos: target || L.dropZone.pos }, label: 'DROP ZONE', sub: 'Pod inbound. Brace.', h: 26 },
     ];
-    const pts = stops.map((st) => { const p = st.loc.pos.clone(); p.y = W.groundHeight(p.x, p.z) + st.h; return p; });
+    const pts = stops.map((st, i) => { const p = st.loc.pos.clone(); p.y = W.groundHeight(p.x, p.z) + st.h; if (i === stops.length - 1) { p.x += 9; p.z += 12; } return p; });
     const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
     try { this.renderer.renderer.compile(W.scene, this.camera); } catch { /* ignore */ }
     const el = document.createElement('div'); el.id = 'intro';
@@ -384,8 +403,8 @@ export class Game {
     audio.setMusicState('deploy');
     const markers = [];
     return new Promise((resolve) => {
-      this.intro = { t: 0, dur: 14, countFrom: 5, curve, stops, el, cap: el.querySelector('.capwrap'), capT: el.querySelector('.cap'), subT: el.querySelector('.sub'), count: el.querySelector('.count'), cn: el.querySelector('.cn'), alt: el.querySelector('.alt'), grid: el.querySelector('.grid'), sig: el.querySelector('.sig'), lastStop: -1, lastCount: -1, markers, teleT: 0,
-        resolve: () => { for (const m of markers) m.remove?.(); el.remove(); this.intro = null; this.camera.fov = settings.data.fov; this.camera.rotation.z = 0; this.camera.updateProjectionMatrix(); resolve(); } };
+      this.intro = { t: 0, dur: 15, countFrom: 5, launchPod, podStarted: false, target, smoothPos: null, curve, stops, el, cap: el.querySelector('.capwrap'), capT: el.querySelector('.cap'), subT: el.querySelector('.sub'), count: el.querySelector('.count'), cn: el.querySelector('.cn'), alt: el.querySelector('.alt'), grid: el.querySelector('.grid'), sig: el.querySelector('.sig'), lastStop: -1, lastCount: -1, markers, teleT: 0,
+        resolve: () => { for (const m of markers) m.remove?.(); el.remove(); const I = this.intro; this.intro = null; this.camera.fov = settings.data.fov; this.camera.rotation.z = 0; this.camera.updateProjectionMatrix(); if (I && !I.podStarted) { I.podStarted = true; I.launchPod?.(); } resolve(); } };
       const skip = (e) => { if ((e.type === 'keydown' && e.code !== 'Space' && e.code !== 'Escape') || !this.intro) return; window.removeEventListener('keydown', skip); window.removeEventListener('pointerdown', skip); this.intro.resolve(); };
       window.addEventListener('keydown', skip); window.addEventListener('pointerdown', skip);
     });
@@ -393,33 +412,41 @@ export class Game {
   updateIntro(dt) {
     const I = this.intro; if (!I) return;
     I.t += dt; const u = Math.min(1, I.t / I.dur); const e = u * u * (3 - 2 * u);
+    const remain = I.dur - I.t;
+    // the pod launches when the countdown starts, so impact lands on zero
+    if (!I.podStarted && remain <= I.countFrom + 0.2) { I.podStarted = true; I.launchPod?.(); }
+    // drone-shot camera: the path point is a target the camera is damped toward, so frame hitches never become jumps
     const pos = I.curve.getPointAt(e); const ahead = I.curve.getPointAt(Math.min(1, e + 0.045)); const behind = I.curve.getPointAt(Math.max(0, e - 0.02));
-    // bank into turns, drift a little (handheld), drop the fov as we come down
-    const dir = ahead.clone().sub(behind).setY(0).normalize(); const prev = I.prevDir || dir.clone(); const turn = prev.x * dir.z - prev.z * dir.x; I.prevDir = dir; I.roll = (I.roll || 0) * 0.96 + turn * 6;
-    const sway = new THREE.Vector3(Math.sin(I.t * 0.9) * 0.6, Math.sin(I.t * 1.3) * 0.35, Math.cos(I.t * 0.7) * 0.6);
-    this.camera.position.copy(pos).add(sway);
-    const look = ahead.clone(); look.y -= 28 - u * 8; this.camera.lookAt(look); this.camera.rotateZ(-I.roll); this.camera.userData.focus = look;
+    const dir = ahead.clone().sub(behind).setY(0).normalize(); const prev = I.prevDir || dir.clone(); const turn = prev.x * dir.z - prev.z * dir.x; I.prevDir = dir; const rollTarget = THREE.MathUtils.clamp(turn / Math.max(dt, 1e-3) * 0.35, -0.22, 0.22); I.roll = THREE.MathUtils.lerp(I.roll || 0, rollTarget, 1 - Math.exp(-dt * 2.5));
+    const drift = new THREE.Vector3(Math.sin(I.t * 0.5) * 0.4, Math.sin(I.t * 0.7) * 0.25, Math.cos(I.t * 0.4) * 0.4);
+    if (!I.smoothPos) I.smoothPos = pos.clone();
+    const kPos = 1 - Math.exp(-dt * 3.5); I.smoothPos.lerp(pos.clone().add(drift), kPos);
+    this.camera.position.copy(I.smoothPos);
+    let look = ahead.clone(); look.y -= 28 - u * 8;
+    if (I.podStarted && I.target) { look = I.target.clone(); look.y += 1.5; const pod = this.dropPod; if (pod && !pod.landed && pod.t > 0) { const agl = pod.position.y - I.target.y; look.lerp(pod.position, 0.4 * THREE.MathUtils.clamp(1 - agl / 45, 0, 1)); } } // frame the pod only once it is close; never tilt up into the sky
+    if (!I.smoothLook) I.smoothLook = look.clone(); I.smoothLook.lerp(look, 1 - Math.exp(-dt * 4));
+    { const dx = this.camera.position.x - I.smoothLook.x, dz = this.camera.position.z - I.smoothLook.z; const hd = Math.hypot(dx, dz); if (hd < 6) { const k = hd < 0.01 ? 0 : 6 / hd; this.camera.position.x = I.smoothLook.x + (hd < 0.01 ? 6 : dx * k); this.camera.position.z = I.smoothLook.z + dz * k; } }
+    this.camera.up.set(0, 1, 0); this.camera.lookAt(I.smoothLook); this.camera.rotateZ(-I.roll); this.camera.userData.focus = I.smoothLook;
     this.camera.fov = 78 - u * 12; this.camera.updateProjectionMatrix();
     // telemetry
-    I.teleT -= dt; if (I.teleT <= 0) { I.teleT = 0.1; const alt = Math.max(0, pos.y - this.world.groundHeight(pos.x, pos.z)); I.alt.textContent = String(Math.round(alt * 10)).padStart(4, '0'); I.grid.textContent = `${(pos.x + 200).toFixed(1)}.${(200 - pos.z).toFixed(0)}`; I.sig.textContent = u > 0.55 ? 'JAMMED' : `${Math.round(60 + Math.random() * 30)}%`; I.sig.style.color = u > 0.55 ? '#ff5a1f' : ''; }
+    I.teleT -= dt; if (I.teleT <= 0) { I.teleT = 0.1; const alt = Math.max(0, this.camera.position.y - this.world.groundHeight(this.camera.position.x, this.camera.position.z)); I.alt.textContent = String(Math.round(alt * 10)).padStart(4, '0'); I.grid.textContent = `${(this.camera.position.x + 200).toFixed(1)}.${(200 - this.camera.position.z).toFixed(0)}`; I.sig.textContent = u > 0.55 ? 'JAMMED' : `${Math.round(60 + Math.random() * 30)}%`; I.sig.style.color = u > 0.55 ? '#ff5a1f' : ''; }
     // captions + holographic markers at each stop
     const idx = Math.min(I.stops.length - 1, Math.floor(e * I.stops.length));
     if (idx !== I.lastStop) { I.lastStop = idx; const st = I.stops[idx]; I.capT.textContent = st.label; I.subT.textContent = st.sub || ''; I.cap.classList.add('on'); audio.play('objective_new', { volume: 0.45 }); const mp = st.loc.pos.clone(); mp.y = this.world.groundHeight(mp.x, mp.z) + 2; const m = this.fx?.marker?.(mp, idx === I.stops.length - 1 ? '#f2c744' : '#00e5ff'); if (m) I.markers.push(m); }
-    // countdown over the final approach
-    const remain = I.dur - I.t; const n = Math.ceil(remain);
+    // countdown to impact over the pad
+    const n = Math.ceil(remain);
     if (remain <= I.countFrom + 0.999 && n >= 1 && n <= I.countFrom) { I.count.classList.add('on'); I.cap.classList.remove('on'); if (n !== I.lastCount) { I.lastCount = n; I.cn.textContent = String(n); I.cn.classList.remove('pop'); void I.cn.offsetWidth; I.cn.classList.add('pop'); audio.play('countdown_tick', { volume: 0.9, pitch: 1 + (I.countFrom - n) * 0.06 }); events.emit('fx:shake', 0.12); } }
-    // let enemies idle-animate so their materials/skins warm up too
-    this.session.director.update(dt);
-    if (u >= 1) { audio.play('ui_deploy', { volume: 1 }); this.renderer.whiteFlash(0.7); I.resolve(); }
+    if (this.mode === 'intro') this.session.director.update(dt); // enemies idle-animate so their skins warm up too
+    if (u >= 1) { I.resolve(); }
   }
   dropSequence(target, onDone) {
     const s = this.session; const p = s.player;
     this.mode = 'drop';
     p.model.root.visible = false; p.spawnAt(target, Math.PI * 0 + (target.z > 0 ? 0 : Math.PI));
-    const overlay = this.menus.showDropSequence(['POD SEPARATION', 'ATMOSPHERIC ENTRY', 'RETRO BURN', 'IMPACT']); overlay.setCountdown?.('');
+    const overlay = null; // the recon flyover carries the countdown; no separate black screen
     audio.setMusicState('deploy'); audio.playStinger('stinger_drop', 0.9);
     audio.setAmbience({ ambience_wind: 0.2 });
-    const pod = new DropPod(this, target, { kind: 'player', owner: p.id, duration: 4.2, delay: 0.8, onLand: () => { overlay.setStep(3); this.renderer.whiteFlash(0.6); }, onOpen: () => { p.model.root.visible = true; p.respawn(target, p.yaw); p.position.copy(target).add(new THREE.Vector3(Math.sin(p.yaw) * -3.4, 0, Math.cos(p.yaw) * -3.4)); p.position.y = this.world.groundHeight(p.position.x, p.position.z); overlay.remove(); this.beginPlay(); onDone?.(); } });
+    const pod = new DropPod(this, target, { kind: 'player', owner: p.id, duration: 4.2, delay: 0.8, onLand: () => { this.renderer.whiteFlash(0.6); }, onOpen: () => { p.model.root.visible = true; p.respawn(target, p.yaw); p.position.copy(target).add(new THREE.Vector3(Math.sin(p.yaw) * -3.4, 0, Math.cos(p.yaw) * -3.4)); p.position.y = this.world.groundHeight(p.position.x, p.position.z); overlay?.remove(); this.beginPlay(); onDone?.(); } });
     this.dropPod = pod; this.dropT = 0; this.dropOverlay = overlay;
     s.hud.show(false);
   }
@@ -427,8 +454,7 @@ export class Game {
     const pod = this.dropPod; if (!pod) return;
     this.dropT += dt;
     pod.update(dt);
-    const ov = this.dropOverlay;
-    if (ov) { if (this.dropT > 1.2) ov.setStep(1); if (this.dropT > 2.6) ov.setStep(2); }
+    if (this.intro) { this.updateIntro(dt); return; } // flyover still framing the pad
     // camera: chase the pod from above/behind, then swing to ground level at impact
     const k = clamp(pod.t / pod.duration, 0, 1);
     const podPos = pod.position;
@@ -458,7 +484,7 @@ export class Game {
     this.mode = 'drop'; input.setGameplay(false);
     player.model.root.visible = false; player.position.copy(target);
     audio.playStinger('stinger_drop', 0.7);
-    this.dropPod = new DropPod(this, target, { kind: 'player', owner: player.id, duration: 3.6, delay: 0.4, onOpen: () => { player.respawn(target.clone(), player.cam.yaw); player.position.add(new THREE.Vector3(Math.sin(player.cam.yaw) * -3.4, 0, Math.cos(player.cam.yaw) * -3.4)); player.position.y = this.world.groundHeight(player.position.x, player.position.z); overlay.remove(); this.beginPlay(); events.emit('lives:changed', s.mission.lives); } });
+    this.dropPod = new DropPod(this, target, { kind: 'player', owner: player.id, duration: 3.6, delay: 0.4, onOpen: () => { player.respawn(target.clone(), player.cam.yaw); player.position.add(new THREE.Vector3(Math.sin(player.cam.yaw) * -3.4, 0, Math.cos(player.cam.yaw) * -3.4)); player.position.y = this.world.groundHeight(player.position.x, player.position.z); overlay?.remove(); this.beginPlay(); events.emit('lives:changed', s.mission.lives); } });
     this.dropT = 0; this.dropOverlay = overlay;
     s.hud.show(false);
   }
