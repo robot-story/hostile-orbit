@@ -183,16 +183,16 @@ export class Terrain {
       c.lerp(rock, rockT);
       // macro variation (large patches) and darker crevices on steep faces so rock reads as strata, not clay
       const macro = fbm2(x * 0.012 + 40, z * 0.012 + 17, 2) - 0.5; c.multiplyScalar(1 + macro * 0.22);
-      const nrmY = this.getNormal(x, z).y; const steep = 1 - THREE.MathUtils.smoothstep(nrmY, 0.55, 0.9); c.multiplyScalar(1 - steep * 0.4 * (0.5 + rockT * 0.5));
+      const nrmY = this.getNormal(x, z).y; const steep = 1 - THREE.MathUtils.smoothstep(nrmY, 0.55, 0.9); c.multiplyScalar(1 - steep * 0.5 * (0.5 + rockT * 0.5));
       // sedimentary strata: horizontal bands on the rock faces
-      const strata = Math.sin(h * 1.9 + fbm2(x * 0.03, z * 0.03, 2) * 3.0) * 0.5 + 0.5; c.multiplyScalar(1 - rockT * steep * 0.22 * strata + rockT * 0.06 * (strata - 0.5));
+      const strata = Math.sin(h * 1.9 + fbm2(x * 0.03, z * 0.03, 2) * 3.0) * 0.5 + 0.5; c.multiplyScalar(1 - rockT * steep * 0.35 * strata + rockT * 0.1 * (strata - 0.5));
       // slight brighter dust on top ridges
       if (h > 20) c.lerp(new THREE.Color(P.ridge[0], P.ridge[1], P.ridge[2]), smoothstep(20, 32, h) * 0.5);
       colors[k * 3] = c.r; colors[k * 3 + 1] = c.g; colors[k * 3 + 2] = c.b;
       // neon veins only in floor cracks and along rock bases, patchy
       const patch = fbm2(x * 0.02 + 11, z * 0.02 + 5, 2);
       // sparse glowing patches: mostly along canyon floors near rock bases
-      vein[k] = (patch > 0.66 ? (patch - 0.66) * 4 : 0) * (1 - rockT * 0.7) * (fd < 6 && fd > -14 ? 1 : 0.08) * P.veinScale;
+      vein[k] = (patch > 0.62 ? (patch - 0.62) * 4 : 0) * (1 - rockT * 0.7) * (fd < 6 && fd > -14 ? 1 : (fd <= -14 ? 0.45 : 0.08)) * P.veinScale;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.setAttribute('aVein', new THREE.BufferAttribute(vein, 1));

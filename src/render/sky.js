@@ -48,7 +48,7 @@ export function createSky(opts = {}) {
             a += smoothstep(w, 0.0, abs(h - y0)) * (0.35 + 0.65 * noise(vec2(d.x * 8.0 + fi * 10.0, uTime * 0.2))) * (0.6 + 0.4 * noise(vec2(d.x * 20.0, d.z * 20.0 + fi)));
           }
           vec3 ac = mix(vec3(0.0, 0.9, 0.7), vec3(0.55, 0.15, 1.0), sin(d.x * 2.0 + uTime * 0.1) * 0.5 + 0.5);
-          col += ac * a * 0.085 * uAurora;
+          col += ac * a * 0.12 * uAurora;
         }
         gl_FragColor = vec4(col, 1.0);
       }`,

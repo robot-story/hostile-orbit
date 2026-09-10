@@ -94,7 +94,7 @@ function normaliseWeapon(geo, opts) {
   const pos2 = geo.attributes.position; let gR = null, gL = null;
   for (let i = 0; i < pos2.count; i++) { const z = pos2.getZ(i), y = pos2.getY(i), x = pos2.getX(i); if (Math.abs(x) > 0.05) continue; if (z > -0.2 && z < 0.02 && (!gR || y < gR.y)) gR = new THREE.Vector3(x, y, z); if (z > 0.24 && z < 0.5 && (!gL || y < gL.y)) gL = new THREE.Vector3(x, y, z); }
   const gripR = new THREE.Vector3(0.02, gR ? THREE.MathUtils.clamp(gR.y + 0.08, -0.13, -0.01) : -0.02, gR ? THREE.MathUtils.clamp(gR.z + 0.02, -0.08, 0.06) : 0.04);
-  const gripL = new THREE.Vector3(-0.02, gL ? THREE.MathUtils.clamp(gL.y + 0.05, -0.06, 0.05) : 0.0, gL ? gL.z : 0.34);
+  const gripL = new THREE.Vector3(-0.02, gL ? THREE.MathUtils.clamp(gL.y + 0.05, -0.06, 0.05) : 0.0, gL ? Math.min(gL.z, 0.3) : 0.3);
   return { geometry: geo, length: b3.max.z - b3.min.z, muzzle: new THREE.Vector3(0, 0.055, geo.boundingBox.max.z - 0.01), gripR, gripL };
 }
 

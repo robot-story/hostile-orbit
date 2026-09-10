@@ -155,6 +155,7 @@ export class CharacterAnimator {
       T.thighL = [lerp(T.thighL[0], 0.55, k), T.thighL[1], T.thighL[2]]; T.thighR = [lerp(T.thighR[0], 0.45, k), T.thighR[1], T.thighR[2]];
       T.shinL = [lerp(T.shinL[0], 1.1, k), 0, 0]; T.shinR = [lerp(T.shinR[0], 1.2, k), 0, 0]; T.footL = [-0.4 * k, 0, 0]; T.footR = [-0.4 * k, 0, 0];
       T.spine = [lerp(T.spine[0], 0.22, k), T.spine[1], T.spine[2]]; rootTarget += 0.05 * k; }
+    if (this.model?.ballRadius && s.crouch > 0.5 && !s.dead) { T.spine = [T.spine[0] + 0.28, T.spine[1], T.spine[2]]; T.chest = [T.chest[0] + 0.12, T.chest[1], T.chest[2]]; T.head = [T.head[0] - 0.2, T.head[1], T.head[2]]; }
     if (s.dead) { CharacterAnimator.mix(T, POSE.dead, 1, T); rootTarget = -0.85; blend = 6; }
     if (s.reload != null) {
       // left hand goes to magazine and back

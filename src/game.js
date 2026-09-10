@@ -474,7 +474,7 @@ export class Game {
   }
   tick() {
     this._lastTick = performance.now();
-    const dt = Math.min(0.05, this.clock.getDelta()) * (this.dev?.state.timeScale ?? 1);
+    const dt = (this._fixedDt != null ? this._fixedDt : Math.min(0.05, this.clock.getDelta())) * (this.dev?.state.timeScale ?? 1);
     if (this.fpsEl) { this._fpsAcc += dt; this._fpsN++; if (this._fpsAcc > 0.5) { this.fpsEl.textContent = `${Math.round(this._fpsN / this._fpsAcc)} FPS`; this._fpsAcc = 0; this._fpsN = 0; } }
     const s = this.session;
     if (s && this.world) {
