@@ -377,7 +377,7 @@ export class Game {
       #intro .skip{position:absolute;right:32px;bottom:12.5vh;font-size:11px;letter-spacing:.3em;color:rgba(255,255,255,.55)}
       @keyframes introRec{to{opacity:.2}}
       @keyframes introBar{to{transform:scaleY(1)}}
-      @keyframes introPop{0%{transform:scale(1.6);opacity:0}18%{transform:scale(1);opacity:1}80%{opacity:1}100%{transform:scale(.92);opacity:0}}`; document.head.appendChild(css); }
+      @keyframes introPop{0%{transform:scale(1.7);opacity:0}16%{transform:scale(1);opacity:1}100%{transform:scale(.9);opacity:.9}}`; document.head.appendChild(css); }
     this.ui.appendChild(el);
     s.hud.show(false); this.menus.hide();
     this.mode = 'intro';
