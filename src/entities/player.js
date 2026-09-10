@@ -131,7 +131,7 @@ export class Player {
     this.anim.aimPitch = clamp(this.cam.pitch / 1.1, -1, 1);
     this.lastAnimState = s;
     this.anim.update(dt, s);
-    rollBall(this.model, this.grounded ? this.velocity.x : this.velocity.x * 0.3, this.grounded ? this.velocity.z : this.velocity.z * 0.3, dt, this.anim.land || 0, this.model.root.rotation.y);
+    rollBall(this.model, this.grounded ? this.velocity.x : this.velocity.x * 0.3, this.grounded ? this.velocity.z : this.velocity.z * 0.3, dt, this.anim.land || 0, this.model.root.rotation.y, this.crouching ? 1 : 0);
     if (this.model.ball && this.grounded && speedN > 0.3) { this._rollDustT = (this._rollDustT || 0) - dt; if (this._rollDustT <= 0) { this._rollDustT = 0.16 - speedN * 0.08; this.fx.dust?.(this.position.clone().add(new THREE.Vector3(-this.velocity.x * 0.05, 0.05, -this.velocity.z * 0.05)), 0.25 + speedN * 0.4); } }
     this.model.root.position.copy(this.position);
     this.model.root.rotation.y = this.yaw + Math.PI;

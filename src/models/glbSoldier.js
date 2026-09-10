@@ -316,7 +316,7 @@ export function attachBall(model, radius = 0.44) {
   else { mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 16), new THREE.MeshStandardMaterial({ color: '#c8c8cc', roughness: 0.45, metalness: 0.35 })); }
   mesh.castShadow = true; g.add(mesh);
   // neon equator ring so the roll reads clearly
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.98, 0.018, 8, 48), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.1, roughness: 0.3 }));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.98, 0.018, 8, 48), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 0.8, roughness: 0.3 }));
   ring.rotation.x = Math.PI / 2; g.add(ring);
 
   // waist collar at the top of the ball (does not roll): matte ring, four short struts, thin emissive lip, two vents
@@ -325,7 +325,7 @@ export function attachBall(model, radius = 0.44) {
   const ringM = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.48, 0.045, 10, 40), matte); ringM.rotation.x = Math.PI / 2; ringM.position.y = radius * 0.9; collar.add(ringM);
   const cup = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.46, radius * 0.6, 0.14, 24, 1, true), new THREE.MeshStandardMaterial({ color: '#2c3038', roughness: 0.55, metalness: 0.7, side: THREE.DoubleSide })); cup.position.y = radius * 0.8; collar.add(cup);
   for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; const strut = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 0.06), matte); strut.position.set(Math.cos(a) * radius * 0.54, radius * 0.72, Math.sin(a) * radius * 0.54); strut.rotation.z = Math.cos(a) * 0.5; strut.rotation.x = -Math.sin(a) * 0.5; collar.add(strut); }
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.5, 0.014, 8, 40), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.6 })); lip.rotation.x = Math.PI / 2; lip.position.y = radius * 0.96; collar.add(lip);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.5, 0.014, 8, 40), new THREE.MeshStandardMaterial({ color: '#00e5ff', emissive: '#00e5ff', emissiveIntensity: 1.0 })); lip.rotation.x = Math.PI / 2; lip.position.y = radius * 0.96; collar.add(lip);
   for (let i = 0; i < 2; i++) { const a = i * Math.PI + 0.6; const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.07, 8), matte); vent.position.set(Math.cos(a) * radius * 0.62, radius * 0.6, Math.sin(a) * radius * 0.62); vent.rotation.z = Math.cos(a) * 1.0; vent.rotation.x = -Math.sin(a) * 1.0; collar.add(vent); }
   const roll = new THREE.Group(); roll.add(g); roll.position.y = radius;
   const holder = new THREE.Group(); holder.name = 'ballRig'; holder.add(roll); collar.position.y = radius; holder.add(collar);
@@ -346,6 +346,7 @@ export function applyCustomBody(model, custom, opts = {}) {
     // torso rides higher: pelvis sits on top of the ball
     const r = opts.ballRadius || 0.58; const cut = custom.waistCut ?? (custom.fit.crotchY + 0.16); model.ballRootY = (custom.fit.crotchY + 0.04) + (r * 2 - 0.05 - cut); model.bones.root.position.y = model.ballRootY; model.root.updateWorldMatrix(true, true);
     attachBall(model, r);
+    if (opts.torsoScale && opts.torsoScale !== 1) { const k = opts.torsoScale; model.bones.root.scale.setScalar(k); model.torsoScale = k; }
   } else skinned = skinToRig(custom, model.bones, model.root);
   if (opts.neon || opts.tint) { const key = 'mat:' + (opts.neon || '') + ':' + (opts.tint || ''); custom._mats = custom._mats || {}; if (!custom._mats[key]) { const m = custom.material.clone(); if (opts.tint) m.color.set(opts.tint); if (opts.neon) makeNeonMask(m, opts.neon); custom._mats[key] = m; } skinned.material = custom._mats[key]; }
   for (const m of model.meshes) m.visible = false;
@@ -382,7 +383,7 @@ export function makeNeonMask(material, color) {
 }
 
 /** Roll a ball-mounted body: spin the sphere with ground velocity, squash it on landing. */
-export function rollBall(model, vx, vz, dt, land = 0, rootYaw = 0) {
+export function rollBall(model, vx, vz, dt, land = 0, rootYaw = 0, crouch = 0) {
   if (!model?.ball) return;
   const sp = Math.hypot(vx, vz);
   if (sp > 0.05 && dt > 0) {
@@ -390,6 +391,6 @@ export function rollBall(model, vx, vz, dt, land = 0, rootYaw = 0) {
     const c = Math.cos(-rootYaw), s = Math.sin(-rootYaw); const lx = ax * c + az * s, lz = -ax * s + az * c; // into root-local space
     _axis.set(lx, 0, lz).normalize(); _q.setFromAxisAngle(_axis, sp * dt / model.ballRadius); model.ball.quaternion.premultiply(_q);
   }
-  model.ball.scale.set(1 + land * 0.08, 1 - land * 0.14, 1 + land * 0.08);
+  const sq = land * 0.14 + crouch * 0.12; model.ball.scale.set(1 + sq * 0.55, 1 - sq, 1 + sq * 0.55); if (model.ballRig) model.ballRig.position.y = -sq * model.ballRadius * 0.9;
 }
 const _axis = new THREE.Vector3(), _q = new THREE.Quaternion();

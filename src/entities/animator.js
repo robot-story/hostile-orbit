@@ -106,6 +106,7 @@ export class CharacterAnimator {
     this.weaponSocket.name = 'weaponHold';
     this.bones.chest.add(this.weaponSocket);
     this.weaponSocket.position.set(-0.17, 0.02, 0.22);
+    if (model.torsoScale) this.weaponSocket.scale.setScalar(1 / model.torsoScale);
     this.weaponPose = { pos: new THREE.Vector3(-0.17, 0.02, 0.22), rot: new THREE.Euler(0, 0, 0) };
     this.weaponPoseTarget = { pos: new THREE.Vector3(-0.17, 0.02, 0.22), rot: new THREE.Euler(0, 0, 0) };
     this.blendRate = 12;
@@ -172,7 +173,7 @@ export class CharacterAnimator {
       // servo feel without jank: quicker approach with a critically-damped settle (no detents, no visible overshoot)
       for (let i = 0; i < 3; i++) { const d = t[i] - c[i]; c[i] += d * k; }
     }
-    if (this.model?.ballRadius) rootTarget = Math.max(rootTarget, -0.14); // ball mode: torso cannot sink into the housing
+    if (this.model?.ballRadius) rootTarget = Math.max(rootTarget, -0.24); // ball mode: torso cannot sink into the housing
     this.rootY = damp(this.rootY, rootTarget - (this.land || 0) * 0.22, 10, dt);
     this.lean = damp(this.lean, leanTarget, 10, dt);
     // gait

@@ -110,8 +110,9 @@ export class Renderer {
     this.resize();
     events.emit('renderer:quality', q);
   }
-  resize() {
-    const w = window.innerWidth, h = window.innerHeight;
+  resize() { this.setSize(window.innerWidth, window.innerHeight); }
+  /** Explicit size (used by resize and by fixed-size captures); keeps every pass' resolution uniforms consistent. */
+  setSize(w, h) {
     this.width = w; this.height = h;
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
