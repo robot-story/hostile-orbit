@@ -14,6 +14,7 @@ import { net } from '../net/net.js';
 import { SQUAD_COLORS } from '../net/protocol.js';
 import { rollBall } from '../models/glbSoldier.js';
 const RAM_DEF = { id: 'ram', damage: 110, impulse: 7, headMult: 1, range: 4 };
+const RAM_BALL = { id: 'ram', damage: 165, impulse: 10, headMult: 1, range: 4.6 }; // rolled-up frame hits like a wrecking ball
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _ray = new THREE.Ray();
 
@@ -54,7 +55,7 @@ export class Player {
   equip(slot) { this.slot = slot; while (this.weaponGroup.children.length) this.weaponGroup.remove(this.weaponGroup.children[0]); this.weaponGroup.add(this.weapon.model); this.reloadT = -1; audio.play('weapon_swap', { volume: 0.6 }); events.emit('player:weapon', this.weapon); }
   spawnAt(p, yaw = 0) { this.position.copy(p); this.yaw = yaw; this.cam.yaw = yaw; this.velocity.set(0, 0, 0); this.model.root.position.copy(p); }
   get eyeHeight() { const lift = this.model?.robot ? 0.22 : 0; return (this.crouching || (this.state === 'cover' && this.cover?.height === 'low' && !this.aiming) ? 1.15 : 1.55) + lift; }
-  get moveSpeedMax() { const w = this.weapon.def.moveMult || 1; if (this.aiming) return (this.weapon.def.kind === 'sniper' ? 1.6 : 3.1) * w; if (this.crouching) return 2.9; if (this.sprinting) return 9.4 * w; return 6.3 * w; }
+  get moveSpeedMax() { const w = this.weapon.def.moveMult || 1; if (this.aiming) return (this.weapon.def.kind === 'sniper' ? 1.6 : 3.1) * w; if (this.crouching) return 2.9; if (this.sprinting) return (this.model?.robot ? 11.2 : 9.4) * w; return 6.8 * w; }
 
   update(dt) {
     this.stateT += dt; this.spawnT += dt;
@@ -135,7 +136,7 @@ export class Player {
         if (d > 1.35 || Math.abs(e.position.y - this.position.y) > 1.6) continue;
         if (e._ramT != null && now - e._ramT < 0.7) continue; e._ramT = now;
         const hit = { entity: e, dist: d, zone: 'chest', point: e.hitCenter.clone(), normal: dir.clone().negate() };
-        this.game.combat.playerHit(hit, RAM_DEF, dir);
+        this.game.combat.playerHit(hit, (this.model?.fold || 0) > 0.6 ? RAM_BALL : RAM_DEF, dir);
         this.fx.sparksBurst?.(e.hitCenter.clone(), dir, 18, '#7fe9ff'); this.fx.dust?.(e.position.clone(), 1.5);
         audio.play('impact_metal', { pos: e.position, volume: 1, pitchVar: 0.15 }); events.emit('fx:shake', 0.5);
         this.velocity.multiplyScalar(0.82);
@@ -163,13 +164,16 @@ export class Player {
     this.crouching = input.crouch();
     this.aiming = aimNow && this.reloadT < 0;
     this.sprinting = input.sprint() && ax.z > 0.1 && !this.aiming && !this.crouching;
+    if (this.model) this.model.sprintBall = !!(this.sprinting && this.model.robot && this.grounded);
+    // auto-hop: a low wall in the run direction gets vaulted without a key press
+    this._hopT = (this._hopT || 0) - dt; if (this.sprinting && this.grounded && this._hopT <= 0 && wish.lengthSq() > 0.1) { this._hopT = 0.15; if (this.tryVaultAlong(wish.clone().normalize())) return; }
     const max = this.moveSpeedMax;
     const target = wish.clone().multiplyScalar(max);
-    const accel = this.grounded ? 22 : (this.jet ? 14 : 6);
+    const accel = this.grounded ? 30 : (this.jet ? 14 : 6);
     this.velocity.x = damp(this.velocity.x, target.x, accel * 0.5, dt); this.velocity.z = damp(this.velocity.z, target.z, accel * 0.5, dt);
     // Facing: sprint turns the body into the run direction; every other movement strafes (body faces the camera);
     // standing still only turns in place once the camera has swung far enough (no constant spinning).
-    if (this.sprinting && ax.active) { this.turning = false; this.yaw = angleDamp(this.yaw, Math.atan2(-wish.x, -wish.z), 9, dt); }
+    if (this.sprinting && ax.active) { this.turning = false; this.yaw = angleDamp(this.yaw, Math.atan2(-wish.x, -wish.z), 11, dt); }
     else if (this.aiming || this.trigger || ax.active) { this.turning = false; this.faceCamera(dt, ax.active ? 13 : 16); }
     else { const d = Math.abs(angleDiff(this.yaw, this.cam.yaw)); if (d > 1.05) this.turning = true; if (this.turning) { this.yaw = angleDamp(this.yaw, this.cam.yaw, 7, dt); if (d < 0.06) this.turning = false; } }
     if (input.pressed('roll') && ax.active) { this.state = 'roll'; this.stateT = 0; this.rollDir = wish.clone().normalize(); this.yaw = Math.atan2(-this.rollDir.x, -this.rollDir.z); this.aiming = false; audio.play('roll', { pos: this.position }); }
@@ -189,7 +193,18 @@ export class Player {
     const sp = 8.5 * (1 - t * 0.5);
     this.velocity.x = this.rollDir.x * sp; this.velocity.z = this.rollDir.z * sp;
     this.crouching = false; this.aiming = false; this.sprinting = false;
-    if (t >= 1) { this.state = 'normal'; this.stateT = 0; }
+    if (t >= 1) { this.state = 'normal'; this.stateT = 0; if (this.vaultFast) { const d = this.vaultTo.clone().sub(this.vaultFrom).setY(0).normalize(); this.velocity.copy(d.multiplyScalar(8)); } this.vaultFast = false; }
+  }
+  /** Vault check along an arbitrary ground direction (sprint auto-hop). */
+  tryVaultAlong(dir) {
+    const o = this.position.clone(); o.y += 0.7;
+    const h = this.world.raycast(o, dir, 1.6, { entities: false, terrain: false });
+    if (!(h && h.collider && h.collider.top - this.position.y < 1.45 && h.collider.top - this.position.y > 0.35)) return false;
+    const c = h.collider; const far = this.position.clone().addScaledVector(dir, h.dist + (c.type === 'box' ? Math.min(c.half.x, c.half.z) * 2 : c.radius * 2) + 1.2);
+    const gy = this.world.groundHeight(far.x, far.z, c.top + 0.2, 1.5, 0.3);
+    if (!(this.world.headroom(far, 1.8) > 1.6 && Math.abs(gy - this.position.y) < 1.6)) return false;
+    this.state = 'vault'; this.stateT = 0; this.vaultFrom = this.position.clone(); this.vaultTo = new THREE.Vector3(far.x, gy, far.z); this.vaultTop = c.top + 0.1; this.vaultFast = true;
+    this.cover = null; audio.play('vault', { pos: this.position }); if (this.model) this.model.sprintBall = true; return true;
   }
   tryCoverOrVault(wish) {
     const facing = new THREE.Vector3(-Math.sin(this.cam.yaw), 0, -Math.cos(this.cam.yaw));
@@ -209,7 +224,7 @@ export class Player {
     return false;
   }
   updateVault(dt) {
-    const t = clamp(this.stateT / 0.7, 0, 1);
+    const t = clamp(this.stateT / (this.vaultFast ? 0.42 : 0.7), 0, 1);
     const p = this.vaultFrom.clone().lerp(this.vaultTo, t);
     p.y = lerp(this.vaultFrom.y, this.vaultTo.y, t) + Math.sin(t * Math.PI) * Math.max(0.25, this.vaultTop - Math.min(this.vaultFrom.y, this.vaultTo.y) + 0.1);
     this.position.copy(p); this.velocity.set(0, 0, 0); this.vaultY = p.y;
@@ -294,7 +309,7 @@ export class Player {
   updateWeapon(dt) {
     const w = this.weapon, d = w.def;
     this.fireT -= dt; this.bloom = Math.max(0, this.bloom - dt * 0.12);
-    this.trigger = input.fire && !this.dead && this.state !== 'roll' && this.state !== 'vault' && this.reloadT < 0 && !(this.state === 'cover' && !this.aiming && !this.blindOk());
+    this.trigger = input.fire && !this.dead && this.state !== 'roll' && this.state !== 'vault' && this.reloadT < 0 && !(this.state === 'cover' && !this.aiming && !this.blindOk()) && !(this.model?.sprintBall && (this.model?.fold || 0) > 0.4);
     // reload
     if (this.reloadT >= 0) {
       this.reloadT += dt;

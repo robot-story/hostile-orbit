@@ -130,6 +130,17 @@ export const Tex = {
       scratches(ctx, w, h, rnd, 200, 'rgba(90,70,55,0.35)');
     }, { repeat: [2, 2] });
   },
+  /** Solid basalt: dark grey-brown mass with lighter facet flecks, thin cracks and a dusting of sand in the pits. */
+  basalt(variant = 0) {
+    return canvasTex('basalt' + variant, 512, (ctx, w, h, rnd) => {
+      ctx.fillStyle = variant ? '#3a322c' : '#2f2b28'; ctx.fillRect(0, 0, w, h);
+      noiseFill(ctx, w, h, rnd, 22);
+      for (let i = 0; i < 900; i++) { const x = rnd() * w, y = rnd() * h, r = 3 + rnd() * 22; ctx.fillStyle = rnd() < 0.55 ? `rgba(20,16,14,${0.15 + rnd() * 0.35})` : `rgba(120,110,100,${0.08 + rnd() * 0.22})`; ctx.beginPath(); ctx.ellipse(x, y, r, r * (0.5 + rnd() * 0.6), rnd() * 3, 0, Math.PI * 2); ctx.fill(); }
+      for (let i = 0; i < 40; i++) { const x = rnd() * w, y = rnd() * h; ctx.fillStyle = `rgba(190,120,70,${0.12 + rnd() * 0.2})`; ctx.beginPath(); ctx.ellipse(x, y, 4 + rnd() * 10, 2 + rnd() * 4, rnd() * 3, 0, Math.PI * 2); ctx.fill(); }
+      scratches(ctx, w, h, rnd, 140, 'rgba(10,8,8,0.55)');
+      scratches(ctx, w, h, rnd, 90, 'rgba(160,150,140,0.18)');
+    }, { repeat: [1.5, 1.5] });
+  },
   concrete() {
     return canvasTex('concrete', 512, (ctx, w, h, rnd) => {
       ctx.fillStyle = '#6a6b68'; ctx.fillRect(0, 0, w, h);

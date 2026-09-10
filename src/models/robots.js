@@ -242,24 +242,29 @@ function buildOutrider(model, opts = {}) {
   collar.position.y = R; rig.add(collar);
   model.root.add(rig);
   model.ball = wheel; model.ballRig = rig; model.ballCollar = collar; model.wheel = wheel; model.counterweights = cw; model.robot = 'a'; model.joints = P.joints;
-  let lean = 0, spinV = 0, fold = 0, popT = 0;
+  let lean = 0, spinV = 0, fold = 0, popT = 0, tumble = 0, tumbleA = 0;
   model.motion = (vx, vz, dt, land, rootYaw, crouch) => {
     const fx = Math.sin(rootYaw), fz = Math.cos(rootYaw); const fwd = vx * fx + vz * fz; const lat = vx * -Math.cos(rootYaw) + vz * Math.sin(rootYaw); // model front is local +z; lateral is +toward its right
     spinV = damp(spinV, fwd, 12, dt); wheel.rotation.x += spinV * dt / R;
     // cover fold: the torso curls down into the wheel behind a shield arc; aiming or firing pops it straight back up
     const st = model.animState || {}; const firing = (model.animator?.recoil || 0) > 0.05 || (st.aim || 0) > 0.5 || st.cover?.blind;
     if (firing) popT = 0.7; else popT -= dt;
-    const want = st.cover ? (popT > 0 ? 0 : 1) : (crouch ? 0.45 : 0);
-    fold = damp(fold, want, want > fold ? 4.5 : 16, dt); // slow curl in, servo-fast pop out
+    const ballRun = !!model.sprintBall;
+    const want = ballRun ? 1 : st.cover ? (popT > 0 ? 0 : 1) : (crouch ? 0.45 : 0);
+    fold = damp(fold, want, want > fold ? (ballRun ? 9 : 4.5) : 16, dt); // curl in (fast when rolling), servo-fast pop out
     if (fold > 0.001) {
       const q = Math.round(fold * 14) / 14 * 0.7 + fold * 0.3; // slightly stepped, like servos settling
-      const arm = st.cover ? q : 0; // crouch only hunkers the torso; arms stay on the rifle
+      const arm = (st.cover || ballRun) ? q : 0; // crouch only hunkers the torso; arms stay on the rifle
       B.root.position.y -= q * 0.42; B.spine.rotation.x += q * 0.6; B.chest.rotation.x += q * 1.45; B.head.rotation.x += q * 0.95;
-      const ws = model.animator?.weaponSocket; if (ws && st.cover) { ws.rotation.x += arm * 1.35; ws.rotation.y -= arm * 0.5; ws.position.y -= arm * 0.12; ws.position.z -= arm * 0.08; } // rifle stows along the chest
+      const ws = model.animator?.weaponSocket; if (ws && (st.cover || ballRun)) { ws.rotation.x += arm * 1.35; ws.rotation.y -= arm * 0.5; ws.position.y -= arm * 0.12; ws.position.z -= arm * 0.08; } // rifle stows along the chest
       for (const side of ['L', 'R']) { B['upperArm' + side].rotation.x += arm * 1.3; B['upperArm' + side].rotation.z += (side === 'L' ? -1 : 1) * arm * 0.4; B['forearm' + side].rotation.x += arm * 1.6; }
       for (let i = 0; i < 2; i++) cw[i].rotation.y += (i ? -1 : 1) * arm * 1.3;
     }
     model.fold = fold; shield.scale.set(Math.max(0.001, fold), Math.max(0.001, fold), 3.2);
+    // rolling: once curled, the torso drops to the axle and tumbles with the wheel; the shield cage spins with it
+    const rollK = ballRun ? clamp((fold - 0.75) / 0.25, 0, 1) : 0; tumble = damp(tumble, rollK, 10, dt);
+    if (tumble > 0.001) { tumbleA += spinV * dt / R * tumble; B.root.position.y = B.root.position.y * (1 - tumble) + (R + 0.1) * tumble; B.root.rotation.x += tumbleA; collar.rotation.x = tumbleA; rig.position.y = tumble * 0.12; }
+    else { tumbleA *= 0; collar.rotation.x = damp(collar.rotation.x, 0, 12, dt); rig.position.y = damp(rig.position.y, 0, 12, dt); }
     lean = damp(lean, clamp(lat * 0.09, -0.35, 0.35), 6, dt); rig.rotation.z = lean; rig.rotation.x = clamp(fwd * 0.012, -0.08, 0.08);
     for (let i = 0; i < 2; i++) cw[i].rotation.y = lean * (i ? -1.6 : 1.6) + Math.sin(performance.now() * 0.002 + i) * 0.04;
     const t = performance.now() * 0.001; const sp = Math.abs(fwd);

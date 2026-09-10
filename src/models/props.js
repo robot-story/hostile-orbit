@@ -313,18 +313,24 @@ export function antennaMast(world, position, yaw = 0, opts = {}) {
 }
 
 // ----------------------------------------------------------------- rocks ---
-function rockMesh(scale, matFn) {
-  const m = mesh(icoGeo(1, 1), matFn());
-  const geo = m.geometry;
-  if (!geo.userData.jittered) {
-    const pos = geo.attributes.position;
-    const rnd = () => (Math.random() - 0.5);
-    for (let i = 0; i < pos.count; i++) {
-      pos.setXYZ(i, pos.getX(i) * (1 + rnd() * 0.28), pos.getY(i) * (1 + rnd() * 0.28), pos.getZ(i) * (1 + rnd() * 0.28));
-    }
-    geo.computeVertexNormals();
-    geo.userData.jittered = true;
+const _rockVariants = [];
+function rockVariantGeo(v) {
+  if (_rockVariants[v]) return _rockVariants[v];
+  const geo = new THREE.IcosahedronGeometry(1, 2);
+  const pos = geo.attributes.position;
+  // the geometry is non-indexed, so displacement must be a pure function of position or faces tear apart
+  const hash = (x, y, z) => { const n = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + v * 3.1) * 43758.5453; return n - Math.floor(n) - 0.5; };
+  for (let i = 0; i < pos.count; i++) {
+    const x = Math.round(pos.getX(i) * 1000) / 1000, y = Math.round(pos.getY(i) * 1000) / 1000, z = Math.round(pos.getZ(i) * 1000) / 1000; const len = Math.hypot(x, y, z) || 1;
+    const bump = 1 + hash(x, y, z) * 0.36 + Math.sin(x * 3.1 + v) * 0.09 + Math.cos(z * 2.7 - v) * 0.09;
+    let ny = y / len * bump; if (ny < -0.35) ny = -0.35 - (ny + 0.35) * 0.15; // sits on the ground instead of balancing on a point
+    pos.setXYZ(i, x / len * bump, ny, z / len * bump);
   }
+  geo.computeVertexNormals();
+  _rockVariants[v] = geo; return geo;
+}
+function rockMesh(scale, matFn) {
+  const m = mesh(rockVariantGeo(randInt(0, 3)), matFn());
   m.scale.set(scale.x, scale.y, scale.z);
   return m;
 }
@@ -334,8 +340,8 @@ function rockBuilder(baseR) {
     const s = baseR * rand(0.85, 1.2);
     const matFn = Math.random() < 0.3 ? Mat.rockDust : Mat.rock;
     const m = rockMesh({ x: s, y: s * rand(0.7, 1.0), z: s }, matFn);
-    m.position.y = s * 0.35;
-    m.rotation.set(rand(0, 1), rand(0, 6.28), rand(0, 1));
+    m.position.y = s * 0.3;
+    m.rotation.set(rand(-0.15, 0.15), rand(0, 6.28), rand(-0.15, 0.15));
     g.add(m);
     place(g, position, yaw);
     world.props.add(g);
