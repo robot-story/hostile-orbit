@@ -122,9 +122,9 @@ export function platform(world, pos, opts = {}) {
   world.props.add(g);
   const c = Math.cos(yaw), sn = Math.sin(yaw); const wp = (lx, lz) => new THREE.Vector3(pos.x + lx * c + lz * sn, 0, pos.z - lx * sn + lz * c);
   const colliders = [world.addBox(wp(0, 0).setY(pos.y + h - 0.15), { x: w / 2, y: 0.15, z: d / 2 }, yaw, { material: 'metal', walkableTop: true, mesh: deck })];
-  // stair run off the +x side: rises of 0.5, runs of 0.7
-  const steps = Math.ceil(h / 0.5);
-  for (let i = 0; i < steps; i++) { const top = Math.min(h, (i + 1) * 0.5); const lx = w / 2 + 0.35 + (steps - 1 - i) * 0.7; const step = new THREE.Mesh(new THREE.BoxGeometry(0.7, top, 2.2), i % 2 ? deckMat : dark); step.position.set(lx, top / 2, 0); step.castShadow = true; step.receiveShadow = true; g.add(step); colliders.push(world.addBox(wp(lx, 0).setY(pos.y + top / 2), { x: 0.35, y: top / 2, z: 1.1 }, yaw, { material: 'metal', walkableTop: true, mesh: step })); }
+  // stair run off the +x side: rises of 0.4 (the step limit is 0.55 and the ground under the run can sit a few cm low), runs of 0.6
+  const steps = Math.ceil(h / 0.4);
+  for (let i = 0; i < steps; i++) { const top = Math.min(h, (i + 1) * 0.4); const lx = w / 2 + 0.3 + (steps - 1 - i) * 0.6; const step = new THREE.Mesh(new THREE.BoxGeometry(0.6, top + 0.12, 2.2), i % 2 ? deckMat : dark); step.position.set(lx, top / 2 - 0.06, 0); step.castShadow = true; step.receiveShadow = true; g.add(step); colliders.push(world.addBox(wp(lx, 0).setY(pos.y + top / 2 - 0.06), { x: 0.3, y: top / 2 + 0.06, z: 1.1 }, yaw, { material: 'metal', walkableTop: true, mesh: step })); }
   return { group: g, colliders };
 }
 
