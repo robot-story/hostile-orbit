@@ -102,7 +102,15 @@ export const LANTERN = {
   briefingLine: 'voss_lantern_briefing',
   floor: FLOOR_LANTERN,
   terrain: {
-    style: 'city', texture: 'tex_asphalt', repeat: 90, tint: '#c8ccd8', wallTexture: 'tex_city_wall', wallScale: 1 / 7, wallTint: '#8e94a6', roughness: 0.5, metalness: 0.06, envIntensity: 1.0, veinIntensity: 1.6,
+    style: 'city', texture: 'tex_asphalt', repeat: 90, tint: '#c8ccd8', wallTexture: 'tex_city_wall', wallScale: 1 / 7, wallTint: '#8e94a6',
+    // authored relief (map coords): shell holes down the avenue, rubble mounds at the square, a sunken loading bay, raised plinths
+    features: [
+      { type: 'crater', mx: 200, my: 96, r: 9, h: 1.0 }, { type: 'crater', mx: 194, my: 176, r: 10, h: 1.2 }, { type: 'crater', mx: 208, my: 236, r: 8, h: 0.9 },
+      { type: 'mound', mx: 186, my: 128, r: 9, h: 1.4 }, { type: 'mound', mx: 214, my: 120, r: 8, h: 1.2 },
+      { type: 'crater', mx: 196, my: 336, r: 13, h: 1.5 }, { type: 'berm', mx: 176, my: 300, r: 10, w: 3, h: 1.1, dir: [1, 0] }, { type: 'berm', mx: 226, my: 300, r: 10, w: 3, h: 1.1, dir: [1, 0] },
+      { type: 'mound', mx: 322, my: 318, r: 30, h: -1.2 }, { type: 'mound', mx: 322, my: 318, r: 44, h: 1.4 },
+      { type: 'mound', mx: 90, my: 262, r: 12, h: 1.6 }, { type: 'crater', mx: 56, my: 236, r: 9, h: 1.0 },
+    ], roughness: 0.5, metalness: 0.06, envIntensity: 1.0, veinIntensity: 1.6,
     palette: { floor: [0.22, 0.23, 0.28], floorNoise: [0.04, 0.04, 0.05], rock: [0.07, 0.075, 0.10], rockNoise: [0.03, 0.03, 0.04], ridge: [0.10, 0.10, 0.14], veinScale: 0.5 },
   },
   lighting: {

@@ -81,18 +81,6 @@ export function terrainHeightMap(mx, my, map = null) {
   const { d, lift } = floorField(mx, my, map?.floor || FLOOR);
   const floor = baseFloorHeight(mx, my, style);
   const ridgeNoise = fbm2(mx * 0.025 + 3.1, my * 0.025 + 7.7, 4);
-  if (style === 'city') {
-    // urban blocks: steep plateaus (building footprints) instead of rounded canyon walls
-    const block = 4 + Math.floor(ridgeNoise * 3) * 2.5;
-    const wallT = smoothstep(0, 4, d);
-    const liftT = lift < 0 ? (1 - smoothstep(0, 2.5, d)) : (1 - smoothstep(0, 8, d));
-    let h = floor + wallT * block + lift * liftT + (fbm2(mx * 0.12, my * 0.12, 2) - 0.5) * lerp(0.15, 0.6, wallT);
-    const edge = Math.min(mx, my, 400 - mx, 400 - my);
-    h += smoothstep(14, 0, edge) * 30;
-    return h;
-  }
-  const ridge = 13 + ridgeNoise * 14;
-  const wallT = smoothstep(0, 20, d);
   // authored features: berms and craters on the floor for cover and vantage, pinnacles on the mesas for skyline
   let feat = 0;
   const F = map?.terrain?.features; if (F) for (const f of F) {
@@ -105,6 +93,18 @@ export function terrainHeightMap(mx, my, map = null) {
   }
   // Trench lift: lower floor with sharp walls
   const liftT = lift < 0 ? (1 - smoothstep(0, 3, d)) : (1 - smoothstep(0, 10, d));
+  if (style === 'city') {
+    // urban blocks: steep plateaus (building footprints) instead of rounded canyon walls
+    const block = 4 + Math.floor(ridgeNoise * 3) * 2.5;
+    const wallT = smoothstep(0, 4, d);
+    const liftT = lift < 0 ? (1 - smoothstep(0, 2.5, d)) : (1 - smoothstep(0, 8, d));
+    let h = floor + wallT * block + lift * liftT + feat + (fbm2(mx * 0.12, my * 0.12, 2) - 0.5) * lerp(0.15, 0.6, wallT);
+    const edge = Math.min(mx, my, 400 - mx, 400 - my);
+    h += smoothstep(14, 0, edge) * 30;
+    return h;
+  }
+  const ridge = 13 + ridgeNoise * 14;
+  const wallT = smoothstep(0, 20, d);
   let h = floor + wallT * ridge + lift * liftT + feat;
   // rocky detail on rock, subtle on floor
   const detail = (fbm2(mx * 0.12, my * 0.12, 3) - 0.5);
