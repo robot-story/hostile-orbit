@@ -40,7 +40,7 @@ export function buildHorizon(world) {
       }
       x.lineTo(1536, 1024); x.closePath(); x.fill();
       // window lights / vein glints on the nearest layer
-      if (layer === 2) { for (let i = 0; i < (city ? 380 : 60); i++) { x.fillStyle = city ? (rnd() < 0.5 ? 'rgba(0,229,255,0.7)' : 'rgba(255,63,216,0.6)') : 'rgba(155,77,255,0.45)'; x.fillRect(rnd() * 1536, base - 20 - rnd() * 200, city ? 3 : 6, city ? 5 : 2); } }
+      if (layer >= 1) { for (let i = 0; i < (city ? 520 : 60); i++) { x.fillStyle = city ? (rnd() < 0.5 ? 'rgba(0,229,255,0.95)' : (rnd() < 0.5 ? 'rgba(255,63,216,0.9)' : 'rgba(255,190,90,0.85)')) : 'rgba(155,77,255,0.45)'; x.fillRect(rnd() * 1536, base - 20 - rnd() * 220, city ? 4 : 6, city ? 7 : 2); } if (city) { for (let i = 0; i < 6; i++) { const sx = rnd() * 1536, sy = base - 120 - rnd() * 160; x.fillStyle = rnd() < 0.5 ? 'rgba(0,229,255,0.35)' : 'rgba(255,63,216,0.3)'; x.fillRect(sx, sy, 60 + rnd() * 90, 30 + rnd() * 40); } } } // holo boards glow in the far city
       // spires / masts
       for (let i = 0; i < (city ? 5 : 1); i++) { const sx = rnd() * 1536, h = city ? 200 + rnd() * 300 : 120 + rnd() * 120; x.fillStyle = city ? `rgba(6,6,12,${alpha})` : `rgba(20,10,20,${alpha})`; x.beginPath(); x.moveTo(sx - 6, base); x.lineTo(sx, base - h); x.lineTo(sx + 6, base); x.closePath(); x.fill(); }
     }
