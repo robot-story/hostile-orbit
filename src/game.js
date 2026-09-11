@@ -14,7 +14,7 @@ import { preloadCustomModels } from './models/glbSoldier.js';
 import { Hints } from './ui/hints.js';
 import { icon } from './ui/components.js';
 import { M, worldToMap } from './world/terrain.js';
-import { clamp, formatTime } from './core/mathx.js';
+import { clamp, damp, formatTime } from './core/mathx.js';
 import { Player } from './entities/player.js';
 import { FX } from './fx/fx.js';
 import { Hud } from './ui/hud.js';
@@ -529,6 +529,16 @@ export class Game {
     rows.sort((a, b) => b.k - a.k);
     el.style.display = 'block'; el.innerHTML = `<div class="t">SQUAD</div><div class="r h"><span></span><span>CALLSIGN</span><span>K</span><span>D</span></div>` + rows.map((r) => `<div class="r ${r.isMe ? 'me' : ''}"><span class="d" style="background:${r.col};box-shadow:0 0 8px ${r.col}"></span><span>${r.n}</span><span>${r.k}</span><span>${r.d}</span></div>`).join('');
   }
+  _lazyReticle(dt) {
+    const p = this.session?.player; if (!p) return; let el = this._lazyEl;
+    if (!el) { el = this._lazyEl = document.createElement('div'); el.id = 'lazyret'; el.innerHTML = '<i></i>'; this.ui.appendChild(el); const css = document.createElement('style'); css.textContent = `#lazyret{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;z-index:6}#lazyret i{position:absolute;left:-13px;top:-13px;width:26px;height:26px;border:1.5px solid var(--xc,#00e5ff);border-radius:50%;opacity:.7;box-shadow:0 0 6px rgba(0,229,255,.5)}#lazyret.h i{border-color:#ffb347}`; document.head.appendChild(css); }
+    const kind = p.weapon?.def?.kind; const weight = { smg: 0.35, pistol: 0.3, rifle: 0.6, shotgun: 0.9, lmg: 1.4, sniper: 1.1, launcher: 1.7, arc: 0.5 }[kind] || 0.6;
+    const yaw = p.cam.yaw, pitch = p.cam.pitch; const dy = Math.atan2(Math.sin(yaw - (this._lrY ?? yaw)), Math.cos(yaw - (this._lrY ?? yaw))), dp = pitch - (this._lrP ?? pitch); this._lrY = yaw; this._lrP = pitch;
+    const sx = (dy / Math.max(dt, 1e-3)) * 48 * weight, sy = (dp / Math.max(dt, 1e-3)) * 48 * weight;
+    this._lrX = damp(this._lrX || 0, Math.max(-140, Math.min(140, -sx)), 5 / weight, dt); this._lrYo = damp(this._lrYo || 0, Math.max(-100, Math.min(100, sy)), 5 / weight, dt);
+    const show = this.mode === 'play' && !p.dead && !(p.model?.sprintBall) && !this.paused;
+    el.style.display = show ? 'block' : 'none'; el.style.transform = `translate(${this._lrX.toFixed(1)}px, ${this._lrYo.toFixed(1)}px)`; el.classList.toggle('h', weight >= 1.1);
+  }
   _speedLines(k) {
     let el = this._speedEl; if (!el) { el = this._speedEl = document.createElement('div'); el.id = 'speedlines'; el.innerHTML = '<div class="sl"></div>'; this.ui.appendChild(el); const css = document.createElement('style'); css.textContent = `#speedlines{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .12s;z-index:5}#speedlines .sl{position:absolute;inset:-20%;background:repeating-conic-gradient(from 0deg at 50% 52%,rgba(255,255,255,0) 0deg 5deg,rgba(200,240,255,.28) 5.6deg 6.2deg,rgba(255,255,255,0) 7deg 12deg);-webkit-mask:radial-gradient(ellipse at 50% 52%,transparent 34%,#000 78%);mask:radial-gradient(ellipse at 50% 52%,transparent 34%,#000 78%);animation:slspin .9s linear infinite}@keyframes slspin{to{transform:rotate(12deg)}}`; document.head.appendChild(css); }
     el.style.opacity = (k * 0.85).toFixed(2);
@@ -687,7 +697,7 @@ export class Game {
     if (s && this.world) {
       if (this.mode === 'play') {
         this.time += dt;
-        s.player.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard();
+        s.player.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard(); this._lazyReticle(dt);
         this.world.nav.update();
         if (!this.dev?.state.freezeEnemies) s.director.update(dt);
         s.projectiles.update(dt); s.abilities.update(dt); s.mission.update(dt); s.netsync?.update(dt);

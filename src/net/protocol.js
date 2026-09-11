@@ -1,6 +1,6 @@
 // Wire protocol constants and payload documentation. All payloads are plain JSON.
 export const MAX_PLAYERS = 3;
-export const FRIENDLY_FIRE_MULT = 0.35;
+export const FRIENDLY_FIRE_MULT = 0; // squad mates cannot hurt each other
 export const SNAPSHOT_HZ = 15;      // host -> clients world snapshots
 export const PLAYER_SNAP_HZ = 20;   // each client -> host -> others
 export const PROTOCOL_VERSION = 3;

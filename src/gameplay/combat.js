@@ -61,7 +61,7 @@ export class Combat {
   hitEffects(e, info) {
     const p = new THREE.Vector3(...info.p), n = new THREE.Vector3(...info.n), d = new THREE.Vector3(...info.dir);
     if (e.mechanical) { this.fx.impact(p, n, 'metal'); this.fx.sparksBurst?.(p, n, 10, '#ffb36a'); audio.play('hit_metal', { pos: p, volume: 0.7, pitchVar: 0.1 }); }
-    else if (e.armourAt?.(info.zone) > 0) { this.fx.impact(p, n, 'metal'); audio.play('hit_armor', { pos: p, volume: 0.8, pitchVar: 0.1 }); }
+    else if (e.armourAt?.(info.zone) > 0) { this.fx.impact(p, n, 'metal'); this.fx.sparksBurst?.(p, n, 22, '#ffd27a'); const ric = p.clone().addScaledVector(n, 0.2).add(new THREE.Vector3((Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 3).normalize().multiplyScalar(4 + Math.random() * 5)); this.fx.tracer(p, ric, '#ffe6a8'); audio.play('hit_armor', { pos: p, volume: 1, pitch: 1.25, pitchVar: 0.15 }); if (mine) events.emit('hud:hitmarker', { deflect: true }); }
     else { this.fx.blood(p, n, d, info.zone === 'head' ? 1.6 : 1); audio.play('hit_flesh', { pos: p, volume: 0.9, pitchVar: 0.12 }); if (settings.goreLevel > 0) audio.play('blood_splat', { pos: p, volume: 0.5, pitchVar: 0.15 }); }
     this.fx.hitFlash?.(e.flashMesh || e.model?.meshes?.[0]);
   }
@@ -90,9 +90,10 @@ export class Combat {
       const r = radius + (e.hitRadius || 0.5) * 0.5;
       if (d > r) continue;
       const fall = 1 - Math.pow(Math.max(0, d - 1) / r, 1.4);
-      const dmg = Math.round(damage * fall * (e.isPlayer && opts.friendly ? 0.35 : 1) * (e.isPlayer && opts.selfMult != null ? opts.selfMult : 1));
+      const dmg = Math.round(damage * fall * (e.isPlayer && opts.friendly ? 0 : 1) * (e.isPlayer && opts.selfMult != null ? opts.selfMult : 1));
       if (dmg <= 0) continue;
       const dir = c.clone().sub(pos).normalize(); if (dir.lengthSq() < 0.01) dir.set(0, 1, 0);
+      if (e.isPlayer && d < radius * 0.75 && e.knockdown && !(opts.selfMult === 0 && e.id === attackerId)) e.knockdown(dir, (opts.impulse ?? 14) * fall * 0.9 + 4);
       const info = { targetId: e.id, targetType: e.entityType, zone: 'chest', dmg, weapon: kind, p: v3(c), n: v3(dir.clone().negate()), dir: v3(dir), attackerId, impulse: (opts.impulse ?? 14) * fall, explosive: true };
       if (e.isPlayer) { e.takeDamage(dmg, info); continue; }
       const result = e.takeDamage(dmg, info);

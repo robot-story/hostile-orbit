@@ -137,6 +137,7 @@ export class Enemy {
     this.fx.limb?.(this.model, limb, p, vel, bone);
     audio.play('limb_off', { pos: p, volume: 0.9 });
     if (limb.startsWith('leg')) { this.crippled = true; }
+    if (limb === 'armR' && this.weaponModel) { this.disarmed = true; const wm = this.weaponModel; const wp = wm.getWorldPosition(new THREE.Vector3()); wm.parent?.remove(wm); this.fx.gibs?.(wp, new THREE.Vector3(0, 1, 0), { armour: true, count: 4 }); events.emit('toast', 'DISARMED', 'good'); }
     if (limb === 'head' && !this.dead) { this.health = 0; }
   }
   die(ev) {
@@ -389,6 +390,7 @@ export class Enemy {
     this.fireShot();
   }
   fireShot() {
+    if (this.disarmed) return;
     const w = this.weaponDef, tgt = this.target;
     const muzzle = this.weaponModel?.userData.muzzle ? this.weaponModel.userData.muzzle.getWorldPosition(new THREE.Vector3()) : this.eye(new THREE.Vector3());
     const aim = tgt.position.clone().addScaledVector(UP, tgt.crouching ? 0.85 : 1.25).add(this.aimError);

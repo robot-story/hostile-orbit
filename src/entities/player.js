@@ -177,6 +177,7 @@ export class Player {
     if (this.model) this.model.sprintBall = !!(this.model.robot && (this.rollMode || (this._ballAir && !this.grounded)));
     // auto-hop: a low wall in the run direction gets vaulted without a key press
     this._hopT = (this._hopT || 0) - dt; if (this.sprinting && this.grounded && this._hopT <= 0 && wish.lengthSq() > 0.1) { this._hopT = 0.15; if (this.tryVaultAlong(wish.clone().normalize())) return; }
+    this.knockT = Math.max(0, (this.knockT || 0) - dt); if (this.knockT > 0) { wish.set(0, 0, 0); } else if (this._wasRolling !== undefined && this.grounded) { this.rollMode = this._wasRolling; this._wasRolling = undefined; }
     const max = this.moveSpeedMax;
     const target = wish.clone().multiplyScalar(max);
     const accel = this.grounded ? 34 : (this.jet ? (this._ballAir ? 3 : 14) : 6);
@@ -447,6 +448,13 @@ export class Player {
     return { t: best, zone, normal: d.clone().negate(), material: 'flesh' };
   }
   armourAt() { return 0; }
+  /** Blastwave: thrown off the wheel, tumbling as a ball until it settles. No control for a moment. */
+  knockdown(dir, impulse) {
+    if (this.dead || this.knockT > 0) return;
+    this.knockT = 1.1; this._wasRolling = this.rollMode; this.rollMode = true; this._ballAir = true; this.grounded = false; this.state = 'normal';
+    this.velocity.set(dir.x * impulse, 0, dir.z * impulse); this.vy = Math.max(this.vy, 5 + impulse * 0.35);
+    events.emit('fx:shake', 1.2); audio.play('land', { pos: this.position, volume: 1, pitch: 0.6 }); events.emit('toast', 'BLASTWAVE', 'warn');
+  }
   takeDamage(dmg, info = {}) {
     if (this.dead || this.invulnT > 0) return null;
     if (this.state === 'roll' && this.stateT < 0.35) return null; // i-frames
