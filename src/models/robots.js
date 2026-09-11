@@ -363,6 +363,9 @@ function buildBulwark(model) {
   return model;
 }
 
+/** Modelling kit shared with the Legion enemy frames (src/models/legion.js). */
+export const KIT = { armour, neon, neonOwn, glowOwn, dark, add, box, cyl, sphere, torus, capsule, plate, strip, channel, bevelBox, hexPlate, lathe, tube, decal };
+
 export const ROBOTS = { a: { id: 'a', name: 'OUTRIDER', build: buildOutrider, blurb: 'Monowheel frame. Fast, banks into turns, counterweight arms.' }, b: { id: 'b', name: 'HALO', build: buildHalo, blurb: 'Hover frame. Six-pod thruster skirt, tilts into motion.' }, c: { id: 'c', name: 'BULWARK', build: buildBulwark, blurb: 'Heavy walker. Servo stride, amber load rings.' } };
 
 /** Decorate a freshly built procedural soldier model (zero pose) with one of the robot frames. */

@@ -47,7 +47,7 @@ export class Enemy {
     this.hitboxes = true;
     this.lostLimbs = new Set();
     // model
-    this.model = buildSoldier(this.type.style || 'legion', { custom: this.type.id === 'rifleman' ? 'sentinel' : null });
+    this.model = buildSoldier(this.type.style || 'legion', { legion: ['rifleman', 'breacher', 'suppressor', 'grenadier'].includes(this.type.id) ? this.type.id : undefined, custom: null });
     this.anim = new CharacterAnimator(this.model);
     this.weaponDef = this.type.weapon ? WEAPONS[this.type.weapon] : null;
     if (this.weaponDef) { this.weaponModel = WEAPON_BUILDERS[this.type.weapon](); this.anim.weaponSocket.add(this.weaponModel); }
@@ -480,11 +480,12 @@ export class Enemy {
     const local = _v.set(this.velocity.x, 0, this.velocity.z).applyAxisAngle(UP, -this.yaw);
     if (this.distToCam < 120 || !far) {
       const ll = Math.hypot(local.x, local.z) || 1;
-      this.anim.update(dt, { speed: this.moveSpeedN, strafe: clamp(local.x / 3, -1, 1), forward: local.z >= -0.3 ? 1 : -1, moveDir: { x: ll > 0.2 ? local.x / ll : 0, z: ll > 0.2 ? local.z / ll : -1 }, velocity: Math.hypot(this.velocity.x, this.velocity.z), groundAt: (ox, oz) => this.world.groundHeight(this.position.x + ox, this.position.z + oz, this.position.y), sprint: this.moveSpeedN > 0.75 ? 1 : 0, crouch: this.crouch, aim: this.aiming, cover: null, weaponLow: this.alert ? 0 : 0.8 });
+      this.anim.update(dt, { speed: this.moveSpeedN, strafe: clamp(local.x / 3, -1, 1), forward: local.z >= -0.3 ? 1 : -1, moveDir: { x: ll > 0.2 ? local.x / ll : 0, z: ll > 0.2 ? local.z / ll : -1 }, velocity: Math.hypot(this.velocity.x, this.velocity.z), groundAt: (ox, oz) => this.world.groundHeight(this.position.x + ox, this.position.z + oz, this.position.y), sprint: this.moveSpeedN > 0.75 ? 1 : 0, crouch: this.crouch, aim: this.aiming, cover: null, weaponLow: this.alert ? 0 : 0.8, robotic: true });
     }
     if (this.target && this.aiming > 0.5) { const dy = (this.target.position.y + 1.2) - (this.position.y + 1.4); const dxz = Math.max(1, this.distToTarget); this.anim.aimPitch = clamp(Math.atan2(dy, dxz) / 1.1, -1, 1); }
     this.model.root.position.copy(this.position);
     this.model.root.rotation.y = this.yaw + Math.PI;
+    if (this.model.motion) this.model.motion(this.velocity.x, this.velocity.z, dt, 0, this.model.root.rotation.y, 0);
     if (this.crippled) this.model.root.position.y -= 0.35;
   }
   snapshot() { return [this.id, this.typeId, +this.position.x.toFixed(2), +this.position.y.toFixed(2), +this.position.z.toFixed(2), +this.yaw.toFixed(2), this.health, this.state === 'cover' ? 1 : 0, +this.aiming.toFixed(1), +this.crouch.toFixed(1), +this.velocity.x.toFixed(1), +this.velocity.z.toFixed(1)]; }
