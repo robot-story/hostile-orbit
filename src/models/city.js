@@ -9,6 +9,7 @@ import { HOLO_ART } from './props.js';
 let _holoArtIdx = 0;
 import { Mat, COLORS } from '../render/materials.js';
 import { Tex } from '../render/textures.js';
+import { registerBreakable } from '../world/breakables.js';
 import { rand, randInt, pick } from '../core/mathx.js';
 import { pointGlow, buildWallSegment, buildGate, buildWatchtower } from './buildings.js';
 import { terminal as terminalProp, ammoCache, barrel, crate, container, barrier as concreteBarrier } from './props.js';
@@ -310,6 +311,7 @@ export function streetLamp(world, pos, opts = {}) {
   place(g, new THREE.Vector3(pos.x, y0, pos.z), 0);
   world.props.add(g);
   const collider = world.addBox(new THREE.Vector3(pos.x, y0 + h / 2, pos.z), { x: 0.12, y: h / 2, z: 0.12 }, 0, { material: 'metal', cover: false, mesh: pole });
+  registerBreakable(world, { hp: 140, position: new THREE.Vector3(pos.x, y0 + 1, pos.z), radius: 1.2, parts: [], colliders: [collider], material: 'metal', kind: 'lamp', light: g.getObjectByProperty('isPointLight', true) || null, onBreak: (b, d) => { g.rotation.z = 0.35 * (d.x >= 0 ? -1 : 1); g.rotation.x = 0.25 * (d.z >= 0 ? -1 : 1); g.traverse((o) => { if (o.material?.emissive) { o.material = o.material.clone(); o.material.emissiveIntensity = 0; } }); } });
   let light = null;
   if (opts.light) { light = pointGlow(color, 7, 14); light.position.set(pos.x, y0 + h - 0.05, pos.z + 0.68); world.props.add(light); }
   return { group: g, collider, light };

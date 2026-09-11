@@ -1,4 +1,5 @@
 // Gameplay replication: host broadcasts world snapshots/events; clients apply them. Player snapshots flow both ways.
+import { breakIt } from '../world/breakables.js';
 import * as THREE from 'three';
 import { net, MSG } from './net.js';
 import { v3, SNAPSHOT_HZ, PLAYER_SNAP_HZ } from './protocol.js';
@@ -29,6 +30,7 @@ export class NetSync {
       on(MSG.EV_SPAWN, (m) => this.session.director.spawnRemote(m));
       on(MSG.EV_DESPAWN, (m) => { const e = this.world.entities.get(m.id); if (e) { e.dead = true; e.removeModel?.(); this.world.unregister(e); } });
       on(MSG.EV_ENEMYFIRE, (m) => { const e = this.world.entities.get(m.id); const from = new THREE.Vector3(...m.from); const def = WEAPONS[m.weapon]; for (const to of m.to) { this.session.fx.tracer(from, new THREE.Vector3(...to), def?.tracer || '#ff5a1f', 0.05, 220); } this.session.fx.muzzleFlash(from, new THREE.Vector3(...m.to[0]).sub(from).normalize(), '#ff6a2a', 1); audio.play(def?.sound || 'enemy_rifle_fire', { pos: from, volume: 0.8 }); e?.anim?.kick?.(0.5); });
+      on(MSG.EV_BREAK, (m) => { const b = this.game.world?.breakableByKey?.get(m.key); if (b) breakIt(this.game.world, b, this.session.fx, new THREE.Vector3(...(m.dir || [0, 1, 0]))); });
       on(MSG.EV_EXPLOSION, (m) => { this.session.fx.explosion(new THREE.Vector3(...m.p), m.r, m.kind); audio.play(m.r > 10 ? 'explosion_huge' : m.r > 6 ? 'explosion_large' : 'explosion_medium', { pos: new THREE.Vector3(...m.p), volume: 1, maxDistance: 400, refDistance: 12 }); });
       on(MSG.EV_GRENADE, (m) => { if (m.owner === net.localId) return; this.session.projectiles.spawn('grenade', new THREE.Vector3(...m.p), new THREE.Vector3(...m.v), { fuse: m.fuse, enemy: m.enemy, owner: m.owner, id: m.id, noExplode: true }); setTimeout(() => { const p = this.session.projectiles.list.find(x => x.id === m.id); if (p) p.dead = true; }, m.fuse * 1000); });
       on(MSG.EV_MISSION, (m) => { this.session.mission.active = false; this.session.mission.result = m.stats; events.emit('mission:end', m.stats); });

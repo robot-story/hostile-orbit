@@ -1,4 +1,5 @@
 // Game orchestrator: boot, menus, session lifecycle (deploy → play → results), pause, reinforcement pods, checkpoints.
+import { updateBreakables } from './world/breakables.js';
 import * as THREE from 'three';
 import { Renderer } from './render/renderer.js';
 import { input, keyLabel } from './core/input.js';
@@ -697,7 +698,7 @@ export class Game {
     if (s && this.world) {
       if (this.mode === 'play') {
         this.time += dt;
-        s.player.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard(); this._lazyReticle(dt);
+        s.player.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard(); this._lazyReticle(dt); updateBreakables(this.world, dt);
         this.world.nav.update();
         if (!this.dev?.state.freezeEnemies) s.director.update(dt);
         s.projectiles.update(dt); s.abilities.update(dt); s.mission.update(dt); s.netsync?.update(dt);

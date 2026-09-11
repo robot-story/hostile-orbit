@@ -1,4 +1,5 @@
 // Combat resolver: applies damage (host-authoritative), dispatches gore/FX events, tracks stats.
+import { blastBreakables } from '../world/breakables.js';
 import * as THREE from 'three';
 import { events } from '../core/events.js';
 import { audio } from '../audio/audio.js';
@@ -102,6 +103,7 @@ export class Combat {
       net.send(MSG.EV_DAMAGE, ev, { reliable: true });
       this.onDamageEvent(ev, true);
     }
+    blastBreakables(this.world, pos, radius, damage * 0.8, this.fx);
     // destructibles (barrels)
     for (const d of (this.world.level?.destructibles || [])) {
       if (d.destroyed || !d.position) continue;

@@ -1,4 +1,5 @@
 // Player controller: movement, camera, cover, aim, shooting, reload, roll, vault.
+import { damageBreakable } from '../world/breakables.js';
 import * as THREE from 'three';
 import { buildSoldier } from '../models/soldier.js';
 import { WEAPON_BUILDERS } from '../models/weapons.js';
@@ -363,6 +364,8 @@ export class Player {
     if (this.state === 'vault') { this.grounded = true; return; }
     this.position.x += this.velocity.x * dt; this.position.z += this.velocity.z * dt;
     const hits = this.world.resolveCapsule(this.position, this.radius, this.crouching ? 1.3 : 1.8);
+    // a rolling frame smashes through breakables it hits at speed
+    if (this.model?.sprintBall) { const sp = Math.hypot(this.velocity.x, this.velocity.z); if (sp > 7) for (const h of hits) { const b = h.collider?.breakable; if (b && !b.broken) { const dir = new THREE.Vector3(this.velocity.x, 0.3, this.velocity.z).normalize(); if (damageBreakable(this.world, b, 90 + sp * 12, this.position.clone(), dir, this.fx)) { this.velocity.multiplyScalar(0.8); events.emit('toast', 'SMASH', 'good'); } else { this.velocity.multiplyScalar(0.55); } } } }
     for (const h of hits) { const vn = this.velocity.x * h.nx + this.velocity.z * h.nz; if (vn < 0) { this.velocity.x -= h.nx * vn; this.velocity.z -= h.nz * vn; } }
     // map bounds
     this.position.x = clamp(this.position.x, -196, 196); this.position.z = clamp(this.position.z, -196, 196);
@@ -519,6 +522,7 @@ export class Player {
       this.fx.tracer(muzzle, end, d.tracer);
       if (hit) {
         if (hit.entity) { this.hits++; this.game.combat.playerHit(hit, d, dir, this.id); if (d.chain) this.arcChain(hit, d); }
+        else if (hit.collider?.breakable) { damageBreakable(this.world, hit.collider.breakable, d.damage * (d.pellets > 1 ? 1 : 1.6), hit.point, dir, this.fx); audio.play(hit.material === 'metal' ? 'hit_metal' : 'hit_rock', { pos: hit.point, volume: 0.6, pitchVar: 0.1 }); }
         else { this.fx.impact(hit.point, hit.normal, hit.material); audio.play(hit.material === 'metal' ? 'hit_metal' : hit.material === 'rock' ? 'hit_rock' : 'hit_dirt', { pos: hit.point, volume: 0.5, pitchVar: 0.1 }); }
         if (d.explosive) this.game.combat.explode(hit.point.clone().addScaledVector(hit.normal || dir, 0.3), d.explosive.radius, d.explosive.damage, { kind: 'grenade', attackerId: this.id, impulse: d.explosive.impulse, selfMult: 0.35 });
       } else if (d.explosive) this.game.combat.explode(end, d.explosive.radius * 0.7, d.explosive.damage * 0.5, { kind: 'grenade', attackerId: this.id, impulse: d.explosive.impulse, selfMult: 0.35 });

@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { Mat, COLORS } from '../render/materials.js';
 import { Tex } from '../render/textures.js';
 import { rand, randInt, pick, clamp } from '../core/mathx.js';
+import { registerBreakable } from '../world/breakables.js';
 
 const _geoCache = new Map();
 function boxGeo(w, h, d) { const k = `b:${w}:${h}:${d}`; if (!_geoCache.has(k)) _geoCache.set(k, new THREE.BoxGeometry(w, h, d)); return _geoCache.get(k); }
@@ -45,6 +46,7 @@ export function crate(world, position, yaw = 0, opts = {}) {
   place(g, position, yaw);
   world.props.add(g);
   const collider = world.addBox(new THREE.Vector3(position.x, position.y + 0.6, position.z), { x: 0.62, y: 0.6, z: 0.62 }, yaw, { material: 'metal', mesh: body });
+  registerBreakable(world, { hp: 90, position, radius: 0.9, parts: [g], colliders: [collider], material: 'metal', kind: 'crate' });
   return { group: g, collider };
 }
 
@@ -103,6 +105,7 @@ export function barrier(world, position, yaw = 0, opts = {}) {
   place(g, position, yaw);
   world.props.add(g);
   const collider = world.addBox(new THREE.Vector3(position.x, position.y + h / 2, position.z), { x: w / 2, y: h / 2, z: dBot / 2 }, yaw, { material: 'concrete', mesh: lower });
+  registerBreakable(world, { hp: 320, position, radius: 1.4, parts: [g], colliders: [collider], material: 'concrete', kind: 'barrier' });
   return { group: g, collider };
 }
 
@@ -260,6 +263,7 @@ export function billboard(world, position, yaw = 0, opts = {}) {
   world.props.add(g);
   const collider = world.addBox(new THREE.Vector3(position.x, position.y + 2.1, position.z), { x: 0.3, y: 2.1, z: 0.3 }, yaw, { material: 'metal', cover: false, mesh: g });
   opts.postersOut && opts.postersOut.push(p);
+  registerBreakable(world, { hp: 80, position: new THREE.Vector3(position.x, position.y + 3.4, position.z), radius: 2, parts: [p, frame], colliders: [], material: 'glass', kind: 'billboard' });
   return { group: g, collider, poster: p };
 }
 
@@ -280,6 +284,7 @@ export function posterFrame(world, position, yaw = 0, opts = {}) {
   place(g, position, yaw); g.position.y += lift;
   world.props.add(g);
   opts.postersOut && opts.postersOut.push(p);
+  registerBreakable(world, { hp: 55, position: g.position.clone(), radius: 1.2, parts: [g], colliders: [], material: 'glass', kind: 'poster' });
   return { group: g, poster: p };
 }
 

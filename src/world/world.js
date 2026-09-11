@@ -33,6 +33,8 @@ export class World {
     this.updatables = new Set();
     this.hitTargets = []; // entities with hitboxes
     this.rails = []; // grind rails: { curve, samples: Vector3[], length }
+    this.breakables = []; this.breakableByKey = new Map(); // destruction engine registry (src/world/breakables.js)
+    this.breakables = []; this.breakableByKey = new Map(); // destruction engine registry (src/world/breakables.js)
     this.dynamicMeshes = [];
     this._setupLights();
     this.sky = createSky(map?.sky || {});

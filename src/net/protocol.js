@@ -49,7 +49,7 @@ export const MSG = {
   SNAP_PLAYER: 'snap:player', SNAP_WORLD: 'snap:world', SNAP_FULL: 'snap:full',
   REQ_HIT: 'req:hit', REQ_SHOT: 'req:shot', REQ_GRENADE: 'req:grenade', REQ_ABILITY: 'req:ability', REQ_INTERACT: 'req:interact', REQ_REINFORCE: 'req:reinforce',
   EV_DAMAGE: 'ev:damage', EV_DEATH: 'ev:death', EV_SPAWN: 'ev:spawn', EV_DESPAWN: 'ev:despawn', EV_ENEMYFIRE: 'ev:enemyfire', EV_OBJECTIVE: 'ev:objective',
-  EV_POD: 'ev:pod', EV_EXPLOSION: 'ev:explosion', EV_DESTRUCT: 'ev:destruct', EV_VOICE: 'ev:voice', EV_PLAYERDOWN: 'ev:playerdown', EV_REINFORCE: 'ev:reinforce', EV_MISSION: 'ev:mission', EV_BOSS: 'ev:boss', EV_GRENADE: 'ev:grenade',
+  EV_POD: 'ev:pod', EV_EXPLOSION: 'ev:explosion', EV_BREAK: 'ev:break', /* { key, dir } a breakable prop was destroyed */ EV_BREAK: 'ev:break', /* { key, dir } a breakable prop was destroyed */ EV_DESTRUCT: 'ev:destruct', EV_VOICE: 'ev:voice', EV_PLAYERDOWN: 'ev:playerdown', EV_REINFORCE: 'ev:reinforce', EV_MISSION: 'ev:mission', EV_BOSS: 'ev:boss', EV_GRENADE: 'ev:grenade',
 };
 
 export const r2 = (v) => Math.round(v * 100) / 100;

@@ -1,4 +1,5 @@
 // Structures: drop zone pad, pylons, jammer outpost, comms base, detention, extraction platform.
+import { registerBreakable } from '../world/breakables.js';
 import * as THREE from 'three';
 import { Mat, COLORS } from '../render/materials.js';
 import { crate, crateStack, container, barrier, sandbagWall, lightTower, terminal as terminalProp, posterFrame, billboard, ammoCache, barrel } from './props.js';
@@ -103,6 +104,9 @@ export function buildFencePanel(world, start, end, opts = {}) {
   const brace = box(0.12, height - 0.2, thick + 0.12, Mat.darkMetal()); brace.position.set(0, height / 2, 0); g.add(brace);
   world.props.add(g);
   const collider = world.addBox(new THREE.Vector3(midX, y + height / 2, midZ), { x: len / 2, y: height / 2, z: 0.2 }, yaw, { material: 'metal' });
+  // panel breaks out between the posts; the posts and their caps survive
+  const panelParts = g.children.filter((c) => !(c.geometry?.parameters?.width === 0.32 && c.geometry?.parameters?.depth === 0.32) && !(c.geometry?.parameters?.width === 0.4 && c.geometry?.parameters?.height === 0.08));
+  registerBreakable(world, { hp: 200, position: new THREE.Vector3(midX, y + height / 2, midZ), radius: len / 2, parts: panelParts, colliders: [collider], material: 'metal', kind: 'fence' });
   return { group: g, collider, start: start.clone(), end: end.clone(), height };
 }
 
