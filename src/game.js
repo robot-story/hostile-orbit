@@ -309,8 +309,11 @@ export class Game {
     this.menus.hide(); this.setBackground(null);
     this.mode = 'loading';
     await this.showLoading('PREPARING DEPLOYMENT');
+    this.setLoadProgress(0.08, 'BUILDING BATTLESPACE'); await new Promise((r) => setTimeout(r, 0));
     this.buildSession(config);
+    this.setLoadProgress(0.45, 'COMPILING MATERIALS'); await new Promise((r) => setTimeout(r, 0));
     await this.prewarm();
+    this.setLoadProgress(1, 'DROP POD ARMED'); await new Promise((r) => setTimeout(r, 60));
     this.hideLoading();
     audio.say('ship_deploy', { priority: 3 });
     audio.say(this.world.map?.briefingLine || 'voss_briefing', { priority: 3, delay: 2 });
@@ -377,6 +380,7 @@ export class Game {
       setTimeout(res, 120); // never wait on rAF: hidden tabs do not get frames
     });
   }
+  setLoadProgress(frac, label) { const el = document.getElementById('loading'); if (!el) return; const bar = el.querySelector('.lbar i'); if (bar) { bar.style.animation = 'none'; bar.style.marginLeft = '0'; bar.style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`; } if (label) { clearInterval(this._loadStepTimer); const st = el.querySelector('.lstep'); if (st) st.textContent = label; } }
   hideLoading() {
     clearInterval(this._loadStepTimer); const el = document.getElementById('loading'); if (el) el.style.display = 'none'; }
   /** Cinematic pod drop that ends with the player standing at `target`. */
@@ -391,9 +395,10 @@ export class Game {
     const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5); const prevFov = this.camera.fov;
     for (let i = 0; i <= 12; i++) { // the exact recon path, twelve samples, plus two low angles per stop
       const e = i / 12; const p = curve.getPointAt(e); const a = curve.getPointAt(Math.min(1, e + 0.045)); this.camera.position.copy(p); this.camera.lookAt(a.x, a.y - 24, a.z); this.camera.fov = 78 - e * 12; this.camera.updateProjectionMatrix(); this.camera.userData.focus = a;
-      W.update(0.016, this.camera); R.render(0.016); if (i % 3 === 0) await new Promise((r) => setTimeout(r, 0));
+      W.update(0.016, this.camera); R.render(0.016); if (i === 6) { this.setLoadProgress(0.6, 'WARMING RECON FEED'); await new Promise((r) => setTimeout(r, 0)); }
     }
-    for (const v of views) { const p = v.pos; const g = W.groundHeight(p.x, p.z); this.camera.position.set(p.x - 6, g + 2, p.z + 8); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016); this.camera.position.set(p.x + 5, g + 1.6, p.z - 6); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016); await new Promise((r) => setTimeout(r, 0)); }
+    for (const v of views) { const p = v.pos; const g = W.groundHeight(p.x, p.z); this.camera.position.set(p.x - 6, g + 2, p.z + 8); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016); this.camera.position.set(p.x + 5, g + 1.6, p.z - 6); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016); }
+    this.setLoadProgress(0.78, 'STAGING LEGION FRAMES'); await new Promise((r) => setTimeout(r, 0));
     this.camera.fov = prevFov; this.camera.updateProjectionMatrix();
     // every weapon model, each Legion frame and the war-beast: build once, render once, throw away
     try {
@@ -402,10 +407,11 @@ export class Game {
       let k = 0; for (const id in WEAPON_BUILDERS) { try { const m = WEAPON_BUILDERS[id](); m.position.set((k++ % 6) * 0.8 - 2, 1.2, 0); stage.add(m); } catch { /* ignore */ } }
       for (const kind of ['rifleman', 'breacher', 'suppressor', 'grenadier']) { try { const m = buildSoldier(kind === 'suppressor' ? 'legionHeavy' : 'legion', { legion: kind, custom: null }); m.root.position.set((k++ % 6) * 1.2 - 3, 0, 2); stage.add(m.root); } catch { /* ignore */ } }
       let beast = null; try { beast = new Ravager(this, new THREE.Vector3(c.x, gy, c.z + 12)); } catch { /* ignore */ }
-      this.camera.position.set(c.x, gy + 3, c.z - 4); this.camera.lookAt(c.x, gy + 1, c.z + 8); R.render(0.016); await new Promise((r) => setTimeout(r, 0));
+      this.camera.position.set(c.x, gy + 3, c.z - 4); this.camera.lookAt(c.x, gy + 1, c.z + 8); R.render(0.016);
       W.scene.remove(stage); stage.traverse((o) => { if (o.isMesh) o.geometry?.dispose?.(); });
       if (beast) { beast.dead = true; W.unregister(beast); beast.removeModel(); }
     } catch (e) { console.warn('[prewarm] entity pass skipped', e); }
+    this.setLoadProgress(0.92, 'ARMING DROP POD');
     // FX materials: spawn one of each cheap effect off-screen so their shaders are compiled too
     try { const fx = this.session?.fx; const off = new THREE.Vector3(0, -50, 0); fx?.sparksBurst?.(off, new THREE.Vector3(0, 1, 0), 2); fx?.dust?.(off, 0.1); fx?.muzzleFlash?.(off, new THREE.Vector3(0, 0, 1), '#8ff0ff', 0.1); fx?.blood?.(off, new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), 0.1); R.render(0.016); } catch { /* ignore */ }
   }
