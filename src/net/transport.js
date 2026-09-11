@@ -69,11 +69,13 @@ export class Transport {
     });
   }
   close() {
+    if (this._closing) return; this._closing = true; // net.reset() calls back into close(); never recurse
     for (const c of this.conns.values()) { try { c.close(); } catch { /* ignore */ } }
     this.conns.clear(); this.hostConn = null;
     if (this.peer) { try { this.peer.destroy(); } catch { /* ignore */ } this.peer = null; }
     this.connected = false; this.players = []; this.code = null; this.link = null; this.error = null; this.phase = 'lobby';
     net.reset();
+    this._closing = false;
   }
   // ---------- host side ----------
   _onIncoming(conn) {

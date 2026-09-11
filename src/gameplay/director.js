@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Enemy, Squad } from '../entities/enemy.js';
 import { Drone } from '../entities/drone.js';
 import { Warden } from '../entities/warden.js';
+import { Ravager } from '../entities/ravager.js';
 import { SQUADS } from '../entities/enemyTypes.js';
 import { events } from '../core/events.js';
 import { audio } from '../audio/audio.js';
@@ -35,7 +36,7 @@ export class Director {
     if (!net.isHost) return null;
     const p = this.world.nav.nearestWalkable(pos.x, pos.z, 12) || { x: pos.x, z: pos.z };
     const at = new THREE.Vector3(p.x, this.world.groundHeight(p.x, p.z), p.z);
-    const e = typeId === 'drone' ? new Drone(this.game, at.clone().setY(at.y + 6), opts) : typeId === 'warden' ? new Warden(this.game, at, opts) : new Enemy(this.game, typeId, at, opts.yaw ?? rand(0, 6.28), opts);
+    const e = typeId === 'drone' ? new Drone(this.game, at.clone().setY(at.y + 6), opts) : typeId === 'warden' ? new Warden(this.game, at, opts) : typeId === 'ravager' ? new Ravager(this.game, at, opts) : new Enemy(this.game, typeId, at, opts.yaw ?? rand(0, 6.28), opts);
     if (typeId === 'warden') this.boss = e;
     this.enemies.push(e);
     net.send(MSG.EV_SPAWN, { id: e.id, type: typeId, p: v3(at), yaw: e.yaw, hp: e.health, squad: opts.squad?.id ?? 0 }, { reliable: true });
@@ -45,7 +46,7 @@ export class Director {
   spawnRemote(msg) {
     if (net.isHost) return;
     const at = new THREE.Vector3(...msg.p);
-    const e = msg.type === 'drone' ? new Drone(this.game, at, { id: msg.id }) : msg.type === 'warden' ? new Warden(this.game, at, { id: msg.id, yaw: msg.yaw }) : new Enemy(this.game, msg.type, at, msg.yaw, { id: msg.id });
+    const e = msg.type === 'drone' ? new Drone(this.game, at, { id: msg.id }) : msg.type === 'warden' ? new Warden(this.game, at, { id: msg.id, yaw: msg.yaw }) : msg.type === 'ravager' ? new Ravager(this.game, at, { id: msg.id, yaw: msg.yaw }) : new Enemy(this.game, msg.type, at, msg.yaw, { id: msg.id });
     if (msg.type === 'warden') this.boss = e;
     e.health = msg.hp; this.enemies.push(e); return e;
   }

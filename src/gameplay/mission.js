@@ -206,6 +206,7 @@ export class Mission {
     D.addGarrison(L.jammerGateSouth.pos, 75, ['patrol_heavy', 'fire_team', ...(jam ? [{ template: 'patrol', route: jam }] : []), 'recon'], { spread: 18 });
     D.addGarrison(L.jammerCenter.pos, 40, ['assault'], { spread: 12, alert: true });
     D.addGarrison(L.commsGateSouth.pos, 80, ['fire_team', 'heavy', ...(comms ? [{ template: 'patrol', route: comms }] : []), 'recon'], { spread: 20 });
+    D.addGarrison(L.commsPlaza.pos, 30, ['beast'], { spread: 6 }); // the Legion keeps a war-beast chained in the yard
     D.addGarrison(L.detentionEntrance.pos, 35, ['patrol'], { spread: 8, alert: true });
     D.addGarrison(L.extractionApproach.pos, 70, ['patrol', 'heavy'], { spread: 16 });
   }
@@ -378,7 +379,7 @@ export class Mission {
         this.holdTimer -= dt; const s = Math.ceil(this.holdTimer);
         if (s !== this._lastHold) { this._lastHold = s; this.setObjective(this.script.extract_hold.progress(Math.max(0, s))); if (s <= 10 && s > 0) audio.play('countdown_tick', { volume: 0.7 }); if (s === 45) audio.say('ship_extraction_request', { priority: 1 }); }
         this.waveT -= dt;
-        if (this.waveT <= 0) { this.waveT = 14; const pts = this.level.spawnPoints?.extraction || [this.L.extractionApproach.pos]; const shuffled = [...pts].sort(() => Math.random() - 0.5); D.wave([pick(['assault', 'fire_team', 'patrol_heavy']), pick(['patrol', 'heavy', 'assault'])], shuffled, { allowElite: true }); if (Math.random() < 0.5) D.wave(['recon'], shuffled, { delay: 3 }); }
+        if (this.waveT <= 0) { this.waveT = 14; this._extWave = (this._extWave || 0) + 1; const pts = this.level.spawnPoints?.extraction || [this.L.extractionApproach.pos]; const shuffled = [...pts].sort(() => Math.random() - 0.5); if (this._extWave === 3) D.wave(['beast'], shuffled.slice(0, 1), { delay: 2 }); D.wave([pick(['assault', 'fire_team', 'patrol_heavy']), pick(['patrol', 'heavy', 'assault'])], shuffled, { allowElite: true }); if (Math.random() < 0.5) D.wave(['recon'], shuffled, { delay: 3 }); }
         if (this.holdTimer <= 45 && !this.wardenSpawned) { this.wardenSpawned = true; const sp = this.L.extractionApproach.pos; D.spawn('warden', sp, { yaw: 0 }); audio.play('warden_roar', { pos: sp, volume: 1, maxDistance: 400 }); events.emit('toast', 'WARDEN SIGNATURE DETECTED', 'warn'); }
         if (this.holdTimer <= 0) { if (this.flags.wardenDead || !D.boss || D.boss.dead) this.setStage('board'); else this.setStage('warden'); }
       }

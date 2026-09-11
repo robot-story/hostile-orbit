@@ -30,6 +30,7 @@ export const ENEMY_TYPES = {
 
 // Squad templates by pressure tier
 export const SQUADS = {
+  beast: ['ravager'], beast_pack: ['ravager', 'rifleman', 'rifleman'],
   patrol_light: ['rifleman', 'rifleman'],
   patrol: ['rifleman', 'rifleman', 'breacher'],
   patrol_heavy: ['rifleman', 'rifleman', 'grenadier', 'suppressor'],
