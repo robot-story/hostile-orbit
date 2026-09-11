@@ -157,6 +157,7 @@ export class Hud {
       events.on('hud:hitmarker', (m) => this.hitMarker(m)),
       events.on('player:damaged', ({ from }) => this.damageDir(from)),
       events.on('objective:update', (t) => this.setObjective(t)),
+      events.on('quest:set', (q) => this.setQuest(q)),
       events.on('objective:marker', (m) => { this.objMarker = m; }),
       events.on('objective:side', (side) => this.setSide(side)),
       events.on('hud:fuel', (f, burning) => { const el = this.el.querySelector('.fuel'); el.classList.toggle('burn', !!burning); el.querySelector('.bar i').style.width = `${f * 100}%`; }),
@@ -181,6 +182,11 @@ export class Hud {
   hitMarker({ headshot, kill }) { const h = this.el.querySelector('.hitm'); h.classList.remove('show', 'head', 'kill'); void h.offsetWidth; h.classList.add('show'); if (headshot) h.classList.add('head'); if (kill) h.classList.add('kill'); }
   damageDir(from) { if (!from || !this.player) return; const dx = from.x - this.player.position.x, dz = from.z - this.player.position.z; const a = Math.atan2(dx, -dz) - this.player.cam.yaw; const i = document.createElement('i'); i.style.transform = `rotate(${-a}rad)`; this.el.querySelector('.dmgdir').appendChild(i); setTimeout(() => i.remove(), 1000); }
   setObjective(t) { this.el.querySelector('.objtext').textContent = t; }
+  setQuest(q) {
+    let el = this.el.querySelector('.quest');
+    if (!el) { el = document.createElement('div'); el.className = 'quest'; this.el.appendChild(el); const css = document.createElement('style'); css.textContent = `#hud .quest{position:absolute;left:28px;top:118px;width:300px;padding:10px 12px;background:rgba(3,10,14,.5);border-left:2px solid var(--yellow,#f2c744);font-family:var(--font);pointer-events:none}#hud .quest .qt{font-size:10px;letter-spacing:.34em;color:var(--yellow,#f2c744)}#hud .quest .qs{margin-top:6px;display:flex;flex-direction:column;gap:4px}#hud .quest .qs div{font-size:11px;letter-spacing:.06em;color:#e8f4f8;display:flex;gap:8px;align-items:flex-start;line-height:1.35}#hud .quest .qs div.done{color:rgba(232,244,248,.45);text-decoration:line-through}#hud .quest .qs i{display:inline-block;width:9px;height:9px;margin-top:3px;border:1px solid rgba(232,244,248,.6);flex:0 0 auto}#hud .quest .qs div.done i{background:var(--teal,#2ee6a6);border-color:var(--teal,#2ee6a6)}#hud .quest .qh{margin-top:7px;font-size:10px;letter-spacing:.06em;line-height:1.4;color:rgba(91,227,255,.85)}`; document.head.appendChild(css); }
+    el.innerHTML = `<div class="qt">${q.title}</div><div class="qs">${q.steps.map((st) => `<div class="${st.done ? 'done' : ''}"><i></i><span>${st.text}</span></div>`).join('')}</div>${q.hint ? `<div class="qh">${q.hint}</div>` : ''}`;
+  }
   setSide(side) { this.side = side; const c = this.el.querySelector('.side'); c.innerHTML = Object.values(side).filter(o => o.total > 0).map(o => `<div class="${o.done >= o.total ? 'done' : ''}">${o.name} <b>${o.done}/${o.total}</b></div>`).join(''); }
   setSources(enemies, players) { this.enemiesRef = enemies; this.playersRef = players; }
   update(player, game, dt = 0.016) {

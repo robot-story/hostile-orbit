@@ -13,6 +13,7 @@ import { MAPS, DEFAULT_MAP } from './world/maps/index.js';
 import { DevMenu } from './debug/devmenu.js';
 import { preloadCustomModels } from './models/glbSoldier.js';
 import { Hints } from './ui/hints.js';
+import { QTE } from './gameplay/qte.js';
 import { icon } from './ui/components.js';
 import { M, worldToMap } from './world/terrain.js';
 import { clamp, damp, formatTime } from './core/mathx.js';
@@ -283,6 +284,7 @@ export class Game {
     s.hud = new Hud(this.ui, map); s.hud.setLives(s.mission.lives, s.mission.lives); s.hud.show(false);
     this.dev?.onSession();
     s.hints = new Hints(this.ui, this);
+    s.qte = new QTE(this, this.ui);
     this.renderer.setScene(this.world.scene, this.camera); this.renderMenuScene = false; this.setBackground(null);
     this.time = 0;
     return s;
@@ -698,7 +700,7 @@ export class Game {
     if (s && this.world) {
       if (this.mode === 'play') {
         this.time += dt;
-        s.player.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard(); this._lazyReticle(dt); updateBreakables(this.world, dt);
+        s.player.update(dt); s.qte?.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard(); this._lazyReticle(dt); updateBreakables(this.world, dt);
         this.world.nav.update();
         if (!this.dev?.state.freezeEnemies) s.director.update(dt);
         s.projectiles.update(dt); s.abilities.update(dt); s.mission.update(dt); s.netsync?.update(dt);

@@ -12,6 +12,30 @@ import { clamp, rand, pick, formatTime } from '../core/mathx.js';
 import { Mat } from '../render/materials.js';
 
 /** Per-map objective text. Stage ids are shared by every map; only the words change. */
+/** Fallback wording for the pressure stages (maps can override in their script tables). */
+export const STAGE_DEFAULTS = {
+  jammer_overload: { text: 'OVERLOAD THE JAMMER — ENTER THE SEQUENCE AT THE CORE', title: 'CHARGES SET', sub: 'Get to the core console. One operative enters the sequence, the rest hold the line.' },
+  uplink: { text: 'ALIGN THE UPLINK DISH', title: 'TERMINAL LOCKED', sub: 'Track the beacon with your aim beside the terminal until the dish charges' },
+};
+/** Quest cards: what to do, step by step, in plain words. */
+export function questFor(stage, M) {
+  const f = M.flags; const S = M.script;
+  switch (stage) {
+    case 'canyon': return { title: 'APPROACH', steps: [{ text: 'Move up the canyon to the jammer outpost', done: false }], hint: 'Three routes: high, main, trench. Roll (SHIFT) to cover ground; ramps launch you.' };
+    case 'jammer': return { title: 'JAMMER OUTPOST', steps: [{ text: `Plant charge A`, done: !!M.charge0 }, { text: `Plant charge B`, done: !!M.charge1 }, { text: 'Overload the core', done: false }], hint: 'Hold E at each charge point. Expect a garrison.' };
+    case 'jammer_overload': return { title: 'OVERLOAD', steps: [{ text: 'Charges planted', done: true }, { text: 'Reach the core console (marker)', done: false }, { text: 'Enter the overload sequence (arrow keys) under fire', done: false }], hint: 'Wrong key or too slow resets the sequence and calls another patrol. Squad: keep them off the operator.' };
+    case 'jammer_armed': return { title: 'DETONATION', steps: [{ text: 'Get clear of the jammer', done: false }], hint: 'Ten seconds. Roll.' };
+    case 'orbital': return { title: 'COMMS BASE', steps: [{ text: 'Jammer destroyed', done: true }, { text: 'Assault the communications base', done: false }], hint: 'Orbital abilities are online (1-4). The gate is defended; the platforms inside give height.' };
+    case 'comms': return { title: 'COMMAND TERMINAL', steps: [{ text: 'Reach the command terminal', done: false }, { text: `Free captured operatives (${f.rescued}/${(M.level.cells || []).length})`, done: f.rescued >= (M.level.cells || []).length }], hint: 'Optional: the detention block on the east side holds operatives. Cells open with E.' };
+    case 'uplink': return { title: 'UPLINK', steps: [{ text: 'Stand beside the terminal', done: false }, { text: 'Track the drifting beacon with your aim until the dish charges', done: false }], hint: 'Losing the lock drains the charge. Moving away aborts.' };
+    case 'download': return { title: 'DOWNLOAD', steps: [{ text: `Hold the command room (${Math.floor(clamp(M.downloadT / 60, 0, 1) * 100)}%)`, done: false }], hint: 'Reinforcements arrive every sixteen seconds. Use the pit and the platforms.' };
+    case 'extract_move': return { title: 'EXTRACTION', steps: [{ text: 'Data secured', done: true }, { text: 'Reach the extraction platform', done: false }], hint: 'The trench route is fastest. A war-beast is loose.' };
+    case 'extract_hold': return { title: 'HOLD THE PLATFORM', steps: [{ text: `Survive (${Math.max(0, Math.ceil(M.holdTimer))}s)`, done: false }, { text: 'Board when the dropship lands', done: false }], hint: 'Something big arrives at forty-five seconds.' };
+    case 'warden': return { title: 'WARDEN', steps: [{ text: 'Break the armour plates', done: false }, { text: 'Destroy the exposed core', done: false }], hint: 'Knees stagger it. The chest core takes double.' };
+    case 'board': return { title: 'BOARD', steps: [{ text: 'Get aboard the dropship', done: false }], hint: 'E on the ramp.' };
+    default: return null;
+  }
+}
 export const MERIDIAN_SCRIPT = {
   id: 'silent_meridian', opName: 'OPERATION: SILENT MERIDIAN', resultLine: 'BLACKSITE MERIDIAN LIBERATED', completeSub: 'Blacksite Meridian liberated',
   canyon: { text: 'REACH THE JAMMER OUTPOST', title: 'NEW OBJECTIVE', sub: 'Move through the canyon to the jammer outpost', marker: 'JAMMER OUTPOST' },
@@ -98,8 +122,19 @@ export class Mission {
     this.stage = stage; this.stageT = 0;
     if (net.isHost) net.send(MSG.EV_OBJECTIVE, { id: 'stage', state: stage, data: this.flags }, { reliable: true });
     this.clearMarkers();
-    const L = this.L, S = this.script;
+    const L = this.L, S = { ...STAGE_DEFAULTS, ...this.script };
+    this.emitQuest(stage);
     switch (stage) {
+      case 'jammer_overload':
+        this.setObjective(S.jammer_overload.text, S.jammer_overload);
+        this.mark(L.jammerCenter.pos, '#ffd23f', 'CORE CONSOLE'); this.waveT = 6;
+        break;
+      case 'uplink':
+        this.setObjective(S.uplink.text, S.uplink);
+        this.mark(this.level.terminal.position, '#ffd23f', 'UPLINK');
+        this.waveT = 10;
+        this.game.session?.qte?.startAlign({ hold: 4.5, near: () => this.anyPlayerNear(this.level.terminal.position, 9), onSuccess: () => this.setStage('download') });
+        break;
       case 'canyon':
         this.setObjective(S.canyon.text, S.canyon);
         this.mark(L.jammerGateSouth.pos, '#00e5ff', S.canyon.marker);
@@ -213,6 +248,7 @@ export class Mission {
   setupInteractables() {
     const lv = this.level;
     lv.jammer.chargePoints.forEach((p, i) => this.addInteractable({ id: 'charge' + i, position: p, radius: 2.4, label: this.script.labels.charge, holdTime: 3, condition: () => this.stage === 'jammer' && !this['charge' + i], onComplete: () => this.requestInteract('charge' + i) }));
+    this.addInteractable({ id: 'overload', position: this.L.jammerCenter.pos, radius: 3.2, label: 'ENTER OVERLOAD SEQUENCE', holdTime: 1, marker: '#ffd23f', condition: () => this.stage === 'jammer_overload' && !this.game.session?.qte?.busy, onComplete: () => this.requestInteract('overload') });
     this.addInteractable({ id: 'terminal', position: lv.terminal.position, radius: 2.8, label: this.script.labels.terminal, holdTime: 2, condition: () => this.stage === 'comms', onComplete: () => this.requestInteract('terminal') });
     (lv.cells || []).forEach((c, i) => this.addInteractable({ id: 'cell' + i, position: c.consolePosition, radius: 2.6, label: this.script.labels.cell, holdTime: 2.5, condition: () => !c.rescued && ['comms', 'download', 'extract_move', 'extract_hold', 'warden', 'board'].includes(this.stage), onComplete: () => this.requestInteract('cell' + i) }));
     this.addInteractable({ id: 'board', position: this.L.extractionCenter.pos, radius: 7, label: 'BOARD THE DROPSHIP', holdTime: 1.5, condition: () => this.stage === 'board' && this.dropship?.landed, onComplete: () => this.requestInteract('board') });
@@ -223,21 +259,30 @@ export class Mission {
     for (const it of this.interactables.values()) if (it.marker) { it.position.y = this.world.groundHeight(it.position.x, it.position.z); this.fx.marker?.(it.position.clone().setY(it.position.y + 1.6), it.marker); }
   }
   addInteractable(it) { it.position = it.position.clone(); if (it.position.y === 0) it.position.y = this.world.groundHeight(it.position.x, it.position.z); this.interactables.set(it.id, it); return it; }
+  emitQuest(stage = this.stage) { try { const q = questFor(stage, this); if (q) events.emit('quest:set', q); } catch { /* ignore */ } }
   removeInteractable(id) { this.interactables.delete(id); }
   requestInteract(id) { if (net.isHost) this.onInteractRequest({ target: id, phase: 'done' }, net.localId); else net.send(MSG.REQ_INTERACT, { target: id, phase: 'done' }, { reliable: true }); }
   onInteractRequest(m, from) {
     const id = m.target;
     if (id.startsWith('charge')) this.onChargePlanted(+id.slice(6));
-    else if (id === 'terminal' && this.stage === 'comms') this.setStage('download');
+    else if (id === 'terminal' && this.stage === 'comms') this.setStage('uplink');
+    else if (id === 'overload' && this.stage === 'jammer_overload') this.startOverload();
     else if (id.startsWith('cell')) this.onRescued(+id.slice(4));
     else if (id === 'board' && this.stage === 'board') this.complete();
+  }
+  startOverload() {
+    const q = this.game.session?.qte; if (!q || q.busy) return;
+    const core = this.L.jammerCenter.pos; const D = this.game.director;
+    q.start({ title: 'OVERLOAD SEQUENCE', steps: 6, window: 1.5, near: () => this.anyPlayerNear(core, 7),
+      onSuccess: () => { events.emit('toast', 'CORE OVERLOADED', 'good'); this.setStage('jammer_armed'); },
+      onFail: (reason, n) => { if (n % 2 === 0) { const pts = this.level.spawnPoints?.jammer || [this.L.jammerGateSouth.pos]; D.wave(['patrol'], pts, { alert: true }); events.emit('toast', 'ALARM  //  LEGION PATROL INBOUND', 'warn'); } } });
   }
   onChargePlanted(i, remote = false) {
     if (this['charge' + i]) return; this['charge' + i] = true; this.flags.chargesPlanted++;
     audio.play('terminal_interact', { pos: this.level.jammer.chargePoints[i], volume: 1 });
     if (net.isHost && !remote) net.send(MSG.EV_OBJECTIVE, { id: 'charge', data: { index: i } }, { reliable: true });
-    if (this.flags.chargesPlanted >= 2) this.setStage('jammer_armed');
-    else { this.setObjective(this.script.jammer.progress(this.flags.chargesPlanted)); events.emit('toast', 'CHARGE PLANTED', 'info'); }
+    if (this.flags.chargesPlanted >= 2) this.setStage('jammer_overload');
+    else { this.setObjective(this.script.jammer.progress(this.flags.chargesPlanted)); events.emit('toast', 'CHARGE PLANTED', 'info'); this.emitQuest(); }
   }
   onRescued(i, remote = false) {
     const c = this.level.cells?.[i]; if (!c || c.rescued) return; c.rescued = true; this.flags.rescued++;
@@ -366,10 +411,11 @@ export class Mission {
       // stage triggers
       if (this.stage === 'canyon' && this.anyPlayerNear(this.L.jammerGateSouth.pos, 34)) this.setStage('jammer');
       if (this.stage === 'jammer_armed') { this.jammerCountdown -= dt; const s = Math.ceil(this.jammerCountdown); if (s !== this._lastCd) { this._lastCd = s; if (s <= 5 && s > 0) audio.play('countdown_tick', { volume: 0.8 }); this.setObjective(`GET CLEAR — DETONATION IN ${Math.max(0, s)}s`); } if (this.jammerCountdown <= 0) this.destroyJammer(); }
+      if (this.stage === 'jammer_overload' || this.stage === 'uplink') { this.waveT -= dt; if (this.waveT <= 0) { this.waveT = this.stage === 'uplink' ? 13 : 15; const pts = this.stage === 'uplink' ? (this.level.spawnPoints?.comms || [this.L.commsGateSouth.pos]) : (this.level.spawnPoints?.jammer || [this.L.jammerGateSouth.pos]); D.wave([pick(['patrol', 'fire_team'])], pts, { alert: true }); events.emit('toast', 'LEGION CLOSING ON THE OPERATOR', 'warn'); } }
       if (this.stage === 'orbital' && this.anyPlayerNear(this.L.commsGateSouth.pos, 40)) this.setStage('comms');
       if (this.stage === 'download') {
         this.downloadT += dt; const pct = clamp(this.downloadT / 60, 0, 1);
-        if (Math.floor(pct * 100) !== this._lastPct) { this._lastPct = Math.floor(pct * 100); this.setObjective(this.script.download.progress(this._lastPct)); if (this._lastPct % 10 === 0) audio.play('download_beep', { volume: 0.5 }); }
+        if (Math.floor(pct * 100) !== this._lastPct) { this._lastPct = Math.floor(pct * 100); this.setObjective(this.script.download.progress(this._lastPct)); if (this._lastPct % 5 === 0) this.emitQuest(); if (this._lastPct % 10 === 0) audio.play('download_beep', { volume: 0.5 }); }
         this.waveT -= dt;
         if (this.waveT <= 0) { this.waveT = 16; const pts = this.level.spawnPoints?.comms || [this.L.commsGateSouth.pos]; D.wave([pick(['assault', 'fire_team']), pick(['patrol', 'heavy'])], pts, { allowElite: true }); events.emit('toast', 'NULL LEGION REINFORCEMENTS INBOUND', 'warn'); }
         if (pct >= 1) this.setStage('extract_move');
@@ -377,7 +423,7 @@ export class Mission {
       if (this.stage === 'extract_move' && this.anyPlayerNear(this.L.extractionCenter.pos, 18)) this.setStage('extract_hold');
       if (this.stage === 'extract_hold') {
         this.holdTimer -= dt; const s = Math.ceil(this.holdTimer);
-        if (s !== this._lastHold) { this._lastHold = s; this.setObjective(this.script.extract_hold.progress(Math.max(0, s))); if (s <= 10 && s > 0) audio.play('countdown_tick', { volume: 0.7 }); if (s === 45) audio.say('ship_extraction_request', { priority: 1 }); }
+        if (s !== this._lastHold) { this._lastHold = s; this.setObjective(this.script.extract_hold.progress(Math.max(0, s))); if (s % 5 === 0) this.emitQuest(); if (s <= 10 && s > 0) audio.play('countdown_tick', { volume: 0.7 }); if (s === 45) audio.say('ship_extraction_request', { priority: 1 }); }
         this.waveT -= dt;
         if (this.waveT <= 0) { this.waveT = 14; this._extWave = (this._extWave || 0) + 1; const pts = this.level.spawnPoints?.extraction || [this.L.extractionApproach.pos]; const shuffled = [...pts].sort(() => Math.random() - 0.5); if (this._extWave === 3) D.wave(['beast'], shuffled.slice(0, 1), { delay: 2 }); D.wave([pick(['assault', 'fire_team', 'patrol_heavy']), pick(['patrol', 'heavy', 'assault'])], shuffled, { allowElite: true }); if (Math.random() < 0.5) D.wave(['recon'], shuffled, { delay: 3 }); }
         if (this.holdTimer <= 45 && !this.wardenSpawned) { this.wardenSpawned = true; const sp = this.L.extractionApproach.pos; D.spawn('warden', sp, { yaw: 0 }); audio.play('warden_roar', { pos: sp, volume: 1, maxDistance: 400 }); events.emit('toast', 'WARDEN SIGNATURE DETECTED', 'warn'); }
