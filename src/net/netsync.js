@@ -52,7 +52,7 @@ export class NetSync {
       this.playerSnapT = 0;
       const p = this.game.localPlayer; if (p) {
         const a = p.lastAnimState || {};
-        net.send(MSG.SNAP_PLAYER, { id: net.localId, p: v3(p.position), yaw: +p.yaw.toFixed(3), pitch: +p.cam.pitch.toFixed(2), hp: Math.round(p.health), dead: p.dead, state: p.state, w: p.weapon.def.id, anim: { speed: +(a.speed || 0).toFixed(2), strafe: +(a.strafe || 0).toFixed(2), forward: a.forward, sprint: a.sprint, crouch: a.crouch, aim: a.aim, cover: a.cover ? { high: a.cover.high, peek: +(a.cover.peek || 0).toFixed(2), over: a.cover.over, blind: a.cover.blind } : null, roll: a.roll, vault: a.vault, reload: a.reload } }, { reliable: false });
+        net.send(MSG.SNAP_PLAYER, { id: net.localId, p: v3(p.position), yaw: +p.yaw.toFixed(3), pitch: +p.cam.pitch.toFixed(2), hp: Math.round(p.health), dead: p.dead, state: p.state, w: p.weapon.def.id, kills: this.game.combat?.stats.kills || 0, deaths: this.game.combat?.stats.deaths || 0, roll: !!p.model?.sprintBall, anim: { speed: +(a.speed || 0).toFixed(2), strafe: +(a.strafe || 0).toFixed(2), forward: a.forward, sprint: a.sprint, crouch: a.crouch, aim: a.aim, cover: a.cover ? { high: a.cover.high, peek: +(a.cover.peek || 0).toFixed(2), over: a.cover.over, blind: a.cover.blind } : null, roll: a.roll, vault: a.vault, reload: a.reload } }, { reliable: false });
       }
     }
     if (net.isHost) {

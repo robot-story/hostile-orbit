@@ -12,7 +12,8 @@ const LIMB_ZONES = ['armL', 'armR', 'legL', 'legR'];
 export class Combat {
   constructor(game) {
     this.game = game; this.world = game.world; this.fx = game.fx;
-    this.stats = { kills: 0, headshots: 0, shotsFired: 0, shotsHit: 0, damageDealt: 0, damageTaken: 0, limbsRemoved: 0, grenadesThrown: 0, orbitalStrikes: 0, dronesDestroyed: 0, streak: 0, bestStreak: 0 };
+    events.on('player:died', (pl) => { if (pl === this.game.session?.player || pl?.isLocal) this.stats.deaths++; });
+    this.stats = { deaths: 0, kills: 0, headshots: 0, shotsFired: 0, shotsHit: 0, damageDealt: 0, damageTaken: 0, limbsRemoved: 0, grenadesThrown: 0, orbitalStrikes: 0, dronesDestroyed: 0, streak: 0, bestStreak: 0 };
     this._tmp = new THREE.Vector3();
   }
   /** Player weapon hit on anything (called locally by the shooter). */

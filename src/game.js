@@ -389,6 +389,17 @@ export class Game {
       this.camera.position.set(p.x - 6, g + 2, p.z + 8); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016);
       await new Promise((r) => setTimeout(r, 0));
     }
+    // every weapon model, each Legion frame and the war-beast: build once, render once, throw away
+    try {
+      const { WEAPON_BUILDERS } = await import('./models/weapons.js'); const { buildSoldier } = await import('./models/soldier.js'); const { Ravager } = await import('./entities/ravager.js');
+      const stage = new THREE.Group(); const c = L.dropZone.pos; const gy = W.groundHeight(c.x, c.z); stage.position.set(c.x, gy, c.z + 6); W.scene.add(stage);
+      let k = 0; for (const id in WEAPON_BUILDERS) { try { const m = WEAPON_BUILDERS[id](); m.position.set((k++ % 6) * 0.8 - 2, 1.2, 0); stage.add(m); } catch { /* ignore */ } }
+      for (const kind of ['rifleman', 'breacher', 'suppressor', 'grenadier']) { try { const m = buildSoldier(kind === 'suppressor' ? 'legionHeavy' : 'legion', { legion: kind, custom: null }); m.root.position.set((k++ % 6) * 1.2 - 3, 0, 2); stage.add(m.root); } catch { /* ignore */ } }
+      let beast = null; try { beast = new Ravager(this, new THREE.Vector3(c.x, gy, c.z + 12)); } catch { /* ignore */ }
+      this.camera.position.set(c.x, gy + 3, c.z - 4); this.camera.lookAt(c.x, gy + 1, c.z + 8); R.render(0.016); await new Promise((r) => setTimeout(r, 0));
+      W.scene.remove(stage); stage.traverse((o) => { if (o.isMesh) o.geometry?.dispose?.(); });
+      if (beast) { beast.dead = true; W.unregister(beast); beast.removeModel(); }
+    } catch (e) { console.warn('[prewarm] entity pass skipped', e); }
     // FX materials: spawn one of each cheap effect off-screen so their shaders are compiled too
     try { const fx = this.session?.fx; const off = new THREE.Vector3(0, -50, 0); fx?.sparksBurst?.(off, new THREE.Vector3(0, 1, 0), 2); fx?.dust?.(off, 0.1); fx?.muzzleFlash?.(off, new THREE.Vector3(0, 0, 1), '#8ff0ff', 0.1); fx?.blood?.(off, new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), 0.1); R.render(0.016); } catch { /* ignore */ }
   }
@@ -506,6 +517,17 @@ export class Game {
     this.camera.fov = 70; this.camera.updateProjectionMatrix();
     if (!pod.landed && pod.t > 0) this.localPlayer.cam.shake(0.02 * k);
     if (pod.doneSignal && !pod.opened) pod.opened = true;
+  }
+  /** Online squad board: callsign, frame colour, kills and deaths for everyone in the session. */
+  _squadBoard() {
+    const peers = net.transport?.peerCount || 0; let el = this._boardEl;
+    if (!peers) { if (el) el.style.display = 'none'; return; }
+    if (!el) { el = this._boardEl = document.createElement('div'); el.id = 'squadboard'; this.ui.appendChild(el); const css = document.createElement('style'); css.textContent = `#squadboard{position:absolute;right:22px;top:88px;min-width:220px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:#e8f4f8;background:rgba(3,10,14,.55);border:1px solid rgba(0,229,255,.25);padding:8px 10px;pointer-events:none;z-index:4}#squadboard .t{font-family:var(--font);font-size:10px;letter-spacing:.3em;color:#5be3ff;margin-bottom:6px}#squadboard .r{display:grid;grid-template-columns:10px 1fr 34px 34px;gap:8px;align-items:center;padding:2px 0}#squadboard .d{width:8px;height:8px;border-radius:50%}#squadboard .h{color:rgba(232,244,248,.5)}#squadboard .me{color:#fff}`; document.head.appendChild(css); }
+    this._boardT = (this._boardT || 0) - 1; if (this._boardT > 0) return; this._boardT = 30;
+    const rows = []; const roster = net.transport?.players || [];
+    for (const pl of roster) { const isMe = pl.id === net.localId; const rp = this.session?.netsync?.remotes?.get?.(pl.id); const k = isMe ? (this.session?.combat?.stats.kills || 0) : (rp?.kills || 0); const d = isMe ? (this.session?.combat?.stats.deaths || 0) : (rp?.deaths || 0); const col = SQUAD_COLORS[pl.slot] || '#888'; rows.push({ n: pl.name || 'VANGUARD', k, d, col, isMe }); }
+    rows.sort((a, b) => b.k - a.k);
+    el.style.display = 'block'; el.innerHTML = `<div class="t">SQUAD</div><div class="r h"><span></span><span>CALLSIGN</span><span>K</span><span>D</span></div>` + rows.map((r) => `<div class="r ${r.isMe ? 'me' : ''}"><span class="d" style="background:${r.col};box-shadow:0 0 8px ${r.col}"></span><span>${r.n}</span><span>${r.k}</span><span>${r.d}</span></div>`).join('');
   }
   _speedLines(k) {
     let el = this._speedEl; if (!el) { el = this._speedEl = document.createElement('div'); el.id = 'speedlines'; el.innerHTML = '<div class="sl"></div>'; this.ui.appendChild(el); const css = document.createElement('style'); css.textContent = `#speedlines{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .12s;z-index:5}#speedlines .sl{position:absolute;inset:-20%;background:repeating-conic-gradient(from 0deg at 50% 52%,rgba(255,255,255,0) 0deg 5deg,rgba(200,240,255,.28) 5.6deg 6.2deg,rgba(255,255,255,0) 7deg 12deg);-webkit-mask:radial-gradient(ellipse at 50% 52%,transparent 34%,#000 78%);mask:radial-gradient(ellipse at 50% 52%,transparent 34%,#000 78%);animation:slspin .9s linear infinite}@keyframes slspin{to{transform:rotate(12deg)}}`; document.head.appendChild(css); }
@@ -665,7 +687,7 @@ export class Game {
     if (s && this.world) {
       if (this.mode === 'play') {
         this.time += dt;
-        s.player.update(dt); this._speedLines(s.player.speedFx || 0);
+        s.player.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard();
         this.world.nav.update();
         if (!this.dev?.state.freezeEnemies) s.director.update(dt);
         s.projectiles.update(dt); s.abilities.update(dt); s.mission.update(dt); s.netsync?.update(dt);

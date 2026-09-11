@@ -34,7 +34,7 @@ export class RemotePlayer {
   applySnapshot(s) {
     this.target.p.set(s.p[0], s.p[1], s.p[2]); this.target.yaw = s.yaw; this.target.pitch = s.pitch || 0;
     this.target.anim = s.anim || this.target.anim; this.health = s.hp; this.dead = !!s.dead; this.state = s.state || 'normal';
-    this.crouching = !!s.anim?.crouch; this.aiming = !!s.anim?.aim; this.sprinting = !!s.anim?.sprint;
+    this.crouching = !!s.anim?.crouch; this.aiming = !!s.anim?.aim; this.sprinting = !!s.anim?.sprint; this.kills = s.kills || 0; this.deaths = s.deaths || 0; if (this.model) this.model.sprintBall = !!s.roll;
     if (s.w && s.w !== this.weaponId) { this.weaponId = s.w; this.anim.weaponSocket.remove(this.weaponModel); this.weaponModel = (WEAPON_BUILDERS[s.w] || WEAPON_BUILDERS.viper)(); this.anim.weaponSocket.add(this.weaponModel); }
     if (this.lastSnapT === 0) { this.position.copy(this.target.p); this.yaw = this.target.yaw; }
     this.lastSnapT = performance.now();

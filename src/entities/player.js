@@ -146,7 +146,8 @@ export class Player {
       }
     }
     // onboarding: nudge the cover prompt when standing next to usable cover
-    this._coverHintT = (this._coverHintT || 0) - dt; if (this._coverHintT <= 0 && this.state === 'normal' && this.grounded && !this.aiming) { this._coverHintT = 0.6; const facing = new THREE.Vector3(-Math.sin(this.cam.yaw), 0, -Math.cos(this.cam.yaw)); if (this.world.cover.findSnap(this.position, facing, 2.4)) events.emit('hint:cover'); }
+    this._coverHintT = 1e9; // cover hints retired with the cover system
+    this._coverHintT2 = (this._coverHintT2 || 0) - dt; if (this._coverHintT <= 0 && this.state === 'normal' && this.grounded && !this.aiming) { this._coverHintT = 0.6; const facing = new THREE.Vector3(-Math.sin(this.cam.yaw), 0, -Math.cos(this.cam.yaw)); if (this.world.cover.findSnap(this.position, facing, 2.4)) events.emit('hint:cover'); }
     if (this.interacting) { this.velocity.x = damp(this.velocity.x, 0, 12, dt); this.velocity.z = damp(this.velocity.z, 0, 12, dt); }
     this.anim.aimPitch = clamp(this.cam.pitch / 1.1, -1, 1);
     this.lastAnimState = s;
@@ -180,7 +181,7 @@ export class Player {
     const target = wish.clone().multiplyScalar(max);
     const accel = this.grounded ? 34 : (this.jet ? (this._ballAir ? 3 : 14) : 6);
     this.velocity.x = damp(this.velocity.x, target.x, accel * 0.5, dt); this.velocity.z = damp(this.velocity.z, target.z, accel * 0.5, dt);
-    if (this.model?.sprintBall && this.grounded) { const n = this.world.terrain.getNormal(this.position.x, this.position.z); const sp = Math.hypot(this.velocity.x, this.velocity.z); if (sp > 1) { const down = (n.x * this.velocity.x + n.z * this.velocity.z) / sp; const k = 1 + Math.abs(down) * 9 * dt; const cap = 19; const ns = Math.min(cap, sp * k); this.velocity.x *= ns / sp; this.velocity.z *= ns / sp; this._slopeUp = -down; if (-down > 0.12) { this._rampFx = (this._rampFx || 0) - dt; if (this._rampFx <= 0) { this._rampFx = 0.06; this.fx?.sparksBurst?.(this.position.clone(), new THREE.Vector3(0, 1, 0), 3, '#7fe9ff'); } } } } // down or up, momentum builds: ramps are turbos
+    if (this.model?.sprintBall && this.grounded) { const n = this.world.terrain.getNormal(this.position.x, this.position.z); const sp = Math.hypot(this.velocity.x, this.velocity.z); if (sp > 1) { const down = (n.x * this.velocity.x + n.z * this.velocity.z) / sp; const k = 1 + Math.abs(down) * 9 * dt; const cap = 19; const ns = Math.min(cap, sp * k); this.velocity.x *= ns / sp; this.velocity.z *= ns / sp; this._slopeUp = -down; if (-down > 0.12) { this._slopeMem = 0.2; this._slopePeak = -down; } else this._slopeMem = Math.max(0, (this._slopeMem || 0) - dt); if (-down > 0.12) { this._rampFx = (this._rampFx || 0) - dt; if (this._rampFx <= 0) { this._rampFx = 0.06; this.fx?.sparksBurst?.(this.position.clone(), new THREE.Vector3(0, 1, 0), 3, '#7fe9ff'); } } } } // down or up, momentum builds: ramps are turbos
     const spd = Math.hypot(this.velocity.x, this.velocity.z); this.speedFx = clamp((spd - 8.5) / 8, 0, 1); this.cam.speedKick = this.speedFx;
     // Facing: sprint turns the body into the run direction; every other movement strafes (body faces the camera);
     // standing still only turns in place once the camera has swung far enough (no constant spinning).
@@ -189,6 +190,7 @@ export class Player {
     else { const d = Math.abs(angleDiff(this.yaw, this.cam.yaw)); if (d > 1.05) this.turning = true; if (this.turning) { this.yaw = angleDamp(this.yaw, this.cam.yaw, 7, dt); if (d < 0.06) this.turning = false; } }
     if (input.pressed('roll') && ax.active) { this.state = 'roll'; this.stateT = 0; this.rollDir = wish.clone().normalize(); this.yaw = Math.atan2(-this.rollDir.x, -this.rollDir.z); this.aiming = false; audio.play('roll', { pos: this.position }); }
     // Space: tap = cover/vault, hold = jetpack thrust
+    this._slamTapT = Math.max(0, (this._slamTapT || 0) - dt); if (input.pressed('cover') && !this.grounded && (this._ballAir || (this.model?.fold || 0) > 0.6) && this.vy < 1) this._slamTapT = 0.45;
     if (input.down('cover')) this.spaceHeld += dt; else { if (this.spaceHeld > 0 && this.spaceHeld < 0.22 && !this.jet) this.tryCoverOrVault(wish); this.spaceHeld = 0; }
     const wantJet = input.down('cover') && this.spaceHeld >= 0.22 && this.fuel > 0.02;
     if (wantJet && !this.jet) { const rolled = this.model?.sprintBall && (this.model?.fold || 0) > 0.6; if (rolled) { this._ballAir = true; const h = Math.hypot(this.velocity.x, this.velocity.z) || 1; const boost = Math.min(17, h * 1.5 + 4); this.velocity.x *= boost / h; this.velocity.z *= boost / h; this.vy = Math.max(this.vy, 9.5); this.fx?.sparksBurst?.(this.position.clone(), new THREE.Vector3(0, -1, 0), 24, '#7fe9ff'); this.fx?.dust?.(this.position.clone(), 2.5); events.emit('fx:shake', 0.25); audio.play('kinetic_charge', { pos: this.position, volume: 0.6, pitch: 1.1 }); }
@@ -223,8 +225,8 @@ export class Player {
     const G = this.grind; const S = G.rail.samples; const n = S.length;
     // ride the samples: advance by speed; downhill adds, uphill bleeds, gentle constant gain so grinds feel fast
     G.speed = clamp(G.speed + dt * 1.2, 6, 20);
-    let remaining = G.speed * dt;
-    while (remaining > 0) { const j = G.i + G.dir; if (j < 0 || j >= n) { this.exitGrind(0.35); return; } const seg = S[j].distanceTo(S[G.i]); if (seg <= remaining) { remaining -= seg; G.i = j; G.speed = clamp(G.speed - (S[j].y - S[G.i].y) * 4, 6, 20); } else { G.frac = remaining / seg; remaining = 0; } }
+    let remaining = G.speed * dt; G.frac = G.frac || 0;
+    while (remaining > 0) { const j = G.i + G.dir; if (j < 0 || j >= n) { this.exitGrind(0.35); return; } const seg = S[j].distanceTo(S[G.i]) || 0.01; const left = (1 - G.frac) * seg; if (remaining >= left) { remaining -= left; G.speed = clamp(G.speed - (S[j].y - S[G.i].y) * 4, 6, 20); G.i = j; G.frac = 0; } else { G.frac += remaining / seg; remaining = 0; } }
     const j = clamp(G.i + G.dir, 0, n - 1); const a = S[G.i], b = S[j]; const f = G.frac || 0; const pos = a.clone().lerp(b, f); const tan = b.clone().sub(a).setY(0).normalize();
     this.position.set(pos.x, pos.y + 0.02, pos.z); this.velocity.set(tan.x * G.speed, 0, tan.z * G.speed); this.grounded = true; this.vy = 0;
     this.yaw = angleDamp(this.yaw, Math.atan2(-tan.x, -tan.z), 14, dt);
@@ -259,13 +261,13 @@ export class Player {
     }
   }
   /** Landing from a roll-jump slams a shockwave into whatever is underneath, scaled by fall speed and ground speed. */
-  rollSlam(fallSpeed) {
-    const sp = Math.hypot(this.velocity.x, this.velocity.z); const power = clamp((fallSpeed - 4) / 8 + sp / 16, 0.2, 1.6);
+  rollSlam(fallSpeed, perfect = false) {
+    const sp = Math.hypot(this.velocity.x, this.velocity.z); const power = clamp((fallSpeed - 3) / 8 + sp / 16, 0.25, 1.6) * (perfect ? 1.45 : 1);
     const p = this.position.clone(); p.y += 0.3;
     const radius = 2.6 + power * 2.2, dmg = Math.round(70 + power * 90);
     if (this.game.combat) this.game.combat.explode(p, radius, dmg, { kind: 'pod', attackerId: this.id, impulse: 10 + power * 8, selfMult: 0 });
     this.fx?.dust?.(p, 3 + power * 2); events.emit('fx:shake', 0.3 + power * 0.4); audio.play('land', { pos: p, volume: 1, pitch: 0.7 });
-    events.emit('toast', power > 1 ? 'ROLL SLAM  //  HEAVY' : 'ROLL SLAM', 'good');
+    events.emit('toast', perfect ? 'PERFECT SLAM' : power > 1 ? 'ROLL SLAM  //  HEAVY' : 'ROLL SLAM', 'good');
     this.ramChain = Math.min(6, (this.ramChain || 0) + 1); this.ramChainT = 3;
   }
   /** Vault check along an arbitrary ground direction (sprint auto-hop). */
@@ -292,9 +294,7 @@ export class Player {
         this.yaw = this.cam.yaw; this.cover = null; this.crouching = false; input.clearCrouchToggle(); audio.play('vault', { pos: this.position }); return true;
       }
     }
-    const p = this.world.cover.findSnap(this.position, facing, 2.8);
-    if (p) { this.enterCover(p); return true; }
-    return false;
+    return false; // cover snapping removed: movement is the defence now
   }
   updateVault(dt) {
     const t = clamp(this.stateT / (this.vaultFast ? 0.42 : 0.7), 0, 1);
@@ -370,9 +370,9 @@ export class Player {
     if (this.floating) { this.fuel = Math.max(0, this.fuel - dt * 0.3); this.vy = Math.max(this.vy - 5 * dt, -2.4); this._floatFx = (this._floatFx || 0) - dt; if (this._floatFx <= 0) { this._floatFx = 0.07; this.fx?.sparksBurst?.(this.position.clone().add(new THREE.Vector3(0, 0.4, 0)), new THREE.Vector3(0, -1, 0), 2, '#7fe9ff'); } }
     else this.vy -= (this.jet ? 6 : 22) * dt;
     let y = this.position.y + this.vy * dt;
-    if (y <= g + 0.02 && !(this.jet && this.vy > 0)) { y = this.grounded ? damp(this.position.y, g, 30, dt) : g; if (!this.grounded) { this.landT = Math.min(0.5, Math.max(0.16, -this.vy * 0.05)); if ((this._ballAir || (this.model?.fold || 0) > 0.6) && this.vy < -4) this.rollSlam(-this.vy); if (this.vy < -6) audio.play('land', { pos: this.position }); this.fx?.dust?.(this.position.clone(), Math.min(3, -this.vy * 0.3 + 0.5)); } this.grounded = true; this.vy = 0; if (g - this.position.y > 0.05) y = damp(this.position.y, g, 25, dt); }
-    else if (this.grounded && !this.jet && this.vy <= 0 && y - g < 0.6 && !(this.model?.sprintBall && (this._slopeUp || 0) > 0.12 && Math.hypot(this.velocity.x, this.velocity.z) > 7)) { y = g; this.vy = 0; } // ground stick: follow descending slopes instead of drifting off them (but a rolling ball leaves a ramp lip)
-    else if (this.grounded && this.model?.sprintBall && (this._slopeUp || 0) > 0.12 && this.vy <= 0.5 && Math.hypot(this.velocity.x, this.velocity.z) > 7) { const sp = Math.hypot(this.velocity.x, this.velocity.z); this.vy = Math.max(this.vy, sp * Math.min(0.75, this._slopeUp * 1.6) + 1.5); this._ballAir = true; this.grounded = false; this._slopeUp = 0; this.fx?.dust?.(this.position.clone(), 2); audio.play('vault', { pos: this.position, volume: 0.7, pitch: 1.2 }); events.emit('fx:shake', 0.2); } // ramp launch
+    if (y <= g + 0.02 && !(this.jet && this.vy > 0)) { y = this.grounded ? damp(this.position.y, g, 30, dt) : g; if (!this.grounded) { this.landT = Math.min(0.5, Math.max(0.16, -this.vy * 0.05)); if ((this._ballAir || (this.model?.fold || 0) > 0.6) && this.vy < -3 && (this._slamTapT || 0) > 0) this.rollSlam(-this.vy, this._slamTapT > 0.27); this._slamTapT = 0; if (this.vy < -6) audio.play('land', { pos: this.position }); this.fx?.dust?.(this.position.clone(), Math.min(3, -this.vy * 0.3 + 0.5)); } this.grounded = true; this.vy = 0; if (g - this.position.y > 0.05) y = damp(this.position.y, g, 25, dt); }
+    else if (this.grounded && !this.jet && this.vy <= 0 && y - g < 0.6 && !(this.model?.sprintBall && (this._slopeMem || 0) > 0 && Math.hypot(this.velocity.x, this.velocity.z) > 7)) { y = g; this.vy = 0; } // ground stick: follow descending slopes instead of drifting off them (but a rolling ball leaves a ramp lip)
+    else if (this.grounded && this.model?.sprintBall && (this._slopeMem || 0) > 0 && this.vy <= 0.5 && Math.hypot(this.velocity.x, this.velocity.z) > 7) { const sp = Math.hypot(this.velocity.x, this.velocity.z); this.vy = Math.max(this.vy, sp * Math.min(0.75, (this._slopePeak || 0.2) * 1.6) + 1.5); this._ballAir = true; this.grounded = false; this._slopeUp = 0; this._slopeMem = 0; this.fx?.dust?.(this.position.clone(), 2); audio.play('vault', { pos: this.position, volume: 0.7, pitch: 1.2 }); events.emit('fx:shake', 0.2); } // ramp launch
     else this.grounded = y - g < 0.15;
     if (this.grounded && y < g) y = g;
     this.position.y = y;
