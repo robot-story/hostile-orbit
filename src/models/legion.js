@@ -15,7 +15,7 @@ const RED = '#ff3b1f';
 
 function palette(kind) {
   // readable in the orange light: oxide-red plates over a graphite core, light gunmetal joints
-  const oxide = armour('gunmetal', kind === 'suppressor' ? '#c4583e' : '#d0684c'), carbon = armour('gunmetal', '#4a4f5a'), gun = armour('gunmetal', '#7c828e'), gunLight = armour('gunmetal', '#b4bac6');
+  const oxide = armour('ceramic', kind === 'suppressor' ? '#a8402c' : '#b84a34'), carbon = armour('gunmetal', '#6a707c'), gun = armour('gunmetal', '#9aa0ac'), gunLight = armour('gunmetal', '#c8ced8');
   return { oxide, carbon, gun, gunLight, N: RED, joints: [] };
 }
 

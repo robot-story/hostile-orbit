@@ -16,7 +16,7 @@ const RED = '#ff3b1f';
 
 function buildRavagerModel() {
   const root = new THREE.Group(); root.name = 'ravager';
-  const oxide = armour('gunmetal', '#c4583e'), graphite = armour('gunmetal', '#3f434c'), gun = armour('gunmetal', '#7c828e'), light = armour('gunmetal', '#b4bac6');
+  const oxide = armour('ceramic', '#a8402c'), graphite = armour('gunmetal', '#5e646f'), gun = armour('gunmetal', '#9aa0ac'), light = armour('gunmetal', '#c8ced8');
   const P = {};
   // body: low chassis, ribbed flanks, back plates, spine channel, reactor under the chest
   const body = new THREE.Group(); body.position.y = 1.35; root.add(body); P.body = body;
