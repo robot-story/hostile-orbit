@@ -240,7 +240,10 @@ export class Player {
     if (input.pressed('cover') || input.down('cover')) { this.exitGrind(1); return; }
     if (Math.abs(ax.x) > 0.8 && this.stateT > 0.3) { this.exitGrind(0.3, ax.x); return; }
     if (!this.rollMode) { this.exitGrind(0.2); return; }
-    this.anim.update(dt, { speed: 1, sprint: 1, crouch: 0, aim: 0, cover: null, moveDir: { x: 0, z: -1 }, velocity: G.speed, robotic: true });
+    // ride upright: the wheel grinds, the torso is free to shoot
+    if (this.model) this.model.sprintBall = false;
+    this.aiming = input.aim() && this.reloadT < 0; this.yaw = this.aiming ? angleDamp(this.yaw, this.cam.yaw, 12, dt) : this.yaw;
+    this.anim.update(dt, { speed: 0.6, sprint: 0, crouch: 0, aim: this.aiming ? 1 : 0, cover: null, moveDir: { x: 0, z: -1 }, velocity: G.speed, robotic: true, lean: 0.3 });
   }
   exitGrind(hop = 0.3, side = 0) {
     const G = this.grind; if (!G) return; this.grind = null; this.state = 'normal'; this.stateT = 0;
@@ -389,7 +392,7 @@ export class Player {
   updateWeapon(dt) {
     const w = this.weapon, d = w.def;
     this.fireT -= dt; this.bloom = Math.max(0, this.bloom - dt * 0.12);
-    this.trigger = input.fire && !this.dead && this.state !== 'roll' && this.state !== 'vault' && this.reloadT < 0 && !(this.state === 'cover' && !this.aiming && !this.blindOk()) && !(this.model?.sprintBall && (this.model?.fold || 0) > 0.4);
+    this.trigger = input.fire && !this.dead && this.state !== 'roll' && this.state !== 'vault' && this.reloadT < 0 && !(this.state === 'cover' && !this.aiming && !this.blindOk()) && !(this.model?.sprintBall && (this.model?.fold || 0) > 0.4 && this.state !== 'grind');
     // reload
     if (this.reloadT >= 0) {
       this.reloadT += dt;
@@ -477,6 +480,7 @@ export class Player {
     if (this.dead) return; this.dead = true; this.aiming = false; this.sprinting = false; this.trigger = false;
     if (this.state === 'cover') this.leaveCover();
     this.state = 'dead'; this.stateT = 0;
+    if (this.model?.robot) { const dir = info?.dir ? new THREE.Vector3(...info.dir) : new THREE.Vector3(0, 1, 0); this.fx?.shatterFrame?.(this.model, dir, { max: 30 }); this.fx?.explosion?.(this.position.clone().setY(this.position.y + 1), 1.4, 'drone'); this.model.root.visible = false; events.emit('fx:shake', 1.0); }
     audio.play('player_death', { volume: 1 });
     audio.say('vg_death', { priority: 2 });
     events.emit('player:died', this, info);

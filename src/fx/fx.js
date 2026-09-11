@@ -132,6 +132,30 @@ export class FX {
   }
 
   // ---------- per-frame ----------
+  /** Frame shatter: every rigid part of a robot flies off with spin and gravity, bounces once, then fades. */
+  shatterFrame(model, dir = UP, opts = {}) {
+    const parts = []; model.root.traverse((o) => { if (o.isMesh && o.visible && !(model.meshes || []).includes(o) && !o.userData.noShatter) parts.push(o); });
+    const max = opts.max || 26; const step = Math.max(1, Math.floor(parts.length / max)); const list = this._shards || (this._shards = []);
+    const centre = new THREE.Vector3(); model.root.getWorldPosition(centre); centre.y += 1;
+    for (let i = 0; i < parts.length; i += step) {
+      const src = parts[i]; const m = new THREE.Mesh(src.geometry, src.material); src.getWorldPosition(m.position); src.getWorldQuaternion(m.quaternion); src.getWorldScale(m.scale);
+      m.castShadow = true; this.world.fxGroup.add(m);
+      const away = m.position.clone().sub(centre).setY(0); if (away.lengthSq() < 0.01) away.set(Math.random() - 0.5, 0, Math.random() - 0.5); away.normalize();
+      const v = away.multiplyScalar(2 + Math.random() * 4).addScaledVector(dir, 3 + Math.random() * 4); v.y += 2.5 + Math.random() * 4;
+      list.push({ m, v, av: new THREE.Vector3((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12), life: 3.2 + Math.random() * 1.5, bounced: false });
+    }
+    this.sparksBurst?.(centre, UP, 34, '#ffb36b'); this.sparksBurst?.(centre, dir, 20, '#7fe9ff'); this.dust?.(centre.clone().setY(centre.y - 1), 2);
+  }
+  _updateShards(dt) {
+    const list = this._shards; if (!list || !list.length) return;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const s = list[i]; s.life -= dt; s.v.y -= 20 * dt; s.m.position.addScaledVector(s.v, dt); s.m.rotation.x += s.av.x * dt; s.m.rotation.y += s.av.y * dt; s.m.rotation.z += s.av.z * dt;
+      const g = this.world.groundHeight(s.m.position.x, s.m.position.z, s.m.position.y);
+      if (s.m.position.y < g + 0.08) { s.m.position.y = g + 0.08; if (!s.bounced) { s.bounced = true; s.v.y = Math.abs(s.v.y) * 0.3; s.v.x *= 0.5; s.v.z *= 0.5; s.av.multiplyScalar(0.4); if (Math.random() < 0.4) this.sparksBurst?.(s.m.position, UP, 3, '#ffd27a'); } else { s.v.set(0, 0, 0); s.av.set(0, 0, 0); } }
+      if (s.life < 0.6) { if (!s.m.material.userData?._own) { s.m.material = s.m.material.clone(); s.m.material.transparent = true; s.m.material.userData._own = true; } s.m.material.opacity = Math.max(0, s.life / 0.6); }
+      if (s.life <= 0) { this.world.fxGroup.remove(s.m); list.splice(i, 1); }
+    }
+  }
   /** A short ground track segment behind a rolling/driving thing. Colour follows the map: damp sand in the canyon, tyre rubber in the city. */
   trackMark(pos, yaw, len = 0.7, width = 0.36) {
     const city = this.world.map?.terrain?.style === 'city';
@@ -140,6 +164,7 @@ export class FX {
     this.decals.spawn(_v, UP, { texture: this.tex.track, color: city ? '#0a0a0e' : '#3a2211', size: width, aspect: len / width, life: 45, opacity: city ? 0.34 : 0.55, yaw: -yaw });
   }
   update(dt, camera) {
+    this._updateShards(dt);
     this.camera = camera || this.camera;
     dt = Math.min(dt, 1 / 20);
     this._decalBudget = 8;

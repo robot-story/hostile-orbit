@@ -1,5 +1,6 @@
 // Game orchestrator: boot, menus, session lifecycle (deploy → play → results), pause, reinforcement pods, checkpoints.
 import { updateBreakables } from './world/breakables.js';
+import { updatePickups } from './world/pickups.js';
 import * as THREE from 'three';
 import { Renderer } from './render/renderer.js';
 import { input, keyLabel } from './core/input.js';
@@ -285,6 +286,7 @@ export class Game {
     this.dev?.onSession();
     s.hints = new Hints(this.ui, this);
     s.qte = new QTE(this, this.ui);
+    if (this.world) this.world.game = this;
     this.renderer.setScene(this.world.scene, this.camera); this.renderMenuScene = false; this.setBackground(null);
     this.time = 0;
     return s;
@@ -700,7 +702,7 @@ export class Game {
     if (s && this.world) {
       if (this.mode === 'play') {
         this.time += dt;
-        s.player.update(dt); s.qte?.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard(); this._lazyReticle(dt); updateBreakables(this.world, dt);
+        s.player.update(dt); s.qte?.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard(); this._lazyReticle(dt); updateBreakables(this.world, dt); updatePickups(this.world, dt, this.players);
         this.world.nav.update();
         if (!this.dev?.state.freezeEnemies) s.director.update(dt);
         s.projectiles.update(dt); s.abilities.update(dt); s.mission.update(dt); s.netsync?.update(dt);

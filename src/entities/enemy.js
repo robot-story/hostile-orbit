@@ -1,4 +1,5 @@
 // Null Legion infantry: rigged model, hitboxes, armour, squad AI with cover, flanking, suppression, grenades.
+import { dropLoot } from '../world/pickups.js';
 import * as THREE from 'three';
 import { buildSoldier, LIMBS } from '../models/soldier.js';
 import { WEAPON_BUILDERS } from '../models/weapons.js';
@@ -151,6 +152,11 @@ export class Enemy {
       // robot bodies burst into metal, not meat: flash, sparks, smoke, scorch; body removed
       this.fx.explosion(this.hitCenter.clone(), 1.6, 'drone'); this.fx.sparksBurst?.(this.hitCenter.clone(), dir, 40, '#ffb36b'); this.fx.sparksBurst?.(this.hitCenter.clone(), UP, 24, '#7fe9ff'); this.fx.smokeColumn?.(this.position.clone(), 1.2, 4);
       audio.play('drone_explode', { pos: this.position, volume: 0.8 }); if (this.weaponModel) this.weaponModel.visible = false; this.removeModel();
+    } else if (this.model.robot) {
+      // Legion frames come apart: parts fly, sparks, smoke, the wreck is gone
+      this.fx.shatterFrame(this.model, dir, { max: 22 }); this.fx.smokeColumn?.(this.position.clone(), 0.6, 4); audio.play('drone_explode', { pos: this.position, volume: 0.6, pitch: 0.8 });
+      if (this.weaponModel) { const wm = this.weaponModel; const wp = wm.getWorldPosition(new THREE.Vector3()); wm.parent?.remove(wm); this.fx.gibs?.(wp, dir, { armour: true, count: 3 }); }
+      this.removeModel();
     } else if (ev?.gib) {
       const limbs = Object.keys(LIMBS);
       this.fx.gibs(this.hitCenter.clone(), dir, { model: this.model, limbs, armour: true, count: 10 + Math.round(ev.impulse || 4) });
@@ -171,6 +177,7 @@ export class Enemy {
     if (ev?.zone === 'head') audio.play('headshot_marker', { volume: 0.5 });
     audio.play('enemy_death_mech', { pos: this.position, volume: 0.5, pitchVar: 0.1 });
     if (Math.random() < 0.25 && this.distToCam < 45) audio.say(pick(['lg_death_1', 'lg_death_2', 'lg_man_down']), { priority: 1 });
+    if (net.isHost && this.typeId !== 'drone' && Math.random() < 0.55) { const lp = this.position.clone(); lp.y = this.world.groundHeight(lp.x, lp.z); dropLoot(this.world, lp, Math.random() < 0.25 ? 'health' : 'ammo'); }
     this.game.director?.onEnemyRemoved(this);
   }
   removeModel() { if (this.model.root.parent) this.model.root.parent.remove(this.model.root); this.model.dispose?.(); this.removed = true; }

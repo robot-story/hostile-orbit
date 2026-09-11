@@ -13,6 +13,7 @@ import { buildWallSegment, buildGate, buildWatchtower, buildPylon } from '../mod
 import { blackGlassTree, glowPool, boneArch, sporeField, membranePlant } from '../models/alien.js';
 import { rand, pick } from '../core/mathx.js';
 import { giantHolo, skyTether } from '../models/city.js';
+import { supplyPickup } from './pickups.js';
 
 // ---------------------------------------------------------------- shared decal materials (cached, batch-friendly)
 let _scorchTex = null, _trackTex = null;
@@ -266,6 +267,13 @@ export function dressMeridian(world, info) {
   grindRail(world, [[252, 96], [262, 118], [266, 140]], { height: 1.5 });                                   // trench entry
   grindRail(world, [[40, 300], [50, 320], [46, 342]], { height: 1.4, color: '#ff5a1f' });                  // jammer bowl rim
   grindRail(world, [[300, 200], [318, 214], [332, 232]], { height: 1.5 });                                  // extraction approach
+  // drop-in rails: they end above places the Legion likes to stand, so you arrive from the air into the middle of them
+  grindRail(world, [[92, 288], [78, 302], [70, 318, 1.0], [66, 330, 2.2]], { height: 1.8, color: '#ff5a1f' });   // over the jammer garrison
+  grindRail(world, [[168, 296], [184, 310, 0.8], [200, 318, 1.6]], { height: 2.0, color: '#ff5a1f' });          // into the comms pit fight
+  grindRail(world, [[298, 258], [312, 250, 0.6], [326, 246, 1.4]], { height: 1.8 });                             // onto the extraction platform defenders
+  grindRail(world, [[176, 118], [190, 126, 0.6], [206, 130, 1.4]], { height: 1.6 });                             // onto the junction convoy ambush
+  // roll-through supplies at the fights and along the runs
+  for (const [mx, my, k] of [[196, 246, 'both'], [104, 232, 'health'], [274, 210, 'ammo'], [50, 322, 'health'], [200, 350, 'both'], [280, 350, 'health'], [318, 274, 'both']]) { const p = at(world, mx, my); if (onFloor(world, p.x, p.z, -0.5)) supplyPickup(world, p, k); }
   // 9b. Propaganda pass: posters cluster where the Commonwealth wants eyes (gates, plazas, the cells).
   {
     const gateY = 0; // poster fronts face south, toward the road
@@ -314,6 +322,10 @@ export function dressLantern(world, info, cityFns) {
   grindRail(world, [[196, 60], [200, 80], [204, 100]], { height: 1.4, color: '#ff3fd8' });                   // out of the transit plaza
   grindRail(world, [[300, 290], [312, 306], [322, 326], [316, 346]], { height: 1.5, color: '#ff3fd8' });     // around the substation
   grindRail(world, [[150, 350], [166, 358], [184, 356]], { height: 1.4, color: '#00e5ff' });                 // holding block
+  grindRail(world, [[176, 106], [188, 116, 0.6], [200, 124, 1.5]], { height: 1.8, color: '#ff3fd8' });         // into the square pile-up
+  grindRail(world, [[290, 300], [306, 310, 0.8], [320, 318, 1.6]], { height: 2.0, color: '#ff3fd8' });         // onto the substation yard
+  grindRail(world, [[176, 322], [186, 332, 0.6], [196, 338, 1.4]], { height: 1.8, color: '#00e5ff' });         // into the comms pit
+  for (const [mx, my, k] of [[200, 258, 'both'], [214, 128, 'health'], [340, 300, 'health'], [196, 360, 'both'], [64, 240, 'health'], [76, 268, 'both']]) { const p = at(world, mx, my); if (onFloor(world, p.x, p.z, -0.5)) supplyPickup(world, p, k); }
   // Second content pass: the avenue is lined with screens; every block has something to say.
   {
     const lines = [['CURFEW 21:00', 'LIGHTS OFF, DOORS LOCKED'], ['REPORT UNLIT WINDOWS', 'LEGION POWER BOARD'], ['SMILE FOR THE LANTERN', 'IT IS WATCHING FOR YOU'], ['RATION CARDS RESET', 'QUEUE WITH DIGNITY'], ['THE MOON IS OURS', 'MERIDIAN COMMONWEALTH'], ['DISSENT DIMS THE LIGHTS', 'STAY BRIGHT']];
