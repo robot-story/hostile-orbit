@@ -55,7 +55,7 @@ export class Player {
   equip(slot) { this.slot = slot; while (this.weaponGroup.children.length) this.weaponGroup.remove(this.weaponGroup.children[0]); this.weaponGroup.add(this.weapon.model); this.reloadT = -1; audio.play('weapon_swap', { volume: 0.6 }); events.emit('player:weapon', this.weapon); }
   spawnAt(p, yaw = 0) { this.position.copy(p); this.yaw = yaw; this.cam.yaw = yaw; this.velocity.set(0, 0, 0); this.model.root.position.copy(p); }
   get eyeHeight() { const lift = this.model?.robot ? 0.22 : 0; return (this.crouching || (this.state === 'cover' && this.cover?.height === 'low' && !this.aiming) ? 1.15 : 1.55) + lift; }
-  get moveSpeedMax() { const w = this.weapon.def.moveMult || 1; if (this.aiming) return (this.weapon.def.kind === 'sniper' ? 1.6 : 3.1) * w; if (this.crouching) return 2.9; if (this.sprinting) return (this.model?.robot ? 11.2 : 9.4) * w; return 6.8 * w; }
+  get moveSpeedMax() { const w = this.weapon.def.moveMult || 1; if (this.aiming) return (this.weapon.def.kind === 'sniper' ? 1.6 : 3.1) * w; if (this.crouching) return 3.1; if (this.sprinting) return (this.model?.robot ? 12.2 : 9.8) * w; return 7.4 * w; }
 
   update(dt) {
     this.stateT += dt; this.spawnT += dt;
@@ -164,12 +164,13 @@ export class Player {
     this.crouching = input.crouch();
     this.aiming = aimNow && this.reloadT < 0;
     this.sprinting = input.sprint() && ax.z > 0.1 && !this.aiming && !this.crouching;
-    if (this.model) this.model.sprintBall = !!(this.sprinting && this.model.robot && this.grounded);
+    if (this.grounded && !this.jet) this._ballAir = false;
+    if (this.model) this.model.sprintBall = !!(this.model.robot && ((this.sprinting && this.grounded) || (this._ballAir && !this.grounded)));
     // auto-hop: a low wall in the run direction gets vaulted without a key press
     this._hopT = (this._hopT || 0) - dt; if (this.sprinting && this.grounded && this._hopT <= 0 && wish.lengthSq() > 0.1) { this._hopT = 0.15; if (this.tryVaultAlong(wish.clone().normalize())) return; }
     const max = this.moveSpeedMax;
     const target = wish.clone().multiplyScalar(max);
-    const accel = this.grounded ? 30 : (this.jet ? 14 : 6);
+    const accel = this.grounded ? 34 : (this.jet ? (this._ballAir ? 3 : 14) : 6);
     this.velocity.x = damp(this.velocity.x, target.x, accel * 0.5, dt); this.velocity.z = damp(this.velocity.z, target.z, accel * 0.5, dt);
     // Facing: sprint turns the body into the run direction; every other movement strafes (body faces the camera);
     // standing still only turns in place once the camera has swung far enough (no constant spinning).
@@ -180,11 +181,12 @@ export class Player {
     // Space: tap = cover/vault, hold = jetpack thrust
     if (input.down('cover')) this.spaceHeld += dt; else { if (this.spaceHeld > 0 && this.spaceHeld < 0.22 && !this.jet) this.tryCoverOrVault(wish); this.spaceHeld = 0; }
     const wantJet = input.down('cover') && this.spaceHeld >= 0.22 && this.fuel > 0.02;
-    if (wantJet && !this.jet) { this.jet = true; this.grounded = false; this.vy = Math.max(this.vy, 6); audio.play('kinetic_charge', { pos: this.position, volume: 0.35, pitch: 1.6 }); this.jetSound = audio.play('dropship_engine', { pos: this.position, loop: true, volume: 0.45, pitch: 1.7 }); if (this.fx?.dust) this.fx.dust(this.position.clone(), 2); events.emit('player:jet', true); }
+    if (wantJet && !this.jet) { const rolled = this.model?.sprintBall && (this.model?.fold || 0) > 0.6; if (rolled) { this._ballAir = true; const h = Math.hypot(this.velocity.x, this.velocity.z) || 1; const boost = Math.min(17, h * 1.5 + 4); this.velocity.x *= boost / h; this.velocity.z *= boost / h; this.vy = Math.max(this.vy, 9.5); this.fx?.sparksBurst?.(this.position.clone(), new THREE.Vector3(0, -1, 0), 24, '#7fe9ff'); this.fx?.dust?.(this.position.clone(), 2.5); events.emit('fx:shake', 0.25); audio.play('kinetic_charge', { pos: this.position, volume: 0.6, pitch: 1.1 }); }
+      this.jet = true; this.grounded = false; this.vy = Math.max(this.vy, 6); audio.play('kinetic_charge', { pos: this.position, volume: 0.35, pitch: 1.6 }); this.jetSound = audio.play('dropship_engine', { pos: this.position, loop: true, volume: 0.45, pitch: 1.7 }); if (this.fx?.dust) this.fx.dust(this.position.clone(), 2); events.emit('player:jet', true); }
     if (this.jet) {
       this.fuel = Math.max(0, this.fuel - dt / this.maxBurn);
       if (!wantJet || this.fuel <= 0) { this.jet = false; this.jetSound?.stop(0.25); this.jetSound = null; events.emit('player:jet', false); }
-      else { const agl = this.position.y - this.world.terrain.getHeight(this.position.x, this.position.z); const ceil = clamp((58 - agl) / 8, 0, 1); this.vy = damp(this.vy, (this.spaceHeld < 1.0 ? 11.5 : 5.5) * ceil - (1 - ceil) * 2, 5, dt); this.jetSound?.setPosition(this.position); this.jetFx -= dt; if (this.jetFx <= 0) { this.jetFx = 0.05; const back = new THREE.Vector3(Math.sin(this.yaw) * 0.25, 0.75, Math.cos(this.yaw) * 0.25).add(this.position); this.fx.sparksBurst?.(back, new THREE.Vector3(0, -1, 0), 3, '#7fe9ff'); if (Math.random() < 0.5) this.fx.dust?.(this.position.clone(), 0.3); } }
+      else { const agl = this.position.y - this.world.terrain.getHeight(this.position.x, this.position.z); const ceil = clamp((58 - agl) / 8, 0, 1); this.vy = damp(this.vy, (this._ballAir ? 4.5 : (this.spaceHeld < 1.0 ? 11.5 : 5.5)) * ceil - (1 - ceil) * 2, this._ballAir ? 2.5 : 5, dt); this.jetSound?.setPosition(this.position); this.jetFx -= dt; if (this.jetFx <= 0) { this.jetFx = 0.05; const back = new THREE.Vector3(Math.sin(this.yaw) * 0.25, 0.75, Math.cos(this.yaw) * 0.25).add(this.position); this.fx.sparksBurst?.(back, new THREE.Vector3(0, -1, 0), 3, '#7fe9ff'); if (Math.random() < 0.5) this.fx.dust?.(this.position.clone(), 0.3); } }
     }
     if (this.grounded && !this.jet) this.fuel = Math.min(1, this.fuel + dt / 3.5);
   }
