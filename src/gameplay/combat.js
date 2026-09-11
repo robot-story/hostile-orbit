@@ -61,7 +61,7 @@ export class Combat {
   }
   hitEffects(e, info) {
     const p = new THREE.Vector3(...info.p), n = new THREE.Vector3(...info.n), d = new THREE.Vector3(...info.dir);
-    if (e.mechanical) { this.fx.impact(p, n, 'metal'); this.fx.sparksBurst?.(p, n, 10, '#ffb36a'); audio.play('hit_metal', { pos: p, volume: 0.7, pitchVar: 0.1 }); }
+    if (e.mechanical || e.model?.robot) { this.fx.impact(p, n, 'metal'); this.fx.sparksBurst?.(p, n, 10, '#ffb36a'); this.fx.sparksBurst?.(p, d.clone().negate().setY(0.6), 5, '#ff5a1f'); audio.play('hit_metal', { pos: p, volume: 0.7, pitchVar: 0.1 }); } // frames bleed magma-hot coolant, not blood
     else if (e.armourAt?.(info.zone) > 0) { this.fx.impact(p, n, 'metal'); this.fx.sparksBurst?.(p, n, 22, '#ffd27a'); const ric = p.clone().addScaledVector(n, 0.2).add(new THREE.Vector3((Math.random() - 0.5) * 3, 1 + Math.random() * 2, (Math.random() - 0.5) * 3).normalize().multiplyScalar(4 + Math.random() * 5)); this.fx.tracer(p, ric, '#ffe6a8'); audio.play('hit_armor', { pos: p, volume: 1, pitch: 1.25, pitchVar: 0.15 }); if (mine) events.emit('hud:hitmarker', { deflect: true }); }
     else { this.fx.blood(p, n, d, info.zone === 'head' ? 1.6 : 1); audio.play('hit_flesh', { pos: p, volume: 0.9, pitchVar: 0.12 }); if (settings.goreLevel > 0) audio.play('blood_splat', { pos: p, volume: 0.5, pitchVar: 0.15 }); }
     this.fx.hitFlash?.(e.flashMesh || e.model?.meshes?.[0]);

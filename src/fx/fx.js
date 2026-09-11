@@ -140,6 +140,7 @@ export class FX {
     for (let i = 0; i < parts.length; i += step) {
       const src = parts[i]; const m = new THREE.Mesh(src.geometry, src.material); src.getWorldPosition(m.position); src.getWorldQuaternion(m.quaternion); src.getWorldScale(m.scale);
       m.castShadow = true; this.world.fxGroup.add(m);
+      if (Math.random() < 0.35 && m.material?.emissive) { m.material = m.material.clone(); m.material.userData._own = true; m.material.emissive = new THREE.Color('#ff5a1f'); m.material.emissiveIntensity = 1.6; m.material.transparent = true; } // magma-hot break edges
       const away = m.position.clone().sub(centre).setY(0); if (away.lengthSq() < 0.01) away.set(Math.random() - 0.5, 0, Math.random() - 0.5); away.normalize();
       const v = away.multiplyScalar(2 + Math.random() * 4).addScaledVector(dir, 3 + Math.random() * 4); v.y += 2.5 + Math.random() * 4;
       list.push({ m, v, av: new THREE.Vector3((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12), life: 3.2 + Math.random() * 1.5, bounced: false });

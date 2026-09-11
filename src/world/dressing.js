@@ -129,6 +129,19 @@ export function platform(world, pos, opts = {}) {
   return { group: g, colliders };
 }
 
+/** Forward launch pad: a small lit deck the reinforcement pods target. Registered on the level info for the mission. */
+export function launchPad(world, info, pos, color = COLORS.cyan) {
+  const g = new THREE.Group(); g.position.copy(pos); g.userData.noMerge = true;
+  const deck = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.3, 8), Mat.concrete()); deck.position.y = 0.15; deck.receiveShadow = true; g.add(deck);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.05, 8, 40), Mat.neon(color, 1.6)); ring.rotation.x = Math.PI / 2; ring.position.y = 0.32; ring.castShadow = false; g.add(ring);
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.4, 0.2), Mat.darkMetal()); post.position.set(Math.cos(a) * 4.9, 0.7, Math.sin(a) * 4.9); g.add(post); const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.26), Mat.neon(color, 2)); lamp.position.set(Math.cos(a) * 4.9, 1.45, Math.sin(a) * 4.9); lamp.castShadow = false; g.add(lamp); }
+  const emblem = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), Mat.emblemDecal(color)); emblem.rotation.x = -Math.PI / 2; emblem.position.y = 0.31; g.add(emblem);
+  world.props.add(g);
+  world.addCyl(new THREE.Vector3(pos.x, pos.y + 0.15, pos.z), 4.2, 0.3, { material: 'concrete', walkableTop: true, blocksNav: false, mesh: deck });
+  (info.respawnPads ||= []).push(new THREE.Vector3(pos.x, pos.y + 0.3, pos.z));
+  return g;
+}
+
 /** Grind rail: a tube along a curve on posts, registered with the world so a rolled frame can ride it. */
 export function grindRail(world, mapPts, opts = {}) {
   const h = opts.height ?? 1.4, color = opts.color || COLORS.cyan;
@@ -257,6 +270,9 @@ export function dressMeridian(world, info) {
     for (const yaw of [0.6, 2.2]) sandbagWall(world, at(world, 300 + Math.cos(yaw) * 5, 226 + Math.sin(yaw) * 5), yaw + Math.PI / 2, { length: 3.6 });
     platform(world, at(world, 352, 236), { yaw: -0.8, h: 2.6, color: COLORS.cyan });
   }
+  // 9d. Forward launch pads: reinforcement pods target the nearest one (plus the main drop zone)
+  info.respawnPads = [M(200, 45, 0)]; info.respawnPads[0].y = world.terrain.getHeight(info.respawnPads[0].x, info.respawnPads[0].z);
+  launchPad(world, info, at(world, 228, 176)); launchPad(world, info, at(world, 128, 274), '#ff5a1f'); launchPad(world, info, at(world, 300, 300), '#ff5a1f'); launchPad(world, info, at(world, 236, 388));
   // 9c. Traversal: grind rails along the routes and around the compounds (rolled frames ride them; sparks included)
   grindRail(world, [[196, 150], [194, 175], [196, 205], [199, 235], [198, 262]], { height: 1.5 });
   grindRail(world, [[214, 300], [230, 312], [236, 330], [228, 348], [214, 356]], { height: 1.6, color: '#ff5a1f' });
@@ -314,6 +330,8 @@ export function dressLantern(world, info, cityFns) {
     for (const [mx, my] of [[300, 300], [340, 300], [332, 344]]) { const g = at(world, mx, my); const top = g.clone(); top.y += 5; buildPylon(world, g, 5, '#ff3fd8'); cableRun(world, spire, top, { radius: 0.06, sag: 3.5 }); }
     pushRes(info, holoBillboard(world, at(world, 286, 288), facing([286, 288], [300, 300]), { text: 'DISSENT DIMS THE LIGHTS', sub: 'LEGION POWER BOARD', color: '#ff3fd8', light: true }));
   }
+  info.respawnPads = [M(200, 42, 0)]; info.respawnPads[0].y = world.terrain.getHeight(info.respawnPads[0].x, info.respawnPads[0].z);
+  launchPad(world, info, at(world, 214, 170), '#ff3fd8'); launchPad(world, info, at(world, 150, 300), '#00e5ff'); launchPad(world, info, at(world, 300, 284), '#ff3fd8'); launchPad(world, info, at(world, 100, 262), '#00e5ff');
   // Traversal: rails down the avenue and around the square
   grindRail(world, [[188, 88], [186, 120], [190, 150], [188, 180], [190, 214]], { height: 1.5, color: '#ff3fd8' });
   grindRail(world, [[214, 96], [216, 130], [212, 160], [214, 190], [212, 226]], { height: 1.5, color: '#00e5ff' });

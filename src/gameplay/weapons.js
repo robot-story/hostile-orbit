@@ -5,7 +5,7 @@ export const WEAPONS = {
     damage: 34, headMult: 2.6, rpm: 720, auto: true, mag: 30, reserve: 210, maxReserve: 300,
     spread: 0.010, spreadAim: 0.004, bloom: 0.006, bloomMax: 0.05, spreadMove: 0.012,
     recoil: 0.018, recoilYaw: 0.006, kick: 0.35, range: 220, falloffStart: 60,
-    reloadTime: 1.4, reloadType: 'mag', pellets: 1, tracer: '#7fe9ff', tracerEvery: 1,
+    reloadTime: 1.05, reloadType: 'mag', pellets: 1, tracer: '#7fe9ff', tracerEvery: 1,
     sound: 'viper_fire', reloadSounds: ['reload_mag_out', 'reload_mag_in', 'reload_bolt'],
     stats: { damage: 78, control: 65, mobility: 70, defence: 40 }, impulse: 1.2,
     description: 'Standard-issue Commonwealth assault rifle. Reliable, accurate, and legally distinct from a war crime.',
@@ -25,7 +25,7 @@ export const WEAPONS = {
     damage: 38, headMult: 2.2, rpm: 640, auto: true, mag: 100, reserve: 300, maxReserve: 400,
     spread: 0.022, spreadAim: 0.009, bloom: 0.004, bloomMax: 0.06, spreadMove: 0.03,
     recoil: 0.022, recoilYaw: 0.01, kick: 0.45, range: 260, falloffStart: 80,
-    reloadTime: 2.8, reloadType: 'mag', pellets: 1, tracer: '#9ff5ff', tracerEvery: 1,
+    reloadTime: 2.1, reloadType: 'mag', pellets: 1, tracer: '#9ff5ff', tracerEvery: 1,
     sound: 'atlas_fire', reloadSounds: ['reload_lmg_box', 'reload_bolt'],
     stats: { damage: 84, control: 45, mobility: 35, defence: 55 }, impulse: 1.8, moveMult: 0.85,
     description: 'Sustained suppression platform. Heavy enough to count as a second employee.',
@@ -35,7 +35,7 @@ export const WEAPONS = {
     damage: 180, headMult: 3.2, rpm: 48, auto: false, mag: 5, reserve: 30, maxReserve: 45,
     spread: 0.03, spreadAim: 0.0008, bloom: 0.02, bloomMax: 0.06, spreadMove: 0.05,
     recoil: 0.09, recoilYaw: 0.012, kick: 1.3, range: 400, falloffStart: 200, zoom: 0.3,
-    reloadTime: 1.9, reloadType: 'mag', pellets: 1, tracer: '#c8f6ff', tracerEvery: 1, pierce: true,
+    reloadTime: 1.5, reloadType: 'mag', pellets: 1, tracer: '#c8f6ff', tracerEvery: 1, pierce: true,
     sound: 'atlas_fire', reloadSounds: ['reload_mag_out', 'reload_mag_in', 'reload_bolt'],
     stats: { damage: 98, control: 35, mobility: 55, defence: 40 }, impulse: 6,
     description: 'Long-range compliance instrument. One round, one reconsidered opinion.',
@@ -45,7 +45,7 @@ export const WEAPONS = {
     damage: 42, headMult: 3.0, rpm: 400, auto: false, mag: 12, reserve: 72, maxReserve: 96,
     spread: 0.012, spreadAim: 0.004, bloom: 0.01, bloomMax: 0.05, spreadMove: 0.01,
     recoil: 0.03, recoilYaw: 0.008, kick: 0.5, range: 120, falloffStart: 30,
-    reloadTime: 1.1, reloadType: 'mag', pellets: 1, tracer: '#c8f6ff', tracerEvery: 1,
+    reloadTime: 0.9, reloadType: 'mag', pellets: 1, tracer: '#c8f6ff', tracerEvery: 1,
     sound: 'pistol_fire', reloadSounds: ['reload_mag_out', 'reload_mag_in'],
     stats: { damage: 55, control: 80, mobility: 95, defence: 40 }, impulse: 1.0,
     description: 'Compact sidearm issued to every citizen at birth. Batteries not included.',
@@ -55,7 +55,7 @@ export const WEAPONS = {
     damage: 22, headMult: 2.4, rpm: 1050, auto: true, mag: 45, reserve: 270, maxReserve: 360,
     spread: 0.016, spreadAim: 0.007, bloom: 0.005, bloomMax: 0.06, spreadMove: 0.006,
     recoil: 0.012, recoilYaw: 0.009, kick: 0.25, range: 120, falloffStart: 28,
-    reloadTime: 1.2, reloadType: 'mag', pellets: 1, tracer: '#b8ff7a', tracerEvery: 2,
+    reloadTime: 1.0, reloadType: 'mag', pellets: 1, tracer: '#b8ff7a', tracerEvery: 2,
     sound: 'pistol_fire', reloadSounds: ['reload_mag_out', 'reload_mag_in'],
     stats: { damage: 62, control: 70, mobility: 92, defence: 40 }, impulse: 0.8, moveMult: 1.06,
     description: 'Rolling-frame personal defence weapon. Shoots as fast as you can regret it.',
@@ -65,7 +65,7 @@ export const WEAPONS = {
     damage: 16, headMult: 1.8, rpm: 210, auto: true, mag: 12, reserve: 60, maxReserve: 84,
     spread: 0.075, spreadAim: 0.05, bloom: 0.004, bloomMax: 0.03, spreadMove: 0.01,
     recoil: 0.045, recoilYaw: 0.02, kick: 0.9, range: 32, falloffStart: 9,
-    reloadTime: 2.4, reloadType: 'mag', pellets: 9, tracer: '#ffd17f', tracerEvery: 1,
+    reloadTime: 1.4, reloadType: 'mag', pellets: 9, tracer: '#ffd17f', tracerEvery: 1,
     sound: 'hammer_fire', reloadSounds: ['reload_lmg_box', 'reload_bolt'],
     stats: { damage: 90, control: 30, mobility: 55, defence: 40 }, impulse: 7,
     description: 'Drum-fed room clearance. The Ministry recommends closing the door first.',
@@ -75,7 +75,7 @@ export const WEAPONS = {
     damage: 40, headMult: 1.0, rpm: 42, auto: false, mag: 3, reserve: 12, maxReserve: 18,
     spread: 0.004, spreadAim: 0.001, bloom: 0.0, bloomMax: 0.0, spreadMove: 0.02,
     recoil: 0.11, recoilYaw: 0.02, kick: 1.6, range: 260, falloffStart: 200,
-    reloadTime: 2.9, reloadType: 'mag', pellets: 1, tracer: '#ffb347', tracerEvery: 1,
+    reloadTime: 2.2, reloadType: 'mag', pellets: 1, tracer: '#ffb347', tracerEvery: 1,
     explosive: { radius: 4.6, damage: 240, impulse: 16 },
     sound: 'enemy_suppressor_fire', reloadSounds: ['reload_lmg_box', 'reload_bolt'],
     stats: { damage: 100, control: 25, mobility: 40, defence: 40 }, impulse: 12, moveMult: 0.88,
@@ -86,7 +86,7 @@ export const WEAPONS = {
     damage: 120, headMult: 3.0, rpm: 90, auto: false, mag: 8, reserve: 40, maxReserve: 56,
     spread: 0.02, spreadAim: 0.001, bloom: 0.012, bloomMax: 0.04, spreadMove: 0.03,
     recoil: 0.06, recoilYaw: 0.008, kick: 0.9, range: 380, falloffStart: 220, zoom: 0.45, pierce: true,
-    reloadTime: 1.6, reloadType: 'mag', pellets: 1, tracer: '#d8b4ff', tracerEvery: 1,
+    reloadTime: 1.3, reloadType: 'mag', pellets: 1, tracer: '#d8b4ff', tracerEvery: 1,
     sound: 'atlas_fire', reloadSounds: ['reload_mag_out', 'reload_mag_in'],
     stats: { damage: 88, control: 55, mobility: 65, defence: 40 }, impulse: 5,
     description: 'Magnetic rail marksman piece. Quiet, precise, and it goes through the first thing it meets.',
@@ -107,6 +107,13 @@ export const WEAPONS = {
   legion_heavy: { id: 'legion_heavy', name: 'NULL SUPPRESSOR', damage: 5, rpm: 800, burst: 18, burstPause: 2.4, spread: 0.075, range: 110, tracer: '#ff5a1f', sound: 'enemy_suppressor_fire', impulse: 0.6 },
 };
 
+/** Frame highlight variants: the same OUTRIDER, tuned a touch differently. Preference, not power. */
+export const FRAME_VARIANTS = {
+  '#00e5ff': { id: 'cyan', name: 'COMMONWEALTH CYAN', role: 'BALANCED', blurb: 'Standard issue. No surprises.', hp: 1.0, speed: 1.0, fuel: 1.0, ram: 1.0 },
+  '#ffb020': { id: 'amber', name: 'HAZARD AMBER', role: 'ARMOURED', blurb: '+12% frame integrity, a touch slower.', hp: 1.12, speed: 0.97, fuel: 1.0, ram: 1.1 },
+  '#c44dff': { id: 'violet', name: 'VOID VIOLET', role: 'SWIFT', blurb: '+6% pace, thinner plating.', hp: 0.92, speed: 1.06, fuel: 1.0, ram: 0.95 },
+  '#7dff5a': { id: 'lime', name: 'REACTOR LIME', role: 'HIGH-FLYER', blurb: '+35% jet fuel, standard plating.', hp: 0.97, speed: 1.0, fuel: 1.35, ram: 1.0 },
+};
 export const GRENADE = { id: 'frag', name: 'FRAG', damage: 160, radius: 6.5, fuse: 3.0, count: 4, maxCount: 6, throwSpeed: 16, impulse: 14 };
 export const INJECTOR = { id: 'injector', name: 'WELLNESS INJECTOR', heal: 65, duration: 1.6, count: 4, maxCount: 6, useTime: 1.4 };
 

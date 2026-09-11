@@ -5,7 +5,7 @@ import { buildSoldier } from '../models/soldier.js';
 import { WEAPON_BUILDERS } from '../models/weapons.js';
 import { CharacterAnimator } from './animator.js';
 import { ThirdPersonCamera } from './camera.js';
-import { WEAPONS, GRENADE, INJECTOR } from '../gameplay/weapons.js';
+import { FRAME_VARIANTS, WEAPONS, GRENADE, INJECTOR } from '../gameplay/weapons.js';
 import { input } from '../core/input.js';
 import { audio } from '../audio/audio.js';
 import { events } from '../core/events.js';
@@ -29,7 +29,8 @@ export class Player {
     this.position = new THREE.Vector3();
     this.velocity = new THREE.Vector3();
     this.yaw = 0; this.grounded = true; this.vy = 0;
-    this.health = 200; this.maxHealth = 200; this.dead = false;
+    this.variant = FRAME_VARIANTS[loadout.neon] || FRAME_VARIANTS['#00e5ff'];
+    this.health = Math.round(200 * this.variant.hp); this.maxHealth = this.health; this.dead = false;
     this.radius = 0.38; this.height = 1.8;
     this.state = 'normal'; // normal | roll | vault | cover | interact
     this.stateT = 0;
@@ -56,7 +57,7 @@ export class Player {
   equip(slot) { this.slot = slot; while (this.weaponGroup.children.length) this.weaponGroup.remove(this.weaponGroup.children[0]); this.weaponGroup.add(this.weapon.model); this.reloadT = -1; audio.play('weapon_swap', { volume: 0.6 }); events.emit('player:weapon', this.weapon); }
   spawnAt(p, yaw = 0) { this.position.copy(p); this.yaw = yaw; this.cam.yaw = yaw; this.velocity.set(0, 0, 0); this.model.root.position.copy(p); }
   get eyeHeight() { const lift = this.model?.robot ? 0.22 : 0; return (this.crouching || (this.state === 'cover' && this.cover?.height === 'low' && !this.aiming) ? 1.15 : 1.55) + lift; }
-  get moveSpeedMax() { const w = this.weapon.def.moveMult || 1; if (this.aiming) return (this.weapon.def.kind === 'sniper' ? 1.6 : 3.1) * w; if (this.crouching) return 3.1; if (this.sprinting || (this.rollMode && this.model?.robot)) return (this.model?.robot ? 12.2 : 9.8) * w; return 7.4 * w; }
+  get moveSpeedMax() { const w = (this.weapon.def.moveMult || 1) * (this.variant?.speed || 1); if (this.aiming) return (this.weapon.def.kind === 'sniper' ? 1.6 : 3.1) * w; if (this.crouching) return 3.1; if (this.sprinting || (this.rollMode && this.model?.robot)) return (this.model?.robot ? 12.2 : 9.8) * w; return 7.4 * w; }
 
   update(dt) {
     this.stateT += dt; this.spawnT += dt;
@@ -200,9 +201,9 @@ export class Player {
     if (this.jet) {
       this.fuel = Math.max(0, this.fuel - dt / this.maxBurn);
       if (!wantJet || this.fuel <= 0) { this.jet = false; this.jetSound?.stop(0.25); this.jetSound = null; events.emit('player:jet', false); }
-      else { const agl = this.position.y - this.world.terrain.getHeight(this.position.x, this.position.z); const ceil = clamp((58 - agl) / 8, 0, 1); this.vy = damp(this.vy, (this._ballAir ? 4.5 : (this.spaceHeld < 1.0 ? 11.5 : 5.5)) * ceil - (1 - ceil) * 2, this._ballAir ? 2.5 : 5, dt); this.jetSound?.setPosition(this.position); this.jetFx -= dt; if (this.jetFx <= 0) { this.jetFx = 0.05; const back = new THREE.Vector3(Math.sin(this.yaw) * 0.25, 0.75, Math.cos(this.yaw) * 0.25).add(this.position); this.fx.sparksBurst?.(back, new THREE.Vector3(0, -1, 0), 3, '#7fe9ff'); if (Math.random() < 0.5) this.fx.dust?.(this.position.clone(), 0.3); } }
+      else { this.fuel = Math.min(1, this.fuel + dt * (1 / this.maxBurn) * ((this.variant?.fuel || 1) - 1)); const agl = this.position.y - this.world.terrain.getHeight(this.position.x, this.position.z); const ceil = clamp((58 - agl) / 8, 0, 1); this.vy = damp(this.vy, (this._ballAir ? 4.5 : (this.spaceHeld < 1.0 ? 11.5 : 5.5)) * ceil - (1 - ceil) * 2, this._ballAir ? 2.5 : 5, dt); this.jetSound?.setPosition(this.position); this.jetFx -= dt; if (this.jetFx <= 0) { this.jetFx = 0.05; const back = new THREE.Vector3(Math.sin(this.yaw) * 0.25, 0.75, Math.cos(this.yaw) * 0.25).add(this.position); this.fx.sparksBurst?.(back, new THREE.Vector3(0, -1, 0), 3, '#7fe9ff'); if (Math.random() < 0.5) this.fx.dust?.(this.position.clone(), 0.3); } }
     }
-    if (this.grounded && !this.jet) this.fuel = Math.min(1, this.fuel + dt / 3.5);
+    if (this.grounded && !this.jet) this.fuel = Math.min(1, this.fuel + dt / 3.5 * (this.variant?.fuel || 1));
   }
   updateRoll(dt) {
     const t = this.stateT / 0.62;

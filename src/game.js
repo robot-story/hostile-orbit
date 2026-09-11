@@ -27,7 +27,7 @@ import { Projectiles } from './gameplay/projectiles.js';
 import { Abilities } from './gameplay/abilities.js';
 import { Mission } from './gameplay/mission.js';
 import { DropPod } from './gameplay/pods.js';
-import { WEAPONS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES } from './gameplay/weapons.js';
+import { FRAME_VARIANTS, WEAPONS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES } from './gameplay/weapons.js';
 import { SQUAD_COLORS, MAX_PLAYERS } from './net/protocol.js';
 import { net, MSG } from './net/net.js';
 import { createMenus } from './ui/menus.js';
@@ -206,7 +206,7 @@ export class Game {
   _buildApi() {
     const self = this;
     return {
-      settings, save, events, WEAPONS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES, SQUAD_COLORS, MAX_PLAYERS, MAPS, DEFAULT_MAP, keyLabel, input,
+      settings, save, events, WEAPONS, FRAME_VARIANTS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES, SQUAD_COLORS, MAX_PLAYERS, MAPS, DEFAULT_MAP, keyLabel, input,
       ui: { click: () => audio.ui('ui_click'), hover: () => audio.ui('ui_hover', { volume: 0.5 }), back: () => audio.ui('ui_back'), confirm: () => audio.ui('ui_confirm'), deploy: () => audio.ui('ui_deploy'), error: () => audio.ui('ui_error'), tab: () => audio.ui('ui_tab', { volume: 0.5 }) },
       say: (id) => audio.say(id, { priority: 2 }),
       music: (state) => audio.setMusicState(state),
@@ -370,7 +370,7 @@ export class Game {
       }
       el.style.display = 'block'; el.querySelector('.ltxt').textContent = text;
       const TIPS = ['Hold SPACE to jet. Fuel returns on the ground.', 'Sprint into Legion troopers to ram them. Momentum is a weapon.', 'F to snap to cover. R rolls out of it.', 'M opens the tactical map. Pins are live.', 'Reinforcements are finite. Extraction is not guaranteed.', 'Charge points around the jammer must be held, not touched.', 'Orbital abilities are on cooldown from the moment you land. Plan.', 'Your sacrifice has been pre-approved.'];
-      el.querySelector('.tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
+      const fv = FRAME_VARIANTS[save.profile.loadout.neon] || FRAME_VARIANTS['#00e5ff']; el.querySelector('.tip').textContent = `FRAME  ${fv.name}  //  ${fv.role}  —  ${fv.blurb}   ·   ` + TIPS[Math.floor(Math.random() * TIPS.length)];
       const steps = text.startsWith('RESTORING') ? ['REACQUIRING TELEMETRY', 'REBUILDING BATTLESPACE', 'RESTORING SQUAD STATE', 'ARMING REINFORCEMENT POD'] : ['AUTHENTICATING DEPLOYMENT ORDER', 'BUILDING BATTLESPACE', 'COMPILING MATERIALS', 'WARMING RECON FEED', 'ARMING DROP POD'];
       const stepEl = el.querySelector('.lstep'); let k = 0; stepEl.textContent = steps[0];
       clearInterval(this._loadStepTimer); this._loadStepTimer = setInterval(() => { k = Math.min(steps.length - 1, k + 1); stepEl.textContent = steps[k]; }, 650);
@@ -386,14 +386,15 @@ export class Game {
     const W = this.world; if (!W) return;
     const L = W.map.locations; const R = this.renderer;
     try { R.renderer.compile(W.scene, this.camera); } catch { /* ignore */ }
-    const views = [L.extractionCenter, L.commsPlaza, L.jammerCenter, L.canyonJunction, L.dropZone];
-    for (let i = 0; i < views.length; i++) {
-      const p = views[i].pos; const g = W.groundHeight(p.x, p.z);
-      this.camera.position.set(p.x + 20, g + 40, p.z + 20); this.camera.lookAt(p.x, g, p.z); this.camera.userData.focus = p;
-      W.update(0.016, this.camera); R.render(0.016);
-      this.camera.position.set(p.x - 6, g + 2, p.z + 8); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016);
-      await new Promise((r) => setTimeout(r, 0));
+    const views = [L.extractionCenter, L.commsPlaza, L.jammerCenter, L.canyonJunction, L.dropZone]; const hs = [52, 48, 46, 34, 26];
+    const pts = views.map((v, i) => { const p = v.pos.clone(); p.y = W.groundHeight(p.x, p.z) + hs[i]; return p; });
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5); const prevFov = this.camera.fov;
+    for (let i = 0; i <= 12; i++) { // the exact recon path, twelve samples, plus two low angles per stop
+      const e = i / 12; const p = curve.getPointAt(e); const a = curve.getPointAt(Math.min(1, e + 0.045)); this.camera.position.copy(p); this.camera.lookAt(a.x, a.y - 24, a.z); this.camera.fov = 78 - e * 12; this.camera.updateProjectionMatrix(); this.camera.userData.focus = a;
+      W.update(0.016, this.camera); R.render(0.016); if (i % 3 === 0) await new Promise((r) => setTimeout(r, 0));
     }
+    for (const v of views) { const p = v.pos; const g = W.groundHeight(p.x, p.z); this.camera.position.set(p.x - 6, g + 2, p.z + 8); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016); this.camera.position.set(p.x + 5, g + 1.6, p.z - 6); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016); await new Promise((r) => setTimeout(r, 0)); }
+    this.camera.fov = prevFov; this.camera.updateProjectionMatrix();
     // every weapon model, each Legion frame and the war-beast: build once, render once, throw away
     try {
       const { WEAPON_BUILDERS } = await import('./models/weapons.js'); const { buildSoldier } = await import('./models/soldier.js'); const { Ravager } = await import('./entities/ravager.js');
@@ -460,7 +461,7 @@ export class Game {
     return new Promise((resolve) => {
       this.intro = { t: 0, dur: 15, countFrom: 5, launchPod, podStarted: false, target, smoothPos: null, curve, stops, el, cap: el.querySelector('.capwrap'), capT: el.querySelector('.cap'), subT: el.querySelector('.sub'), count: el.querySelector('.count'), cn: el.querySelector('.cn'), alt: el.querySelector('.alt'), grid: el.querySelector('.grid'), sig: el.querySelector('.sig'), lastStop: -1, lastCount: -1, markers, teleT: 0,
         resolve: () => { for (const m of markers) m.remove?.(); el.remove(); const I = this.intro; this.intro = null; this.camera.fov = settings.data.fov; this.camera.rotation.z = 0; this.camera.updateProjectionMatrix(); if (I && !I.podStarted) { I.podStarted = true; I.launchPod?.(); } resolve(); } };
-      const skip = (e) => { if ((e.type === 'keydown' && e.code !== 'Space' && e.code !== 'Escape') || !this.intro) return; window.removeEventListener('keydown', skip); window.removeEventListener('pointerdown', skip); this.intro.resolve(); };
+      const skip = (e) => { if ((e.type === 'keydown' && e.code !== 'Space' && e.code !== 'Escape') || !this.intro) return; window.removeEventListener('keydown', skip); window.removeEventListener('pointerdown', skip); const I = this.intro; if (I.t < I.dur - I.countFrom - 0.3) { I.t = I.dur - I.countFrom - 0.3; I.smoothPos = null; I.smoothLook = null; } }; // skipping jumps to the pad hold; the pod still lands on the count
       window.addEventListener('keydown', skip); window.addEventListener('pointerdown', skip);
     });
   }
@@ -492,7 +493,7 @@ export class Game {
     const n = Math.ceil(remain);
     if (remain <= I.countFrom + 0.999 && n >= 1 && n <= I.countFrom) { I.count.classList.add('on'); I.cap.classList.remove('on'); if (n !== I.lastCount) { I.lastCount = n; I.cn.textContent = String(n); I.cn.classList.remove('pop'); void I.cn.offsetWidth; I.cn.classList.add('pop'); audio.play('countdown_tick', { volume: 0.9, pitch: 1 + (I.countFrom - n) * 0.06 }); events.emit('fx:shake', 0.12); } }
     if (this.mode === 'intro') this.session.director.update(dt); // enemies idle-animate so their skins warm up too
-    if (u >= 1) { I.resolve(); }
+    if (u >= 1 && (!this.dropPod || this.dropPod.landed)) { I.resolve(); } // hold the recon view until the pod is down: no cut to a pod close-up
   }
   dropSequence(target, onDone) {
     const s = this.session; const p = s.player;
@@ -548,8 +549,14 @@ export class Game {
     let el = this._speedEl; if (!el) { el = this._speedEl = document.createElement('div'); el.id = 'speedlines'; el.innerHTML = '<div class="sl"></div>'; this.ui.appendChild(el); const css = document.createElement('style'); css.textContent = `#speedlines{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .12s;z-index:5}#speedlines .sl{position:absolute;inset:-20%;background:repeating-conic-gradient(from 0deg at 50% 52%,rgba(255,255,255,0) 0deg 5deg,rgba(200,240,255,.28) 5.6deg 6.2deg,rgba(255,255,255,0) 7deg 12deg);-webkit-mask:radial-gradient(ellipse at 50% 52%,transparent 34%,#000 78%);mask:radial-gradient(ellipse at 50% 52%,transparent 34%,#000 78%);animation:slspin .9s linear infinite}@keyframes slspin{to{transform:rotate(12deg)}}`; document.head.appendChild(css); }
     el.style.opacity = (k * 0.85).toFixed(2);
   }
+  /** Systems-online transition: a short frame boot overlay that covers the first frames after landing. */
+  bootOverlay(ms = 1400) {
+    let el = document.getElementById('bootfx'); if (!el) { el = document.createElement('div'); el.id = 'bootfx'; el.innerHTML = '<div class="scan"></div><div class="txt"><div class="l1">FRAME SYSTEMS</div><div class="l2">ONLINE</div><div class="l3"></div></div>'; this.ui.appendChild(el); const css = document.createElement('style'); css.textContent = `#bootfx{position:absolute;inset:0;pointer-events:none;z-index:8;background:radial-gradient(ellipse at 50% 55%,rgba(0,229,255,.12),rgba(2,3,10,.92) 70%);opacity:1;transition:opacity .35s}#bootfx.off{opacity:0}#bootfx .scan{position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(0,229,255,.08) 0 2px,transparent 2px 6px);animation:bootScan .9s linear infinite}#bootfx .txt{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;font-family:var(--font)}#bootfx .l1{font-size:12px;letter-spacing:.5em;color:var(--cyan,#5be3ff)}#bootfx .l2{font-family:var(--font-title);font-size:54px;color:#fff;letter-spacing:.2em;text-shadow:0 0 30px rgba(0,229,255,.6);animation:bootFlick .12s steps(2) infinite}#bootfx .l3{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:rgba(232,244,248,.7);margin-top:10px}@keyframes bootScan{to{background-position:0 6px}}@keyframes bootFlick{to{opacity:.72}}`; document.head.appendChild(css); }
+    el.classList.remove('off'); el.style.display = 'block'; const l3 = el.querySelector('.l3'); const lines = ['GYRO LOCK', 'WHEEL TORQUE NOMINAL', 'WEAPON HANDSHAKE', 'HUD LINK']; let i = 0; l3.textContent = lines[0]; clearInterval(this._bootIv); this._bootIv = setInterval(() => { i++; if (i < lines.length) l3.textContent = lines[i]; }, 260);
+    setTimeout(() => { el.classList.add('off'); clearInterval(this._bootIv); setTimeout(() => { el.style.display = 'none'; }, 400); }, ms);
+  }
   beginPlay() {
-    this.mode = 'play'; this.paused = false;
+    this.mode = 'play'; this.paused = false; this.bootOverlay(1300);
     input.setGameplay(true);
     const p = this.session.player;
     p.cam.yaw = p.yaw; p.cam.pitch = -0.12;

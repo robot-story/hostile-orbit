@@ -339,6 +339,8 @@ export class Mission {
   }
   checkSquadWipe() { const alive = (this.game.players || []).some(p => !p.dead); if (!alive && this.lives <= 0) this.fail(); }
   pickReinforceSpot(base) {
+    // reinforcements come down on the nearest launch pad (the drop zone plus the forward pads), not on the corpse
+    const pads = this.level.respawnPads || []; if (pads.length) { let bp = null, bd = Infinity; for (const pad of pads) { const d = pad.distanceTo(base); if (d < bd) { bd = d; bp = pad; } } if (bp) { const w = this.world.nav.nearestWalkable(bp.x, bp.z, 8) || bp; const out = new THREE.Vector3(w.x, 0, w.z); out.y = this.world.groundHeight(out.x, out.z); return out; } }
     let best = base.clone(), bs = -Infinity;
     for (let i = 0; i < 14; i++) { const a = rand(0, 6.28), r = rand(6, 16); const cand = this.world.nav.randomWalkableNear(base.x + Math.cos(a) * r, base.z + Math.sin(a) * r, 4); if (!cand) continue; const pos = new THREE.Vector3(cand.x, 0, cand.z); let minE = 99; for (const e of this.game.director.enemies) if (!e.dead) minE = Math.min(minE, e.position.distanceTo(pos)); const score = Math.min(minE, 30) - Math.abs(r - 10) * 0.3; if (score > bs) { bs = score; best = pos; } }
     best.y = this.world.groundHeight(best.x, best.z); return best;

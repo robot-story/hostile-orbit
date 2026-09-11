@@ -1,0 +1,26 @@
+{
+  "appId": "com.meridian.hostileorbit",
+  "productName": "HOSTILE ORBIT",
+  "directories": {
+    "output": "release",
+    "buildResources": "build"
+  },
+  "files": [
+    "electron/**",
+    "dist/**",
+    "build/icon.png",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      "portable"
+    ],
+    "icon": "build/icon.ico",
+    "artifactName": "HostileOrbit.exe"
+  },
+  "portable": {
+    "artifactName": "HostileOrbit.exe"
+  },
+  "asar": true,
+  "compression": "normal"
+}

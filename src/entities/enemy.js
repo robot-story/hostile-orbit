@@ -169,7 +169,7 @@ export class Enemy {
       if (this.model.custom) { this.ragdoll = null; this.deadT = 0; this.deadImpulse = impulse.clone(); }
       else this.ragdoll = this.fx.ragdoll(this.model, { position: this.position.clone(), yaw: this.yaw + Math.PI, impulse, hitPoint, hitLimb: ev?.zone });
       if (this.weaponModel) { this.weaponModel.visible = false; }
-      if (settings.goreLevel > 0) this.fx.bloodPool?.(this.position.clone(), 1 + Math.random() * 0.6);
+      if (settings.goreLevel > 0 && !this.model.robot) this.fx.bloodPool?.(this.position.clone(), 1 + Math.random() * 0.6);
       audio.play('body_fall', { pos: this.position, volume: 0.7, delay: 0.5 });
       if (this.ragdoll) this.ragdoll.onRemove = () => this.removeModel();
       else if (!this.model.custom) this.removeModel();

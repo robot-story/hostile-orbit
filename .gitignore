@@ -5,3 +5,4 @@ api.md
 .env.*
 *.log
 screenshot/auto/
+release/
