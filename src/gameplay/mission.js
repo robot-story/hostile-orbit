@@ -21,11 +21,11 @@ export const STAGE_DEFAULTS = {
 export function questFor(stage, M) {
   const f = M.flags; const S = M.script;
   switch (stage) {
-    case 'canyon': return { title: 'APPROACH', steps: [{ text: 'Move up the canyon to the jammer outpost', done: false }], hint: 'Three routes: high, main, trench. Roll (SHIFT) to cover ground; ramps launch you.' };
-    case 'jammer': return { title: 'JAMMER OUTPOST', steps: [{ text: `Plant charge A`, done: !!M.charge0 }, { text: `Plant charge B`, done: !!M.charge1 }, { text: 'Overload the core', done: false }], hint: 'Hold E at each charge point. Expect a garrison.' };
+    case 'canyon': return { title: 'APPROACH', steps: [{ text: S.canyon?.sub || 'Move up to the first objective', done: false }], hint: 'Roll (SHIFT) to cover ground; ramps launch you, rails carry you.' };
+    case 'jammer': return { title: (S.canyon?.marker || 'JAMMER OUTPOST'), steps: [{ text: `Plant charge A`, done: !!M.charge0 }, { text: `Plant charge B`, done: !!M.charge1 }, { text: 'Overload the core', done: false }], hint: 'Hold E at each charge point. Expect a garrison.' };
     case 'jammer_overload': return { title: 'OVERLOAD', steps: [{ text: 'Charges planted', done: true }, { text: 'Reach the core console (marker)', done: false }, { text: 'Enter the overload sequence (arrow keys) under fire', done: false }], hint: 'Wrong key or too slow resets the sequence and calls another patrol. Squad: keep them off the operator.' };
     case 'jammer_armed': return { title: 'DETONATION', steps: [{ text: 'Get clear of the jammer', done: false }], hint: 'Ten seconds. Roll.' };
-    case 'orbital': return { title: 'COMMS BASE', steps: [{ text: 'Jammer destroyed', done: true }, { text: 'Assault the communications base', done: false }], hint: 'Orbital abilities are online (1-4). The gate is defended; the platforms inside give height.' };
+    case 'orbital': return { title: (S.orbital?.marker || 'COMMS BASE'), steps: [{ text: S.orbital?.sub || 'First objective destroyed', done: true }, { text: S.orbital?.text || 'Assault the communications base', done: false }], hint: 'Orbital abilities are online (1-4). The gate is defended; the platforms inside give height.' };
     case 'comms': return { title: 'COMMAND TERMINAL', steps: [{ text: 'Reach the command terminal', done: false }, { text: `Free captured operatives (${f.rescued}/${(M.level.cells || []).length})`, done: f.rescued >= (M.level.cells || []).length }], hint: 'Optional: the detention block on the east side holds operatives. Cells open with E.' };
     case 'uplink': return { title: 'UPLINK', steps: [{ text: 'Stand beside the terminal', done: false }, { text: 'Track the drifting beacon with your aim until the dish charges', done: false }], hint: 'Losing the lock drains the charge. Moving away aborts.' };
     case 'download': return { title: 'DOWNLOAD', steps: [{ text: `Hold the command room (${Math.floor(clamp(M.downloadT / 60, 0, 1) * 100)}%)`, done: false }], hint: 'Reinforcements arrive every sixteen seconds. Use the pit and the platforms.' };
@@ -127,7 +127,7 @@ export class Mission {
     switch (stage) {
       case 'jammer_overload':
         this.setObjective(S.jammer_overload.text, S.jammer_overload);
-        this.mark(L.jammerCenter.pos, '#ffd23f', 'CORE CONSOLE'); this.waveT = 6;
+        this.mark(this.overloadConsole || L.jammerCenter.pos, '#ffd23f', 'CORE CONSOLE'); this.waveT = 6;
         break;
       case 'uplink':
         this.setObjective(S.uplink.text, S.uplink);
@@ -248,7 +248,8 @@ export class Mission {
   setupInteractables() {
     const lv = this.level;
     lv.jammer.chargePoints.forEach((p, i) => this.addInteractable({ id: 'charge' + i, position: p, radius: 2.4, label: this.script.labels.charge, holdTime: 3, condition: () => this.stage === 'jammer' && !this['charge' + i], onComplete: () => this.requestInteract('charge' + i) }));
-    this.addInteractable({ id: 'overload', position: this.L.jammerCenter.pos, radius: 3.2, label: 'ENTER OVERLOAD SEQUENCE', holdTime: 1, marker: '#ffd23f', condition: () => this.stage === 'jammer_overload' && !this.game.session?.qte?.busy, onComplete: () => this.requestInteract('overload') });
+    this.overloadConsole = this.L.jammerCenter.pos.clone().add(new THREE.Vector3(9.5, 0, 2.5)); this.overloadConsole.y = this.game.world.groundHeight(this.overloadConsole.x, this.overloadConsole.z);
+    this.addInteractable({ id: 'overload', position: this.overloadConsole, radius: 3.2, label: 'ENTER OVERLOAD SEQUENCE', holdTime: 1, marker: '#ffd23f', condition: () => this.stage === 'jammer_overload' && !this.game.session?.qte?.busy, onComplete: () => this.requestInteract('overload') });
     this.addInteractable({ id: 'terminal', position: lv.terminal.position, radius: 2.8, label: this.script.labels.terminal, holdTime: 2, condition: () => this.stage === 'comms', onComplete: () => this.requestInteract('terminal') });
     (lv.cells || []).forEach((c, i) => this.addInteractable({ id: 'cell' + i, position: c.consolePosition, radius: 2.6, label: this.script.labels.cell, holdTime: 2.5, condition: () => !c.rescued && ['comms', 'download', 'extract_move', 'extract_hold', 'warden', 'board'].includes(this.stage), onComplete: () => this.requestInteract('cell' + i) }));
     this.addInteractable({ id: 'board', position: this.L.extractionCenter.pos, radius: 7, label: 'BOARD THE DROPSHIP', holdTime: 1.5, condition: () => this.stage === 'board' && this.dropship?.landed, onComplete: () => this.requestInteract('board') });
@@ -272,8 +273,8 @@ export class Mission {
   }
   startOverload() {
     const q = this.game.session?.qte; if (!q || q.busy) return;
-    const core = this.L.jammerCenter.pos; const D = this.game.director;
-    q.start({ title: 'OVERLOAD SEQUENCE', steps: 6, window: 1.5, near: () => this.anyPlayerNear(core, 7),
+    const core = this.overloadConsole || this.L.jammerCenter.pos; const D = this.game.director;
+    q.start({ title: 'OVERLOAD SEQUENCE', steps: 6, window: 1.5, near: () => this.anyPlayerNear(core, 6.5),
       onSuccess: () => { events.emit('toast', 'CORE OVERLOADED', 'good'); this.setStage('jammer_armed'); },
       onFail: (reason, n) => { if (n % 2 === 0) { const pts = this.level.spawnPoints?.jammer || [this.L.jammerGateSouth.pos]; D.wave(['patrol'], pts, { alert: true }); events.emit('toast', 'ALARM  //  LEGION PATROL INBOUND', 'warn'); } } });
   }

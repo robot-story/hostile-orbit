@@ -146,7 +146,7 @@ export function buildLantern(world) {
   // --- transit plaza (drop zone) ---
   buildTransitPlaza(world, at(L.dropZone));
   transitShelter(world, M(214, 66).setY(ground(M(214, 66).x, M(214, 66).z)), Math.PI);
-  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; const px = L.dropZone.pos.x + Math.cos(a) * 30, pz = L.dropZone.pos.z + Math.sin(a) * 30; if (world.terrain.floorDistance(px, pz) < 4) { if (i % 2 === 0) streetLamp(world, new THREE.Vector3(px, ground(px, pz), pz), { color: pick(NEON), light: true }); else { const [text, sub] = pick(SLOGANS); info.posters.push(holoBillboard(world, new THREE.Vector3(px, ground(px, pz), pz), -a + Math.PI / 2, { text, sub, color: pick(NEON), light: true }).poster); } } }
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2 + Math.PI / 8; const px = L.dropZone.pos.x + Math.cos(a) * 30, pz = L.dropZone.pos.z + Math.sin(a) * 30; if (world.terrain.floorDistance(px, pz) < 4) { if (i % 2 === 0) streetLamp(world, new THREE.Vector3(px, ground(px, pz), pz), { color: pick(NEON), light: true }); else { const [text, sub] = pick(SLOGANS); info.posters.push(holoBillboard(world, new THREE.Vector3(px, ground(px, pz), pz), -a + Math.PI / 2, { text, sub, color: pick(NEON), light: true }).poster); } } }
   transitShelter(world, M(186, 66).setY(ground(M(186, 66).x, M(186, 66).z)), Math.PI);
 
   // --- the three routes ---
