@@ -107,6 +107,27 @@ export function boneCathedral(world, pts, opts = {}) {
   }
 }
 
+/** Raised firing platform: steel deck on legs with a stair run, low rails and an edge light. Deck and steps are
+ *  walkable colliders (0.5 m rises fit the 0.55 m step height), so it is a real vantage point, not set dressing. */
+export function platform(world, pos, opts = {}) {
+  const w = opts.w || 8, d = opts.d || 6, h = opts.h || 2.4, yaw = opts.yaw || 0, color = opts.color || COLORS.cyan;
+  const g = new THREE.Group(); g.position.copy(pos); g.rotation.y = yaw; g.userData.noMerge = false;
+  const deckMat = Mat.panel(1), dark = Mat.darkMetal();
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), deckMat); deck.position.y = h - 0.15; deck.castShadow = true; deck.receiveShadow = true; g.add(deck);
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.3, h, 0.3), dark); leg.position.set(sx * (w / 2 - 0.3), h / 2 - 0.15, sz * (d / 2 - 0.3)); leg.castShadow = true; g.add(leg); const brace = new THREE.Mesh(new THREE.BoxGeometry(0.08, h * 0.9, 0.08), dark); brace.position.set(sx * (w / 2 - 0.3), h / 2 - 0.15, sz * (d / 2 - 0.3) * 0.4); brace.rotation.x = sz * 0.5; g.add(brace); }
+  // rails on three sides (the stair side stays open), neon edge strip under the deck lip
+  for (const side of [[0, -1, w], [0, 1, w], [-1, 0, d]]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(side[2] - 0.2, 0.05, 0.05), dark); rail.position.set(side[0] * (w / 2 - 0.05), h + 0.95, side[1] * (d / 2 - 0.05)); if (side[0]) rail.rotation.y = Math.PI / 2; g.add(rail); for (let k = -1; k <= 1; k++) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.0, 0.06), dark); post.position.set(side[0] ? side[0] * (w / 2 - 0.05) : k * (w / 2 - 0.4), h + 0.5, side[1] ? side[1] * (d / 2 - 0.05) : k * (d / 2 - 0.4)); g.add(post); } }
+  const lip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, 0.05), Mat.neon(color, 1.6)); lip.position.set(0, h - 0.32, d / 2 + 0.02); lip.castShadow = false; g.add(lip);
+  const lip2 = lip.clone(); lip2.position.z = -d / 2 - 0.02; g.add(lip2);
+  world.props.add(g);
+  const c = Math.cos(yaw), sn = Math.sin(yaw); const wp = (lx, lz) => new THREE.Vector3(pos.x + lx * c + lz * sn, 0, pos.z - lx * sn + lz * c);
+  const colliders = [world.addBox(wp(0, 0).setY(pos.y + h - 0.15), { x: w / 2, y: 0.15, z: d / 2 }, yaw, { material: 'metal', walkableTop: true, mesh: deck })];
+  // stair run off the +x side: rises of 0.5, runs of 0.7
+  const steps = Math.ceil(h / 0.5);
+  for (let i = 0; i < steps; i++) { const top = Math.min(h, (i + 1) * 0.5); const lx = w / 2 + 0.35 + (steps - 1 - i) * 0.7; const step = new THREE.Mesh(new THREE.BoxGeometry(0.7, top, 2.2), i % 2 ? deckMat : dark); step.position.set(lx, top / 2, 0); step.castShadow = true; step.receiveShadow = true; g.add(step); colliders.push(world.addBox(wp(lx, 0).setY(pos.y + top / 2), { x: 0.35, y: top / 2, z: 1.1 }, yaw, { material: 'metal', walkableTop: true, mesh: step })); }
+  return { group: g, colliders };
+}
+
 // ---------------------------------------------------------------- MERIDIAN vignettes
 export function dressMeridian(world, info) {
   const T = world.terrain;
@@ -189,6 +210,35 @@ export function dressMeridian(world, info) {
     pushRes(info, posterFrame(world, at(world, 347, 236), Math.PI, { stand: true,  slogan: 'FREEDOM IS ALWAYS LISTENING.' }));
     scorchDecal(world, at(world, 318, 262), 4); scorchDecal(world, at(world, 336, 268), 2.8, { rubble: false });
     boneArch(world, at(world, 356, 236), 1.2, { height: 8 }); blackGlassTree(world, at(world, 352, 266), { height: 8 });
+  }
+  // 9a. Strategic interiors: the compounds get vantage platforms, container walls, sandbag nests and trench pits so
+  //     fights inside them have flanks and height instead of an empty floor.
+  {
+    // comms base (rect 118..292 x 282..392): four firing platforms, an L of containers around the pit, nests on the mounds
+    platform(world, at(world, 142, 322), { yaw: -0.3, h: 2.6, color: '#ff5a1f' }); platform(world, at(world, 266, 304), { yaw: 2.6, h: 2.4, color: '#ff5a1f' });
+    platform(world, at(world, 154, 374), { yaw: 1.2, h: 3.0, w: 9, d: 6, color: '#ff5a1f' }); platform(world, at(world, 258, 380), { yaw: -1.9, h: 2.6, color: '#ff5a1f' });
+    for (const [mx, my, yaw] of [[184, 312, 0.2], [216, 312, -0.2], [178, 334, Math.PI / 2], [222, 334, Math.PI / 2]]) container(world, at(world, mx, my), yaw, { faction: 'legion' });
+    for (const [mx, my, yaw] of [[150, 334, 0.3], [156, 350, -0.4], [244, 356, 0.2], [258, 370, 2.9]]) sandbagWall(world, at(world, mx, my), yaw, { length: 3.6 });
+    for (const [mx, my] of [[148, 344], [254, 364], [132, 300], [280, 372]]) pushRes(info, crateStack(world, at(world, mx, my), rand(0, 6.28)));
+    for (const [mx, my] of [[134, 386], [278, 288], [126, 296], [286, 384]]) lightTower(world, at(world, mx, my), 0, { color: '#ff5a1f' });
+    for (const [mx, my, h] of [[240, 388, 10], [246, 384, 7]]) antennaMast(world, at(world, mx, my), 0, { height: h });
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const p = at(world, 200 + Math.cos(a) * 20, 322 + Math.sin(a) * 20); if (onFloor(world, p.x, p.z)) barrier(world, p, a + Math.PI / 2); }
+    scorchDecal(world, at(world, 200, 322), 5, { rubble: false }); scorchDecal(world, at(world, 168, 356), 3); scorchDecal(world, at(world, 236, 300), 2.6);
+    groundStrip(world, [[128, 300], [200, 300], [284, 300]], 2.2); groundStrip(world, [[200, 288], [200, 320]], 2.2);
+    for (const [mx, my] of [[164, 300], [236, 300], [200, 356]]) pushRes(info, barrel(world, at(world, mx, my), rand(0, 6.28)));
+    // detention yard (rect 255..330 x 330..380): a watchtower, cell containers, a cage of barriers
+    buildWatchtower(world, at(world, 322, 336), Math.PI * 0.75);
+    for (const [mx, my, yaw] of [[300, 372, 0], [310, 372, 0], [268, 342, Math.PI / 2]]) container(world, at(world, mx, my), yaw, { faction: 'legion' });
+    for (let i = 0; i < 5; i++) { const p = at(world, 284 + i * 6, 352); if (onFloor(world, p.x, p.z)) barrier(world, p, 0); }
+    pushRes(info, crateStack(world, at(world, 318, 362), 0.5)); lightTower(world, at(world, 262, 376), 0, { color: '#ff5a1f' });
+    platform(world, at(world, 296, 336), { yaw: 0, h: 2.2, w: 7, d: 5, color: '#ff5a1f' });
+    // jammer bowl: a sandbag ring on the berm crest with gaps, crates at the four quarters, a platform on the north rim
+    for (let i = 0; i < 10; i++) { if (i % 5 === 2) continue; const a = (i / 10) * Math.PI * 2; const p = at(world, 70 + Math.cos(a) * 30, 320 + Math.sin(a) * 30); if (onFloor(world, p.x, p.z)) sandbagWall(world, p, a + Math.PI / 2, { length: 4 }); }
+    for (const a of [0.7, 2.3, 3.9, 5.5]) pushRes(info, crateStack(world, at(world, 70 + Math.cos(a) * 24, 320 + Math.sin(a) * 24), a));
+    platform(world, at(world, 70, 356), { yaw: Math.PI, h: 2.8, w: 8, d: 5, color: '#ff5a1f' });
+    // extraction: nest on the overwatch mound and a platform facing the approach
+    for (const yaw of [0.6, 2.2]) sandbagWall(world, at(world, 300 + Math.cos(yaw) * 5, 226 + Math.sin(yaw) * 5), yaw + Math.PI / 2, { length: 3.6 });
+    platform(world, at(world, 352, 236), { yaw: -0.8, h: 2.6, color: COLORS.cyan });
   }
   // 9b. Propaganda pass: posters cluster where the Commonwealth wants eyes (gates, plazas, the cells).
   {
