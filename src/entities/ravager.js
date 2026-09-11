@@ -2,7 +2,7 @@
 // charges, swipes, and leaps onto squads. Built with the OUTRIDER modelling kit in the Legion palette. Armour plates on
 // the back shrug off fire; the reactor under the chest and the head are the way in. Host-authoritative like the Warden.
 import * as THREE from 'three';
-import { KIT } from '../models/robots.js';
+import { KIT, compactRigid } from '../models/robots.js';
 import { COLORS } from '../render/materials.js';
 import { audio } from '../audio/audio.js';
 import { events } from '../core/events.js';
@@ -19,7 +19,7 @@ function buildRavagerModel() {
   const oxide = armour('ceramic', '#a8402c'), graphite = armour('gunmetal', '#5e646f'), gun = armour('gunmetal', '#9aa0ac'), light = armour('gunmetal', '#c8ced8');
   const P = {};
   // body: low chassis, ribbed flanks, back plates, spine channel, reactor under the chest
-  const body = new THREE.Group(); body.position.y = 1.35; root.add(body); P.body = body;
+  const body = new THREE.Group(); body.userData.dynamic = true; body.position.y = 1.35; root.add(body); P.body = body;
   add(body, bevelBox(1.3, 0.8, 1.5, graphite, 0.05, 0.12), [0, 0, 0.35]);                 // shoulders: deep chest
   add(body, bevelBox(1.0, 0.6, 1.1, graphite, 0.05, 0.1), [0, -0.05, -0.75]);             // tapered haunch
   add(body, bevelBox(1.0, 0.5, 1.4, graphite, 0.04, 0.1), [0, -0.35, 0.3]);
@@ -33,33 +33,33 @@ function buildRavagerModel() {
   add(body, torus(0.2, 0.02, gun, 6), [0, -0.63, 0.55], [Math.PI / 2, 0, 0]);
   P.coreLight = new THREE.PointLight(RED, 4, 9, 2); P.coreLight.position.set(0, -0.7, 0.55); P.coreLight.castShadow = false; body.add(P.coreLight);
   // neck + head: wedge skull, three eyes, jaw that opens, tusks, cheek vents
-  const neck = new THREE.Group(); neck.position.set(0, 0.15, 1.15); body.add(neck); P.neck = neck;
+  const neck = new THREE.Group(); neck.userData.dynamic = true; neck.position.set(0, 0.15, 1.15); body.add(neck); P.neck = neck;
   add(neck, cyl(0.24, 0.3, 0.5, gun, 12), [0, 0, 0.2], [Math.PI / 2, 0, 0]);
   for (let i = 0; i < 3; i++) add(neck, torus(0.27, 0.025, i % 2 ? neon(RED, 1.4) : light, 16), [0, 0, 0.05 + i * 0.14], [0, 0, 0]);
-  const head = new THREE.Group(); head.position.set(0, 0.05, 0.5); neck.add(head); P.head = head;
+  const head = new THREE.Group(); head.userData.dynamic = true; head.position.set(0, 0.05, 0.5); neck.add(head); P.head = head;
   add(head, bevelBox(0.62, 0.42, 0.7, oxide, 0.04, 0.1), [0, 0.1, 0.25]);
   add(head, bevelBox(0.5, 0.3, 0.55, oxide, 0.04, 0.08), [0, 0.02, 0.8], [0.22, 0, 0]);        // wedge snout, nose down
   add(head, bevelBox(0.5, 0.2, 0.5, graphite, 0.03, 0.06), [0, 0.38, 0.05], [0.25, 0, 0]);
   add(head, bevelBox(0.44, 0.12, 0.08, graphite, 0.01, 0.02), [0, 0.2, 0.6], [0.2, 0, 0]);       // brow bar the eyes recess under
   for (let i = -1; i <= 1; i++) { const eye = sphere(0.045, neonOwn(RED, 3.2), 10); eye.position.set(i * 0.15, 0.13, 0.62); eye.castShadow = false; head.add(eye); (P.eyes ||= []).push(eye); }
   add(head, channel(0.36, RED, 2.2, 0.03), [0, -0.02, 1.02], [0.22, 0, 0]);
-  const jaw = new THREE.Group(); jaw.position.set(0, -0.08, 0.15); head.add(jaw); P.jaw = jaw;
+  const jaw = new THREE.Group(); jaw.userData.dynamic = true; jaw.position.set(0, -0.08, 0.15); head.add(jaw); P.jaw = jaw;
   add(jaw, bevelBox(0.54, 0.16, 0.7, graphite, 0.03, 0.06), [0, -0.08, 0.35]);
   for (const sx of [-1, 1]) { add(jaw, cyl(0.02, 0.06, 0.34, light, 8), [sx * 0.24, 0.1, 0.72], [-0.9, 0, sx * 0.25]); add(head, cyl(0.03, 0.07, 0.4, light, 8), [sx * 0.3, -0.05, 0.7], [0.9, 0, sx * 0.3]); }
   for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) add(head, box(0.02, 0.1, 0.04, gun), [sx * 0.32, 0.05, 0.1 + i * 0.12]);
   // legs: hip ball -> upper -> knee ring -> lower -> claw foot (front pair reversed knee like a cat)
   P.legs = [];
   for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
-    const hip = new THREE.Group(); hip.position.set(sx * 0.72, -0.1, sz * 0.8); body.add(hip);
+    const hip = new THREE.Group(); hip.userData.dynamic = true; hip.position.set(sx * 0.72, -0.1, sz * 0.8); body.add(hip);
     add(hip, sphere(0.2, gun, 14), [0, 0, 0]);
     add(hip, bevelBox(0.26, 0.9, 0.36, oxide, 0.03, 0.08), [sx * 0.12, -0.42, 0], [0, 0, sx * 0.08]);
     add(hip, cyl(0.035, 0.035, 0.7, light, 8), [sx * 0.25, -0.45, sz * 0.14], [0.1 * sz, 0, 0]);
-    const knee = new THREE.Group(); knee.position.set(sx * 0.06, -0.86, 0); hip.add(knee);
+    const knee = new THREE.Group(); knee.userData.dynamic = true; knee.position.set(sx * 0.06, -0.86, 0); hip.add(knee);
     const ring = add(knee, torus(0.15, 0.035, neonOwn(RED, 1.6), 20), [0, 0, 0], [0, Math.PI / 2, 0]); ring.castShadow = false;
     add(knee, cyl(0.13, 0.13, 0.32, gun, 12), [0, 0, 0], [0, 0, Math.PI / 2]);
     add(knee, bevelBox(0.2, 0.86, 0.26, graphite, 0.025, 0.06), [0, -0.44, sz * 0.05], [0, 0, 0]);
     add(knee, bevelBox(0.22, 0.5, 0.1, oxide, 0.02, 0.04), [0, -0.4, sz * 0.05 + 0.12]);
-    const foot = new THREE.Group(); foot.position.set(0, -0.9, sz * 0.05); knee.add(foot);
+    const foot = new THREE.Group(); foot.userData.dynamic = true; foot.position.set(0, -0.9, sz * 0.05); knee.add(foot);
     add(foot, bevelBox(0.34, 0.16, 0.5, graphite, 0.02, 0.05), [0, -0.08, 0.1]);
     for (let c = -1; c <= 1; c++) add(foot, cyl(0.02, 0.05, 0.28, light, 8), [c * 0.11, -0.1, 0.4], [1.2, 0, 0]);
     add(foot, channel(0.24, RED, 1.2, 0.02), [0, -0.05, 0.36]);
@@ -68,10 +68,11 @@ function buildRavagerModel() {
   // tail: three tapering segments with a lamp
   add(body, cyl(0.16, 0.2, 0.3, gun, 12), [0, 0.1, -1.25], [Math.PI / 2, 0, 0]); // tail root socket
   let parent = body; P.tail = [];
-  for (let i = 0; i < 3; i++) { const seg = new THREE.Group(); seg.position.set(0, i ? 0 : 0.1, i ? -0.5 : -1.2); parent.add(seg); add(seg, bevelBox(0.28 - i * 0.06, 0.24 - i * 0.05, 0.55, i % 2 ? graphite : oxide, 0.02, 0.05), [0, 0, -0.25]); P.tail.push(seg); parent = seg; }
+  for (let i = 0; i < 3; i++) { const seg = new THREE.Group(); seg.userData.dynamic = true; seg.position.set(0, i ? 0 : 0.1, i ? -0.5 : -1.2); parent.add(seg); add(seg, bevelBox(0.28 - i * 0.06, 0.24 - i * 0.05, 0.55, i % 2 ? graphite : oxide, 0.02, 0.05), [0, 0, -0.25]); P.tail.push(seg); parent = seg; }
   const lamp = sphere(0.06, neonOwn(RED, 2.4), 10); lamp.position.set(0, 0, -0.55); lamp.castShadow = false; parent.add(lamp);
   add(body, decal('hazard', RED, 0.5, 0.06), [0, 0.02, 1.16]);
   root.traverse((o) => { if (o.isMesh) { o.castShadow = o.castShadow ?? true; o.receiveShadow = true; } });
+  compactRigid(root);
   return { root, parts: P };
 }
 

@@ -175,7 +175,7 @@ export class Player {
       this.sprinting = this.rollMode && ax.active && !this.aiming;
     } else this.sprinting = input.sprint() && ax.z > 0.1 && !this.aiming && !this.crouching;
     if (this.grounded && !this.jet) this._ballAir = false;
-    if (this.model?.sprintBall && this.state === 'normal' && this.vy <= 0.5 && this.tryGrind()) return;
+    if (this.model?.robot && this.state === 'normal' && this.vy <= 0.5 && !this.grounded && this.tryGrind()) return;
     if (this.model) this.model.sprintBall = !!(this.model.robot && (this.rollMode || (this._ballAir && !this.grounded)));
     // auto-hop: a low wall in the run direction gets vaulted without a key press
     this._hopT = (this._hopT || 0) - dt; if (this.sprinting && this.grounded && this._hopT <= 0 && wish.lengthSq() > 0.1) { this._hopT = 0.15; if (this.tryVaultAlong(wish.clone().normalize())) return; }
@@ -184,7 +184,7 @@ export class Player {
     const target = wish.clone().multiplyScalar(max);
     const accel = this.grounded ? 34 : (this.jet ? (this._ballAir ? 3 : 14) : 6);
     this.velocity.x = damp(this.velocity.x, target.x, accel * 0.5, dt); this.velocity.z = damp(this.velocity.z, target.z, accel * 0.5, dt);
-    if (this.model?.sprintBall && this.grounded) { const n = this.world.terrain.getNormal(this.position.x, this.position.z); const sp = Math.hypot(this.velocity.x, this.velocity.z); if (sp > 1) { const down = (n.x * this.velocity.x + n.z * this.velocity.z) / sp; const k = 1 + Math.abs(down) * 9 * dt; const cap = 19; const ns = Math.min(cap, sp * k); this.velocity.x *= ns / sp; this.velocity.z *= ns / sp; this._slopeUp = -down; if (-down > 0.12) { this._slopeMem = 0.2; this._slopePeak = -down; } else this._slopeMem = Math.max(0, (this._slopeMem || 0) - dt); if (-down > 0.12) { this._rampFx = (this._rampFx || 0) - dt; if (this._rampFx <= 0) { this._rampFx = 0.06; this.fx?.sparksBurst?.(this.position.clone(), new THREE.Vector3(0, 1, 0), 3, '#7fe9ff'); } } } } // down or up, momentum builds: ramps are turbos
+    if (this.model?.robot && this.grounded) { const ball = !!this.model?.sprintBall; const n = this.world.terrain.getNormal(this.position.x, this.position.z); const sp = Math.hypot(this.velocity.x, this.velocity.z); if (sp > 1) { const down = (n.x * this.velocity.x + n.z * this.velocity.z) / sp; const k = 1 + Math.abs(down) * (ball ? 9 : 5) * dt; const cap = ball ? 19 : 13.5; const ns = Math.min(cap, sp * k); this.velocity.x *= ns / sp; this.velocity.z *= ns / sp; this._slopeUp = -down; if (-down > 0.12) { this._slopeMem = 0.2; this._slopePeak = -down; } else this._slopeMem = Math.max(0, (this._slopeMem || 0) - dt); if (-down > 0.12) { this._rampFx = (this._rampFx || 0) - dt; if (this._rampFx <= 0) { this._rampFx = 0.06; this.fx?.sparksBurst?.(this.position.clone(), new THREE.Vector3(0, 1, 0), 3, '#7fe9ff'); } } } } // down or up, momentum builds: ramps are turbos
     const spd = Math.hypot(this.velocity.x, this.velocity.z); this.speedFx = clamp((spd - 8.5) / 8, 0, 1); this.cam.speedKick = this.speedFx;
     // Facing: sprint turns the body into the run direction; every other movement strafes (body faces the camera);
     // standing still only turns in place once the camera has swung far enough (no constant spinning).
@@ -214,13 +214,13 @@ export class Player {
   }
   /** Grind rails: a rolled frame that comes down onto a rail locks to it and rides the curve, sparks flying. */
   tryGrind() {
-    if (!this.world.rails?.length || !this.model?.sprintBall) return false;
+    if (!this.world.rails?.length || !this.model?.robot) return false;
     let best = null, bd = 1.1, bi = 0;
     for (const rail of this.world.rails) { const S = rail.samples; for (let i = 0; i < S.length; i++) { const dx = S[i].x - this.position.x, dy = S[i].y - this.position.y, dz = S[i].z - this.position.z; if (dy < -0.3 || dy > 1.0) continue; const d = Math.hypot(dx, dz) + Math.max(0, dy - 0.2) * 0.5; if (d < bd) { bd = d; best = rail; bi = i; } } }
     if (!best) return false;
     const S = best.samples; const n = S.length; const tan = S[Math.min(n - 1, bi + 1)].clone().sub(S[Math.max(0, bi - 1)]).setY(0).normalize();
-    const along = tan.x * this.velocity.x + tan.z * this.velocity.z; const dir = along >= 0 ? 1 : -1;
-    this.grind = { rail: best, i: bi, dir, speed: Math.max(9, Math.abs(along)) }; this.state = 'grind'; this.stateT = 0; this.vy = 0; this._ballAir = false;
+    const along = tan.x * this.velocity.x + tan.z * this.velocity.z; const face = -Math.sin(this.cam.yaw) * tan.x + -Math.cos(this.cam.yaw) * tan.z; const dir = Math.abs(along) > 2 ? (along >= 0 ? 1 : -1) : (face >= 0 ? 1 : -1); // turned in the air? ride back the other way
+    this.grind = { rail: best, i: bi, dir, speed: Math.max(9, Math.abs(along)) }; this.rollMode = true; this.state = 'grind'; this.stateT = 0; this.vy = 0; this._ballAir = false;
     audio.play('impact_metal', { pos: this.position, volume: 0.8, pitch: 1.3 }); events.emit('fx:shake', 0.15); events.emit('toast', 'GRIND', 'good');
     return true;
   }
@@ -379,8 +379,8 @@ export class Player {
     else this.vy -= (this.jet ? 6 : 22) * dt;
     let y = this.position.y + this.vy * dt;
     if (y <= g + 0.02 && !(this.jet && this.vy > 0)) { y = this.grounded ? damp(this.position.y, g, 30, dt) : g; if (!this.grounded) { this.landT = Math.min(0.5, Math.max(0.16, -this.vy * 0.05)); if ((this._ballAir || (this.model?.fold || 0) > 0.6) && this.vy < -3 && (this._slamTapT || 0) > 0) this.rollSlam(-this.vy, this._slamTapT > 0.27); this._slamTapT = 0; if (this.vy < -6) audio.play('land', { pos: this.position }); this.fx?.dust?.(this.position.clone(), Math.min(3, -this.vy * 0.3 + 0.5)); } this.grounded = true; this.vy = 0; if (g - this.position.y > 0.05) y = damp(this.position.y, g, 25, dt); }
-    else if (this.grounded && !this.jet && this.vy <= 0 && y - g < 0.6 && !(this.model?.sprintBall && (this._slopeMem || 0) > 0 && Math.hypot(this.velocity.x, this.velocity.z) > 7)) { y = g; this.vy = 0; } // ground stick: follow descending slopes instead of drifting off them (but a rolling ball leaves a ramp lip)
-    else if (this.grounded && this.model?.sprintBall && (this._slopeMem || 0) > 0 && this.vy <= 0.5 && Math.hypot(this.velocity.x, this.velocity.z) > 7) { const sp = Math.hypot(this.velocity.x, this.velocity.z); this.vy = Math.max(this.vy, sp * Math.min(0.75, (this._slopePeak || 0.2) * 1.6) + 1.5); this._ballAir = true; this.grounded = false; this._slopeUp = 0; this._slopeMem = 0; this.fx?.dust?.(this.position.clone(), 2); audio.play('vault', { pos: this.position, volume: 0.7, pitch: 1.2 }); events.emit('fx:shake', 0.2); } // ramp launch
+    else if (this.grounded && !this.jet && this.vy <= 0 && y - g < 0.6 && !(this.model?.robot && (this._slopeMem || 0) > 0 && Math.hypot(this.velocity.x, this.velocity.z) > (this.model?.sprintBall ? 7 : 9))) { y = g; this.vy = 0; } // ground stick: follow descending slopes instead of drifting off them (but a rolling ball leaves a ramp lip)
+    else if (this.grounded && this.model?.robot && (this._slopeMem || 0) > 0 && this.vy <= 0.5 && Math.hypot(this.velocity.x, this.velocity.z) > (this.model?.sprintBall ? 7 : 9)) { const sp = Math.hypot(this.velocity.x, this.velocity.z); this.vy = Math.max(this.vy, sp * Math.min(0.75, (this._slopePeak || 0.2) * 1.6) + 1.5); this._ballAir = true; this.grounded = false; this._slopeUp = 0; this._slopeMem = 0; this.fx?.dust?.(this.position.clone(), 2); audio.play('vault', { pos: this.position, volume: 0.7, pitch: 1.2 }); events.emit('fx:shake', 0.2); } // ramp launch
     else this.grounded = y - g < 0.15;
     if (this.grounded && y < g) y = g;
     this.position.y = y;
@@ -435,6 +435,7 @@ export class Player {
   pickupWeapon(id) { const w = this.makeWeapon(id); const slot = WEAPONS[id].slot === 'secondary' ? 'secondary' : 'primary'; this.weapons[slot] = w; this.equip(slot); events.emit('player:weapon', w); }
   respawn(pos, yaw = 0) {
     this.dead = false; this.downed = false; this.health = this.maxHealth; this.state = 'normal'; this.stateT = 0; this.spawnT = 0; this.lastDamageT = -99; this.invulnT = 2.5;
+    const st = this.game?.combat?.stats; this.lifeStart = { kills: st?.kills || 0, damage: st?.damageDealt || 0, t: performance.now() };
     for (const k of ['primary', 'secondary']) { const w = this.weapons[k]; w.ammo = w.def.mag; w.reserve = Math.max(w.reserve, Math.round(w.def.reserve * 0.6)); }
     this.grenades = Math.max(this.grenades, 2); this.injectors = Math.max(this.injectors, 2); this.reloadT = -1; this.healT = 0;
     this.spawnAt(pos, yaw); this.model.root.visible = true; this.velocity.set(0, 0, 0); this.vy = 0;
@@ -477,6 +478,9 @@ export class Player {
     if (this.health <= 0) { this.health = 0; this.die(info); }
     return { dead: this.dead };
   }
+  /** Kill credit: a sliver of hull back per confirmed kill (2%). Rewards aggression without turning into lifesteal. */
+  onKillHeal() { if (this.dead) return; const amt = Math.max(2, Math.round(this.maxHealth * 0.02)); if (this.health < this.maxHealth) { this.health = Math.min(this.maxHealth, this.health + amt); events.emit('hud:heal-tick', amt); } }
+  creditKill() { this.onKillHeal(); }
   die(info) {
     if (this.dead) return; this.dead = true; this.aiming = false; this.sprinting = false; this.trigger = false;
     if (this.state === 'cover') this.leaveCover();

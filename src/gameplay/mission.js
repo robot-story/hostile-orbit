@@ -260,7 +260,7 @@ export class Mission {
     for (const it of this.interactables.values()) if (it.marker) { it.position.y = this.world.groundHeight(it.position.x, it.position.z); this.fx.marker?.(it.position.clone().setY(it.position.y + 1.6), it.marker); }
   }
   addInteractable(it) { it.position = it.position.clone(); if (it.position.y === 0) it.position.y = this.world.groundHeight(it.position.x, it.position.z); this.interactables.set(it.id, it); return it; }
-  emitQuest(stage = this.stage) { try { const q = questFor(stage, this); if (q) events.emit('quest:set', q); } catch { /* ignore */ } }
+  emitQuest(stage = this.stage) { try { const q = questFor(stage, this); if (q) { this.currentQuest = q; events.emit('quest:set', q); } } catch { /* ignore */ } }
   removeInteractable(id) { this.interactables.delete(id); }
   requestInteract(id) { if (net.isHost) this.onInteractRequest({ target: id, phase: 'done' }, net.localId); else net.send(MSG.REQ_INTERACT, { target: id, phase: 'done' }, { reliable: true }); }
   onInteractRequest(m, from) {

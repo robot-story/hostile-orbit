@@ -14,6 +14,7 @@ const _hit = { point: new THREE.Vector3(), normal: new THREE.Vector3(), dist: 0,
 
 const DEFAULT_LIGHTING = { background: '#2c8a90', fog: '#c9946f', fogDensity: 0.0026, hemiSky: '#8fe0e8', hemiGround: '#a07a62', hemiIntensity: 1.25, sun: '#fff0dc', sunIntensity: 2.0, sunOffset: [-60, 130, 70], ambient: '#4a6a74', ambientIntensity: 0.7 };
 
+const _camDir = new THREE.Vector3();
 export class World {
   constructor(map = null) {
     this.map = map;
@@ -80,7 +81,7 @@ export class World {
   finalize() {
     this.cover.build();
     this.nav = new NavGrid(this, 2);
-    this.cullLights(26);
+    this.cullLights(12);
   }
   /** Keep only the strongest N static point lights (shader cost scales with light count). */
   cullLights(maxLights) {
@@ -88,8 +89,11 @@ export class World {
     this.props.traverse((o) => { if (o.isPointLight) lights.push(o); });
     if (lights.length <= maxLights) return;
     lights.sort((a, b) => (b.intensity * b.distance) - (a.intensity * a.distance));
-    for (let i = maxLights; i < lights.length; i++) lights[i].parent?.remove(lights[i]);
-    console.info(`[world] culled ${lights.length - maxLights} of ${lights.length} static point lights`);
+    const keep = Math.min(lights.length, maxLights * 2); // keep twice the budget in the scene; only the nearest `maxLights` are lit at any time
+    for (let i = keep; i < lights.length; i++) lights[i].parent?.remove(lights[i]);
+    this.staticLights = lights.slice(0, keep); this.lightBudget = Math.min(maxLights, this.staticLights.length); this._lightT = 0;
+    for (const l of this.staticLights) { l.userData.worldPos = l.getWorldPosition(new THREE.Vector3()); }
+    console.info(`[world] culled ${lights.length - keep} of ${lights.length} static point lights; ${this.lightBudget} lit per frame`);
   }
   /** Highest standable surface under (x,z) given the current feet y (steps up to stepH allowed). */
   groundHeight(x, z, y = 1e9, stepH = 0.55, radius = 0.35) {
@@ -176,7 +180,18 @@ export class World {
   }
   addUpdatable(o) { this.updatables.add(o); }
   removeUpdatable(o) { this.updatables.delete(o); }
+  /** Light budget: exactly `lightBudget` static point lights are visible (the nearest to the camera, weighted by reach),
+   *  so the fragment shader loops over a dozen lights instead of thirty and the program count never changes. */
+  updateLightBudget(dt, camera) {
+    const L = this.staticLights; if (!L || !camera) return;
+    this._lightT -= dt; if (this._lightT > 0) return; this._lightT = 0.35;
+    const c = camera.position; const f = camera.getWorldDirection(_camDir);
+    for (const l of L) { const p = l.userData.worldPos; const dx = p.x - c.x, dz = p.z - c.z; const d = Math.hypot(dx, dz); const ahead = (dx * f.x + dz * f.z) / (d + 1e-3); l.userData.score = d - l.distance * 0.5 - (ahead > 0 ? 10 * ahead : 0); }
+    const sorted = L.slice().sort((a, b) => a.userData.score - b.userData.score);
+    for (let i = 0; i < sorted.length; i++) sorted[i].visible = i < this.lightBudget;
+  }
   update(dt, camera) {
+    this.updateLightBudget(dt, camera);
     this.time += dt;
     this.sky.userData.update(this.time);
     this.celestials.userData.update(this.time, dt);

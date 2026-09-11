@@ -62,6 +62,8 @@ export class Game {
     events.on('hud:interact', (d) => { if (!this.menus) return; if (d) this.menus.showInteract(`[${keyLabel(settings.data.binds.interact)}] ${d.text}`, d.progress); else this.menus.hideInteract(); });
     events.on('fx:shake', (a) => this.localPlayer?.cam.shake(a));
     events.on('hud:map-toggle', () => this.toggleTacticalMap());
+    events.on('player:kill', () => this.localPlayer?.creditKill?.());
+    events.on('player:died', (p, info) => { if (p === this.localPlayer) this.showDeathReport(p, info); });
     events.on('fx:flash', (v) => this.renderer.whiteFlash(v));
     events.on('player:damaged', ({ dmg }) => { if (dmg > 0) this.renderer.damageFlash(Math.min(0.9, dmg / 40)); });
     events.on('player:heal', () => this.renderer.healFlash(0.5));
@@ -570,10 +572,22 @@ export class Game {
     this.dropPod = null;
     audio.setMuffle(0);
   }
-  /** Player death → reinforcement pod. */
+  /** Death report: who got you, what this life was worth, and how long until the next frame drops. */
+  showDeathReport(p, info = {}) {
+    const s = this.session; if (!s) return;
+    const st = this.combat?.stats || {}; const ls = p.lifeStart || { kills: 0, damage: 0, t: performance.now() };
+    let killer = 'UNKNOWN HOSTILE', weapon = '';
+    if (info.attackerId != null) { const e = s.director?.enemies?.find((x) => x.id === info.attackerId) || (s.director?.boss?.id === info.attackerId ? s.director.boss : null); if (e) { killer = e.type?.name || e.name || killer; const wd = e.weaponDef || (e.type?.weapon && WEAPONS[e.type.weapon]); weapon = wd?.name || ''; } }
+    if (info.weapon === 'turret') { killer = 'SENTRY TURRET'; weapon = 'AUTOCANNON'; }
+    if (info.explosion || info.blast) weapon = weapon || 'BLAST';
+    const data = { killer, weapon, zone: info.zone || '', kills: (st.kills || 0) - ls.kills, damage: Math.round((st.damageDealt || 0) - ls.damage), survived: (performance.now() - ls.t) / 1000, streak: st.bestStreak || 0, lives: s.mission?.lives ?? 0, wait: 3.8 };
+    this.deathReport?.remove?.(); this.deathReport = this.menus.showDeathReport(data);
+  }
+  /** Player death -> reinforcement pod. */
   launchPlayerPod(player, target) {
     if (!this.session) return;
-    const s = this.session; const overlay = this.menus.showDropSequence(['WORKFORCE CONTINUITY SOLUTION', 'REPLACEMENT BODY DISPATCHED', 'ATMOSPHERIC ENTRY', 'IMPACT IMMINENT']);
+    const s = this.session; const overlay = this.deathReport ? this.deathReport.toPod(['REPLACEMENT FRAME DISPATCHED', 'ATMOSPHERIC ENTRY', 'IMPACT IMMINENT']) : this.menus.showDropSequence(['WORKFORCE CONTINUITY SOLUTION', 'REPLACEMENT BODY DISPATCHED', 'ATMOSPHERIC ENTRY', 'IMPACT IMMINENT']);
+    this.deathReport = null;
     this.mode = 'drop'; input.setGameplay(false);
     player.model.root.visible = false; player.position.copy(target);
     audio.playStinger('stinger_drop', 0.7);
@@ -645,7 +659,8 @@ export class Game {
     this.mode = 'pause'; this.paused = true; input.setGameplay(false); this.lockHint?.classList.remove('on');
     audio.setMuffle(0.7);
     const m = this.session.mission;
-    this.menus.openPause({ objective: m.objectiveText, time: formatTime(m.time) });
+    const roster = net.transport?.players || []; const squad = roster.map((pl) => { const isMe = pl.id === net.localId; const rp = this.session?.netsync?.remotes?.get?.(pl.id); return { name: pl.name || 'VANGUARD', color: pl.loadout?.neon || SQUAD_COLORS[pl.slot] || '#888', frame: (FRAME_VARIANTS[pl.loadout?.neon]?.name) || 'OUTRIDER', kills: isMe ? (this.combat?.stats.kills || 0) : (rp?.kills || 0), ready: true }; });
+    this.menus.openPause({ objective: m.objectiveText, objectiveText: m.objectiveText, objectiveTitle: m.script?.opName || 'CURRENT OBJECTIVE', time: m.time, quest: m.currentQuest || null, side: m.side, squad, kills: this.combat?.stats.kills || 0, lives: m.lives, mapImage: (import.meta.env.BASE_URL || '/') + (this.world.map?.mapImage || 'textures/menus/map_clean.jpg') });
   }
   resume() {
     if (this.mode !== 'pause') return;

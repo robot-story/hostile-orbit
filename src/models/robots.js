@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { Mat, COLORS } from '../render/materials.js';
 import { damp, clamp } from '../core/mathx.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const _loader = new THREE.TextureLoader();
 const _base = (import.meta.env.BASE_URL || './') + 'textures/gen/';
@@ -26,8 +27,8 @@ function armour(kind, tint = '#ffffff') {
   _mats[key] = m; return m;
 }
 const neon = (c, i = 1.6) => Mat.neon(c, i);
-const neonOwn = (c, i = 1.6) => Mat.neon(c, i).clone(); // animated per instance
-const glowOwn = (c, o) => Mat.glowAdditive(c, o).clone();
+const neonOwn = (c, i = 1.6) => { const m = Mat.neon(c, i).clone(); m.userData.own = true; return m; }; // animated per instance (never merged)
+const glowOwn = (c, o) => { const m = Mat.glowAdditive(c, o).clone(); m.userData.own = true; return m; };
 const dark = () => Mat.darkMetal();
 
 // ------------------------------------------------------------------ part helpers (bone-local placement)
@@ -204,7 +205,7 @@ function buildOutrider(model, opts = {}) {
   //      caliper, mudguard arc, fork arms as tubes from the seat to the axle knuckles, counterweight pods behind.
   model.hideLimb('legL'); model.hideLimb('legR');
   const R = 0.64; model.ballRadius = R; model.ballRootY = R * 2 - 0.4; B.root.position.y = model.ballRootY; model.root.updateWorldMatrix(true, true);
-  const wheel = new THREE.Group(); wheel.name = 'wheel';
+  const wheel = new THREE.Group(); wheel.name = 'wheel'; wheel.userData.dynamic = true;
   const rubber = new THREE.MeshStandardMaterial({ color: '#17181c', roughness: 0.88, metalness: 0.02 });
   const tyre = lathe([[R - 0.2, -0.13], [R - 0.06, -0.13], [R - 0.01, -0.09], [R, -0.04], [R, 0.04], [R - 0.01, 0.09], [R - 0.06, 0.13], [R - 0.2, 0.13]], rubber, 48); tyre.rotation.z = Math.PI / 2; wheel.add(tyre);
   for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2; for (const sx of [-1, 1]) { const t = box(0.09, 0.06, 0.02, rubber); t.position.set(sx * 0.06, Math.sin(a) * (R + 0.004), Math.cos(a) * (R + 0.004)); t.rotation.x = -a; t.rotation.z = sx * 0.3; wheel.add(t); } }
@@ -214,10 +215,10 @@ function buildOutrider(model, opts = {}) {
   const hub = lathe([[0, -0.15], [0.1, -0.15], [0.15, -0.12], [0.2, -0.06], [0.2, 0.06], [0.15, 0.12], [0.1, 0.15], [0, 0.15]], gunLight, 24); hub.rotation.z = Math.PI / 2; wheel.add(hub);
   for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; const spoke = bevelBox(0.05, R - 0.32, 0.06, gun, 0.01); spoke.position.set(0, Math.sin(a) * (R - 0.26) * 0.5, Math.cos(a) * (R - 0.26) * 0.5); spoke.rotation.x = -a + Math.PI / 2; spoke.rotation.y = 0; wheel.add(spoke); const led = box(0.07, 0.02, 0.04, glowS(1.8)); led.position.set(0.15, Math.sin(a) * 0.12, Math.cos(a) * 0.12); led.rotation.x = -a; led.castShadow = false; wheel.add(led); }
   const cap = lathe([[0, 0.14], [0.06, 0.14], [0.07, 0.17], [0.05, 0.19], [0, 0.19]], glow(1.6), 16); cap.rotation.z = Math.PI / 2; cap.castShadow = false; wheel.add(cap); const cap2 = cap.clone(); cap2.rotation.z = -Math.PI / 2; wheel.add(cap2);
-  const roll = new THREE.Group(); roll.add(wheel); roll.position.y = R;
-  const rig = new THREE.Group(); rig.name = 'ballRig'; rig.add(roll);
+  const roll = new THREE.Group(); roll.add(wheel); roll.position.y = R; roll.userData.dynamic = true;
+  const rig = new THREE.Group(); rig.name = 'ballRig'; rig.add(roll); rig.userData.dynamic = true;
   // yoke (does not spin): seat dish, fork tubes, knuckles, caliper, mudguard, counterweights, tail lamp
-  const collar = new THREE.Group(); collar.name = 'collar';
+  const collar = new THREE.Group(); collar.name = 'collar'; collar.userData.dynamic = true;
   add(collar, lathe([[0.1, -0.04], [0.3, -0.04], [0.33, 0.04], [0.28, 0.14], [0.2, 0.18], [0.1, 0.18]], gun, 24), [0, 0.0, 0]);
   add(collar, bevelBox(0.36, 0.16, 0.3, carbon, 0.02, 0.04), [0, 0.14, -0.06]);
   add(collar, torus(0.2, 0.012, glowS(1.6), 32), [0, 0.11, 0], [Math.PI / 2, 0, 0]).castShadow = false;
@@ -229,16 +230,16 @@ function buildOutrider(model, opts = {}) {
     add(collar, torus(0.075, 0.008, glowS(1.4), 20), [sx * 0.33, -R * 1.02, 0], [0, Math.PI / 2, 0]).castShadow = false;
     add(collar, decal('tech', N, 0.12, 0.05), [sx * 0.345, -R * 0.45, 0.06], [0, sx * Math.PI / 2, 0]);
   }
-  const guardPivot = new THREE.Group(); guardPivot.rotation.y = Math.PI / 2; guardPivot.position.y = 0; collar.add(guardPivot);
+  const guardPivot = new THREE.Group(); guardPivot.userData.dynamic = true; guardPivot.rotation.y = Math.PI / 2; guardPivot.position.y = 0; collar.add(guardPivot);
   const guard = new THREE.Mesh(new THREE.TorusGeometry(R + 0.06, 0.035, 8, 40, Math.PI * 0.58), carbon); guard.rotation.z = Math.PI * 0.06; guard.scale.set(1, 1, 2.6); guard.castShadow = true; guardPivot.add(guard); // in the pivot's XY = the wheel plane; +x there is the model's -z (rear)
   const guardLip = new THREE.Mesh(new THREE.TorusGeometry(R + 0.11, 0.008, 6, 40, Math.PI * 0.58), glowS(1.6)); guardLip.rotation.z = Math.PI * 0.06; guardLip.castShadow = false; guardPivot.add(guardLip);
-  const shield = new THREE.Group(); shield.rotation.z = Math.PI * 0.62; shield.scale.set(0.001, 0.001, 3.2); guardPivot.add(shield);
+  const shield = new THREE.Group(); shield.userData.dynamic = true; shield.rotation.z = Math.PI * 0.62; shield.scale.set(0.001, 0.001, 3.2); guardPivot.add(shield);
   const shieldArc = new THREE.Mesh(new THREE.TorusGeometry(R + 0.09, 0.045, 8, 48, Math.PI * 0.75), carbon); shieldArc.castShadow = true; shield.add(shieldArc);
   const shieldLip = new THREE.Mesh(new THREE.TorusGeometry(R + 0.145, 0.009, 6, 48, Math.PI * 0.75), glowS(1.8)); shieldLip.castShadow = false; shield.add(shieldLip);
   const caliper = bevelBox(0.08, 0.14, 0.1, gunLight, 0.01); caliper.position.set(0.22, -R * 0.75, -0.16); collar.add(caliper);
   for (const sx of [-1, 1]) add(collar, tube([[sx * 0.2, 0.1, -0.1], [sx * 0.12, 0.2, -0.35], [sx * 0.06, 0.12, -0.56]], 0.02, gun, 8)); // mudguard brackets
   const cw = [];
-  for (const sx of [-1, 1]) { const arm = new THREE.Group(); arm.position.set(sx * 0.17, 0.0, -0.2); arm.add(add(new THREE.Group(), tube([[0, 0, 0], [sx * 0.05, -0.03, -0.1], [sx * 0.06, -0.05, -0.18]], 0.035, gun, 10))); const pod = lathe([[0, -0.12], [0.07, -0.12], [0.1, -0.06], [0.1, 0.07], [0.07, 0.12], [0, 0.12]], carbon, 16); pod.rotation.x = Math.PI / 2; pod.position.set(sx * 0.07, -0.05, -0.3); arm.add(pod); const cap = bevelBox(0.12, 0.12, 0.04, ceramic, 0.01, 0.03); cap.position.set(sx * 0.07, -0.05, -0.43); arm.add(cap); const lamp = sphere(0.022, neonOwn(COLORS.redOrange, 1.1), 10); lamp.position.set(sx * 0.07, -0.05, -0.45); lamp.castShadow = false; arm.add(lamp); const ring = torus(0.085, 0.008, glowS(1.2), 20); ring.position.set(sx * 0.07, -0.05, -0.19); ring.castShadow = false; arm.add(ring); collar.add(arm); cw.push(arm); }
+  for (const sx of [-1, 1]) { const arm = new THREE.Group(); arm.userData.dynamic = true; arm.position.set(sx * 0.17, 0.0, -0.2); arm.add(add(new THREE.Group(), tube([[0, 0, 0], [sx * 0.05, -0.03, -0.1], [sx * 0.06, -0.05, -0.18]], 0.035, gun, 10))); const pod = lathe([[0, -0.12], [0.07, -0.12], [0.1, -0.06], [0.1, 0.07], [0.07, 0.12], [0, 0.12]], carbon, 16); pod.rotation.x = Math.PI / 2; pod.position.set(sx * 0.07, -0.05, -0.3); arm.add(pod); const cap = bevelBox(0.12, 0.12, 0.04, ceramic, 0.01, 0.03); cap.position.set(sx * 0.07, -0.05, -0.43); arm.add(cap); const lamp = sphere(0.022, neonOwn(COLORS.redOrange, 1.1), 10); lamp.position.set(sx * 0.07, -0.05, -0.45); lamp.castShadow = false; arm.add(lamp); const ring = torus(0.085, 0.008, glowS(1.2), 20); ring.position.set(sx * 0.07, -0.05, -0.19); ring.castShadow = false; arm.add(ring); collar.add(arm); cw.push(arm); }
   collar.position.y = R; rig.add(collar);
   model.root.add(rig);
   model.ball = wheel; model.ballRig = rig; model.ballCollar = collar; model.wheel = wheel; model.counterweights = cw; model.robot = 'a'; model.joints = P.joints;
@@ -291,13 +292,13 @@ function buildHalo(model) {
   // hover skirt: ring + six thruster pods with flames, hung from the pelvis so it floats with the torso
   model.hideLimb('legL'); model.hideLimb('legR');
   model.ballRadius = 0.42; model.ballRootY = 0.98; B.root.position.y = model.ballRootY; model.root.updateWorldMatrix(true, true);
-  const skirt = new THREE.Group(); skirt.name = 'skirt'; skirt.position.y = -0.1;
+  const skirt = new THREE.Group(); skirt.name = 'skirt'; skirt.userData.dynamic = true; skirt.position.y = -0.1;
   const ring = torus(0.4, 0.12, P.primary, 40); ring.rotation.x = Math.PI / 2; skirt.add(ring);
   const top = cyl(0.42, 0.34, 0.1, P.secondary, 24); top.position.y = 0.09; skirt.add(top);
   const lip = torus(0.47, 0.012, neon(P.accent, 1.8), 40); lip.rotation.x = Math.PI / 2; lip.position.y = 0.05; lip.castShadow = false; skirt.add(lip);
   const flames = [];
   for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2; const pod = new THREE.Group(); pod.position.set(Math.cos(a) * 0.34, -0.12, Math.sin(a) * 0.34); pod.rotation.set(Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35);
+    const a = (i / 6) * Math.PI * 2; const pod = new THREE.Group(); pod.userData.dynamic = true; pod.position.set(Math.cos(a) * 0.34, -0.12, Math.sin(a) * 0.34); pod.rotation.set(Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35);
     const bell = cyl(0.07, 0.1, 0.22, P.secondary, 12); bell.position.y = -0.02; pod.add(bell);
     const throat = cyl(0.06, 0.06, 0.02, neon(P.accent, 2.5), 12); throat.position.y = -0.14; throat.castShadow = false; pod.add(throat);
     const flame = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.085, 0.42, 10, 1, true), glowOwn(P.accent, 0.55)); flame.position.y = -0.36; flame.castShadow = false; pod.add(flame);
@@ -363,6 +364,41 @@ function buildBulwark(model) {
   return model;
 }
 
+/** Compact a rigid frame: under every node, meshes that share a static material are merged into one mesh with their
+ *  local transforms baked in. Animated pieces (own materials, decals, transparent) stay separate. A Legion trooper
+ *  drops from ~120 draw calls to ~15 with no visual change; bones still drive the merged chunks. */
+export function compactRigid(root) {
+  root.updateMatrixWorld(true);
+  const isRoot = (o) => o === root || o.isBone || !!o.userData?.dynamic;
+  const roots = []; root.traverse((o) => { if (isRoot(o)) roots.push(o); });
+  const inv = new THREE.Matrix4(), rel = new THREE.Matrix4();
+  let before = 0, after = 0;
+  for (const mr of roots) {
+    // collect meshes below this merge root without crossing into another merge root
+    const groups = new Map(); const stack = [...mr.children];
+    while (stack.length) {
+      const c = stack.pop(); if (isRoot(c)) continue;
+      if (c.isMesh && !c.isSkinnedMesh && c.geometry?.attributes?.position) {
+        const m = c.material; if (m && !Array.isArray(m) && !m.userData?.own && !m.transparent && !m.polygonOffset && !(c.geometry.index === null && c.geometry.attributes.position.count > 6000)) (groups.get(m) || groups.set(m, []).get(m)).push(c);
+      }
+      for (const k of c.children) stack.push(k);
+    }
+    inv.copy(mr.matrixWorld).invert();
+    for (const [mat, list] of groups) {
+      if (list.length < 2) continue; before += list.length; after += 1;
+      const geos = list.map((c) => { const g = c.geometry.index ? c.geometry.toNonIndexed() : c.geometry.clone(); for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k); if (!g.attributes.uv) { const n = g.attributes.position.count; g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n * 2), 2)); } if (!g.attributes.normal) g.computeVertexNormals(); rel.multiplyMatrices(inv, c.matrixWorld); g.applyMatrix4(rel); return g; });
+      const merged = mergeGeometries(geos, false); geos.forEach((g) => g.dispose());
+      if (!merged) { after -= 1; before -= list.length; continue; }
+      const mesh = new THREE.Mesh(merged, mat); mesh.castShadow = list.some((c) => c.castShadow); mesh.receiveShadow = true; mesh.userData.merged = true;
+      for (const c of list) c.parent?.remove(c);
+      mr.add(mesh);
+    }
+    // prune emptied helper groups
+    const empty = []; mr.traverse((o) => { if (o !== mr && !isRoot(o) && !o.isMesh && o.children.length === 0) empty.push(o); }); for (const o of empty) o.parent?.remove(o);
+  }
+  return { before, after };
+}
+
 /** Modelling kit shared with the Legion enemy frames (src/models/legion.js). */
 export const KIT = { armour, neon, neonOwn, glowOwn, dark, add, box, cyl, sphere, torus, capsule, plate, strip, channel, bevelBox, hexPlate, lathe, tube, decal };
 
@@ -375,6 +411,7 @@ export function applyRobot(model, kind, opts = {}) {
   for (const m of model.meshes) m.visible = false;
   def.build(model, opts);
   model.root.scale.multiplyScalar(kind === 'a' ? 1.0 : 1.18); // OUTRIDER stays near player height so the camera and capsule fit
+  compactRigid(model.root);
   // player code toggles `model.custom.visible` for the scope; collect every rigid part so that still works
   const parts = []; model.root.traverse((o) => { if (o.isMesh && !model.meshes.includes(o)) parts.push(o); });
   model.custom = { get visible() { return parts[0]?.visible ?? true; }, set visible(v) { for (const p of parts) p.visible = v; } };

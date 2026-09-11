@@ -43,7 +43,7 @@ export function createMenus(api, root) {
     closePause,
     showResults,
     showFailed,
-    showDropSequence,
+    showDropSequence, showDeathReport,
   };
 
   const confirm = new ConfirmDialog(menuRoot, api);
@@ -139,6 +139,39 @@ export function createMenus(api, root) {
       remove() { overlay.remove(); },
     };
     handle.setStep(0);
+    return handle;
+  }
+
+  /** Death report (Counter-Strike style hold screen): cause of death, what this life achieved, respawn timer, then it
+   *  becomes the pod status board until the replacement frame opens. */
+  function showDeathReport(d) {
+    const TIPS = ['Rolling frames take no damage for the first third of a roll. Roll through, not away.', 'Tap SPACE the instant before landing to slam. Everything nearby is knocked flat.', 'Ramps and rails carry speed. A fast frame is a hard target.', 'Every kill restores a sliver of hull. Aggression is Commonwealth policy.', 'Drones scan before they report. Kill them during the scan and the Legion never learns.', 'Aim while airborne to hover. The Legion looks up slowly.', 'Ram through crates and fence panels rather than around them.', 'Reinforcements land on the nearest launch pad. Fight near one.'];
+    const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    const root = el('div', { class: 'death-report' });
+    const head = el('div', { class: 'dr-head' }, [el('div', { class: 'dr-kicker', text: 'WORKFORCE CONTINUITY EVENT' }), el('h1', { text: 'FRAME LOST' }), el('div', { class: 'dr-sub', text: 'Your remains have been logged as Commonwealth property.' })]);
+    const cause = el('div', { class: 'dr-cause panel' }, [el('span', { class: 'lbl', text: 'TERMINATED BY' }), el('b', { text: d.killer }), d.weapon ? el('span', { class: 'wp', text: d.weapon + (d.zone === 'head' ? '  //  HEAD' : '') }) : null]);
+    const stat = (v, l) => el('div', { class: 'dr-stat' }, [el('b', { text: String(v) }), el('span', { text: l })]);
+    const stats = el('div', { class: 'dr-stats' }, [stat(d.kills, 'KILLS THIS LIFE'), stat(d.damage, 'DAMAGE DEALT'), stat(fmt(d.survived), 'SURVIVED'), stat(d.lives, 'REINFORCEMENTS LEFT')]);
+    const bar = el('div', { class: 'dr-bar' }, [el('i')]); const timer = el('div', { class: 'dr-timer' }, [el('span', { text: 'REPLACEMENT FRAME IN' }), el('b', { text: d.wait.toFixed(1) })]);
+    const tip = el('div', { class: 'dr-tip', text: 'FIELD NOTE  //  ' + TIPS[(Math.random() * TIPS.length) | 0] });
+    const steps = el('div', { class: 'dr-steps' });
+    root.append(head, cause, stats, timer, bar, steps, tip);
+    menuRoot.appendChild(root); setTimeout(() => root.classList.add('on'), 20);
+    const t0 = performance.now(); let raf = 0; let podMode = false;
+    const tick = () => { if (podMode) return; const t = (performance.now() - t0) / 1000; const left = Math.max(0, d.wait - t); timer.querySelector('b').textContent = left.toFixed(1); bar.querySelector('i').style.width = `${Math.min(100, t / d.wait * 100)}%`; raf = setTimeout(tick, 50); };
+    raf = setTimeout(tick, 50);
+    const lineEls = [];
+    const handle = {
+      el: root,
+      toPod(stepNames) {
+        podMode = true; clearTimeout(raf); timer.querySelector('span').textContent = 'POD INBOUND'; timer.querySelector('b').textContent = ''; bar.querySelector('i').style.width = '100%'; root.classList.add('pod');
+        steps.innerHTML = ''; lineEls.length = 0; for (const n of stepNames) { const l = el('div', { class: 'ds-line', text: n }); lineEls.push(l); steps.appendChild(l); }
+        handle.setStep(0); return handle;
+      },
+      setStep(i) { lineEls.forEach((l, idx) => { l.classList.toggle('active', idx === i); l.classList.toggle('done', idx < i); }); },
+      setCountdown(n) { if (n == null) { timer.querySelector('b').textContent = ''; return; } timer.querySelector('b').textContent = n > 0 ? String(n) : 'IMPACT'; },
+      remove() { clearTimeout(raf); root.classList.remove('on'); setTimeout(() => root.remove(), 350); },
+    };
     return handle;
   }
 

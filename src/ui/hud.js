@@ -144,6 +144,8 @@ export class Hud {
       #hud .sniperscope .h{position:absolute;left:50%;top:50%;width:52vmin;height:1px;transform:translate(-50%,-50%);background:linear-gradient(90deg,transparent,var(--cyan) 30%,transparent 48%,transparent 52%,var(--cyan) 70%,transparent)}
       #hud .sniperscope .v{position:absolute;left:50%;top:50%;width:1px;height:52vmin;transform:translate(-50%,-50%);background:linear-gradient(180deg,transparent,var(--cyan) 30%,transparent 48%,transparent 52%,var(--cyan) 70%,transparent)}
       #hud .sniperscope .rl{position:absolute;left:50%;top:calc(50% + 28vmin);transform:translateX(-50%);font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--cyan)}
+      #hud .hp.heal .bar i{animation:hp-heal .5s ease}@keyframes hp-heal{0%{filter:brightness(2.2) saturate(1.4)}100%{filter:none}}
+      #hud .hp.heal .hpnum::after{content:attr(data-plus);position:absolute;margin-left:6px;color:#2ee6a6;font-size:11px;animation:hp-plus .8s ease forwards}@keyframes hp-plus{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-10px)}}
       #hud.dead .xhair,#hud.dead .abilities,#hud.dead .hud-br{opacity:0}
     `;
     document.head.appendChild(css);
@@ -155,6 +157,7 @@ export class Hud {
     this.el.querySelector('.mapbtn').addEventListener('click', () => events.emit('hud:map-toggle'));
     this._unsub = [
       events.on('hud:hitmarker', (m) => this.hitMarker(m)),
+      events.on('hud:heal-tick', (amt) => { const hp = this.el.querySelector('.hp'); hp.classList.remove('heal'); void hp.offsetWidth; hp.classList.add('heal'); const t = this.el.querySelector('.hpnum'); if (t) t.setAttribute('data-plus', '+' + amt); }),
       events.on('player:damaged', ({ from }) => this.damageDir(from)),
       events.on('objective:update', (t) => this.setObjective(t)),
       events.on('quest:set', (q) => this.setQuest(q)),

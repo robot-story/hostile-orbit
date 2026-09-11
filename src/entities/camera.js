@@ -66,7 +66,7 @@ export class ThirdPersonCamera {
     let side = lerp(sideNormal, sideAim, this.aim); side = lerp(side, sideSprint, this.sprint * (1 - this.aim)); side = lerp(side, sideCover, this.cover * (1 - this.aim) * 0.8);
     let dist = lerp(distNormal, distAim, this.aim); dist = lerp(dist, distSprint, this.sprint * (1 - this.aim)); dist = lerp(dist, distCover, this.cover * (1 - this.aim));
     let up = lerp(0.12, 0.05, this.aim) + this.sprint * 0.1;
-    if (target.dead) { dist = 4.5; up = 1.2; side = 0.2; }
+    if (target.dead) { dist = 5.2; up = 1.5; side = 0.2; this.yaw += dt * 0.35; this.pitch = damp(this.pitch, -0.42, 2, dt); } // kill-cam: a slow orbit over the wreck
     // peek shifts the pivot sideways around the cover edge
     const peek = target.cover?.peek || 0;
     this.peekOffset = target.cover ? peek * 0.85 * this.aim : 0;

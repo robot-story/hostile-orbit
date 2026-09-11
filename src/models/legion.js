@@ -6,7 +6,7 @@
 //   suppressor SUPPRESSOR heavy: ammo pack with feed line, triple eyes, knee plates
 //   grenadier  GRENADIER  launcher tube on the back, bandolier, rangefinder monocle
 import * as THREE from 'three';
-import { KIT } from './robots.js';
+import { KIT, compactRigid } from './robots.js';
 import { COLORS } from '../render/materials.js';
 import { damp } from '../core/mathx.js';
 
@@ -131,6 +131,7 @@ export function applyLegionFrame(model, kind, opts = {}) {
   for (const m of model.meshes) m.visible = false;
   const P = palette(kind);
   build(model.bones, P);
+  compactRigid(model.root);
   model.robot = 'legion:' + kind; model.legion = kind; model.joints = P.joints;
   model.root.scale.multiplyScalar(kind === 'suppressor' ? 1.06 : 1.02);
   let pulse = 0, lastPhase = 0;
