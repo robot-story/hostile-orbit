@@ -20,12 +20,14 @@ function buildRavagerModel() {
   const P = {};
   // body: low chassis, ribbed flanks, back plates, spine channel, reactor under the chest
   const body = new THREE.Group(); body.position.y = 1.35; root.add(body); P.body = body;
-  add(body, bevelBox(1.3, 0.8, 2.3, graphite, 0.05, 0.12), [0, 0, 0]);
-  add(body, bevelBox(1.0, 0.5, 1.4, graphite, 0.04, 0.1), [0, -0.35, 0.2]);
+  add(body, bevelBox(1.3, 0.8, 1.5, graphite, 0.05, 0.12), [0, 0, 0.35]);                 // shoulders: deep chest
+  add(body, bevelBox(1.0, 0.6, 1.1, graphite, 0.05, 0.1), [0, -0.05, -0.75]);             // tapered haunch
+  add(body, bevelBox(1.0, 0.5, 1.4, graphite, 0.04, 0.1), [0, -0.35, 0.3]);
+  add(body, bevelBox(1.2, 0.1, 2.2, oxide, 0.03, 0.1), [0, 0.42, -0.1], [0.1, 0, 0]);      // raked top plate, nose down
   for (let i = 0; i < 5; i++) for (const sx of [-1, 1]) add(body, bevelBox(0.08, 0.6, 0.22, gun, 0.01), [sx * 0.7, -0.05, -0.8 + i * 0.4]);
   P.plateL = add(body, bevelBox(0.62, 0.12, 1.9, oxide, 0.03, 0.1), [-0.34, 0.46, -0.05], [0, 0, 0.18]);
   P.plateR = add(body, bevelBox(0.62, 0.12, 1.9, oxide, 0.03, 0.1), [0.34, 0.46, -0.05], [0, 0, -0.18]);
-  for (let i = 0; i < 4; i++) add(body, bevelBox(0.3, 0.14, 0.24, oxide, 0.02, 0.05), [0, 0.5, -0.7 + i * 0.45], [0.3, 0, 0]); // dorsal fins
+  for (let i = 0; i < 5; i++) add(body, bevelBox(0.34, 0.26 - i * 0.03, 0.22, oxide, 0.02, 0.05), [0, 0.56 - i * 0.03, 0.55 - i * 0.42], [0.45, 0, 0]); // dorsal spine plates, tall at the shoulders
   add(body, channel(1.8, RED, 1.8, 0.03), [0, 0.52, 0], [0, Math.PI / 2, Math.PI / 2]);
   P.core = add(body, hexPlate(0.16, 0.06, neonOwn(RED, 3)), [0, -0.62, 0.55], [Math.PI / 2, 0, 0]); P.core.castShadow = false;
   add(body, torus(0.2, 0.02, gun, 6), [0, -0.63, 0.55], [Math.PI / 2, 0, 0]);
@@ -35,10 +37,12 @@ function buildRavagerModel() {
   add(neck, cyl(0.24, 0.3, 0.5, gun, 12), [0, 0, 0.2], [Math.PI / 2, 0, 0]);
   for (let i = 0; i < 3; i++) add(neck, torus(0.27, 0.025, i % 2 ? neon(RED, 1.4) : light, 16), [0, 0, 0.05 + i * 0.14], [0, 0, 0]);
   const head = new THREE.Group(); head.position.set(0, 0.05, 0.5); neck.add(head); P.head = head;
-  add(head, bevelBox(0.62, 0.42, 0.9, oxide, 0.04, 0.1), [0, 0.1, 0.35]);
-  add(head, bevelBox(0.5, 0.2, 0.5, graphite, 0.03, 0.06), [0, 0.38, 0.1], [0.25, 0, 0]);
-  for (let i = -1; i <= 1; i++) { const eye = sphere(0.045, neonOwn(RED, 3.2), 10); eye.position.set(i * 0.16, 0.2, 0.82); eye.castShadow = false; head.add(eye); (P.eyes ||= []).push(eye); }
-  add(head, channel(0.42, RED, 2.2, 0.03), [0, 0.06, 0.8]);
+  add(head, bevelBox(0.62, 0.42, 0.7, oxide, 0.04, 0.1), [0, 0.1, 0.25]);
+  add(head, bevelBox(0.5, 0.3, 0.55, oxide, 0.04, 0.08), [0, 0.02, 0.8], [0.22, 0, 0]);        // wedge snout, nose down
+  add(head, bevelBox(0.5, 0.2, 0.5, graphite, 0.03, 0.06), [0, 0.38, 0.05], [0.25, 0, 0]);
+  add(head, bevelBox(0.44, 0.12, 0.08, graphite, 0.01, 0.02), [0, 0.2, 0.6], [0.2, 0, 0]);       // brow bar the eyes recess under
+  for (let i = -1; i <= 1; i++) { const eye = sphere(0.045, neonOwn(RED, 3.2), 10); eye.position.set(i * 0.15, 0.13, 0.62); eye.castShadow = false; head.add(eye); (P.eyes ||= []).push(eye); }
+  add(head, channel(0.36, RED, 2.2, 0.03), [0, -0.02, 1.02], [0.22, 0, 0]);
   const jaw = new THREE.Group(); jaw.position.set(0, -0.08, 0.15); head.add(jaw); P.jaw = jaw;
   add(jaw, bevelBox(0.54, 0.16, 0.7, graphite, 0.03, 0.06), [0, -0.08, 0.35]);
   for (const sx of [-1, 1]) { add(jaw, cyl(0.02, 0.06, 0.34, light, 8), [sx * 0.24, 0.1, 0.72], [-0.9, 0, sx * 0.25]); add(head, cyl(0.03, 0.07, 0.4, light, 8), [sx * 0.3, -0.05, 0.7], [0.9, 0, sx * 0.3]); }
@@ -62,6 +66,7 @@ function buildRavagerModel() {
     P.legs.push({ hip, knee, foot, ring, sx, sz });
   }
   // tail: three tapering segments with a lamp
+  add(body, cyl(0.16, 0.2, 0.3, gun, 12), [0, 0.1, -1.25], [Math.PI / 2, 0, 0]); // tail root socket
   let parent = body; P.tail = [];
   for (let i = 0; i < 3; i++) { const seg = new THREE.Group(); seg.position.set(0, i ? 0 : 0.1, i ? -0.5 : -1.2); parent.add(seg); add(seg, bevelBox(0.28 - i * 0.06, 0.24 - i * 0.05, 0.55, i % 2 ? graphite : oxide, 0.02, 0.05), [0, 0, -0.25]); P.tail.push(seg); parent = seg; }
   const lamp = sphere(0.06, neonOwn(RED, 2.4), 10); lamp.position.set(0, 0, -0.55); lamp.castShadow = false; parent.add(lamp);

@@ -16,7 +16,8 @@ const RED = '#ff3b1f';
 function palette(kind) {
   // readable in the orange light: oxide-red plates over a graphite core, light gunmetal joints
   const oxide = armour('ceramic', kind === 'suppressor' ? '#a8402c' : '#b84a34'), carbon = armour('gunmetal', '#6a707c'), gun = armour('gunmetal', '#9aa0ac'), gunLight = armour('gunmetal', '#c8ced8');
-  return { oxide, carbon, gun, gunLight, N: RED, joints: [] };
+  const N = { rifleman: RED, breacher: '#ff6a3a', suppressor: '#ffa030', grenadier: '#d04cff' }[kind] || RED;
+  return { oxide, carbon, gun, gunLight, N, joints: [] };
 }
 
 /** Legs shared by all bipeds; `bulk` widens plates, `plateMat` is the outer armour. */
@@ -71,12 +72,14 @@ function core(B, P, bulk = 1) {
   add(B.chest, bevelBox(0.24, 0.28, 0.12, P.carbon, 0.02), [0, 0.1, -0.18]);            // backpack
   add(B.chest, channel(0.2, P.N, 1.4), [0, 0.1, -0.245], [0, 0, Math.PI / 2]);
   add(B.chest, bevelBox(0.2, 0.04, 0.16, P.gun, 0.01), [0, 0.28, 0]);                   // collar
+  add(B.chest, bevelBox(0.32, 0.08, 0.05, P.oxide, 0.012, 0.02), [0.06, -0.09, 0.14], [0, 0, 0.5]); // diagonal plate across the waist seam
+  add(B.spine, bevelBox(0.26, 0.07, 0.05, P.gun, 0.01), [-0.05, 0.06, 0.13], [0, 0, -0.4]);
   add(B.neck, cyl(0.055, 0.07, 0.14, P.carbon, 12), [0, 0.02, 0]);
 }
 
 /** Angular Legion head: wedge crown, raked face plate, visor treatment per type. */
 function head(B, P, kind) {
-  add(B.head, bevelBox(0.23, 0.14, 0.24, P.oxide, 0.025, 0.05), [0, 0.18, -0.01]);
+  add(B.head, bevelBox(0.23, 0.14, 0.24, P.oxide, 0.025, 0.05), [0, 0.16, -0.01]);
   add(B.head, bevelBox(0.21, 0.12, 0.2, P.carbon, 0.02, 0.04), [0, 0.07, -0.02]);
   add(B.head, bevelBox(0.2, 0.15, 0.05, P.oxide, 0.02, 0.03), [0, 0.11, 0.11], [-0.28, 0, 0]);
   add(B.head, bevelBox(0.25, 0.04, 0.12, P.oxide, 0.012, 0.03), [0, 0.19, 0.09], [0.25, 0, 0]);
@@ -93,18 +96,18 @@ const FRAMES = {
   breacher(B, P) {
     core(B, P, 1.15); arms(B, P, 1.15); legs(B, P, 1.15, 1.4); head(B, P, 'breacher');
     // riot shield on the left forearm, ram wedges on the shoulders
-    add(B.forearmL, bevelBox(0.5, 0.76, 0.04, P.oxide, 0.025, 0.06), [0.1, -0.1, 0.12], [0, 0.45, 0]);
-    add(B.forearmL, bevelBox(0.36, 0.5, 0.03, P.carbon, 0.015, 0.04), [0.1, -0.08, 0.15], [0, 0.45, 0]);
-    add(B.forearmL, channel(0.62, P.N, 1.4, 0.024), [0.1, -0.1, 0.17], [0, 0.45, Math.PI / 2]);
-    add(B.forearmL, decal('hazard', P.N, 0.3, 0.05), [0.1, 0.22, 0.17], [0, 0.45, 0]);
-    add(B.forearmL, channel(0.2, P.N, 1.2, 0.02), [0.1, -0.44, 0.17], [0, 0.45, 0]);
+    add(B.forearmL, bevelBox(0.5, 0.76, 0.04, P.oxide, 0.025, 0.06), [0.16, -0.1, 0.12], [0, 0.6, 0]);
+    add(B.forearmL, bevelBox(0.36, 0.5, 0.03, P.carbon, 0.015, 0.04), [0.16, -0.08, 0.15], [0, 0.6, 0]);
+    add(B.forearmL, channel(0.62, P.N, 1.4, 0.024), [0.16, -0.1, 0.17], [0, 0.6, Math.PI / 2]);
+    add(B.forearmL, decal('hazard', P.N, 0.3, 0.05), [0.16, 0.22, 0.17], [0, 0.6, 0]);
+    add(B.forearmL, channel(0.2, P.N, 1.2, 0.02), [0.16, -0.44, 0.17], [0, 0.6, 0]);
     for (const sx of [-1, 1]) add(B['shoulder' + (sx > 0 ? 'L' : 'R')], bevelBox(0.14, 0.16, 0.3, P.gun, 0.02, 0.03), [sx * 0.2, 0.1, 0.04], [0, 0, sx * 0.4]);
   },
   suppressor(B, P) {
     core(B, P, 1.25); arms(B, P, 1.2); legs(B, P, 1.3, 1.6); head(B, P, 'suppressor');
     // ammo pack with a feed line toward the right hand, knee plates, big pauldrons
     add(B.chest, bevelBox(0.5, 0.36, 0.22, P.carbon, 0.02, 0.04), [0.1, 0.1, -0.27]);
-    add(B.chest, bevelBox(0.2, 0.3, 0.16, P.oxide, 0.02, 0.04), [0.38, 0.16, -0.1]); // side-mounted drum
+    const drum = cyl(0.13, 0.13, 0.16, P.oxide, 16); drum.rotation.z = Math.PI / 2; drum.position.set(0.3, -0.04, -0.02); add(B.root, drum); add(B.root, torus(0.13, 0.012, neon(P.N, 1.2), 16), [0.39, -0.04, -0.02], [0, Math.PI / 2, 0]).castShadow = false; // hip ammo drum
     for (let i = 0; i < 3; i++) add(B.chest, cyl(0.055, 0.055, 0.34, P.gun, 10), [-0.04 + i * 0.12, 0.28, -0.3], [0.2, 0, 0]);
     add(B.chest, tube([[0.16, 0.1, -0.24], [0.36, -0.05, -0.1], [0.32, -0.28, 0.12]], 0.025, P.gun, 12));
     for (const sx of [-1, 1]) { add(B['shoulder' + (sx > 0 ? 'L' : 'R')], bevelBox(0.3, 0.2, 0.34, P.oxide, 0.03, 0.05), [sx * 0.1, 0.1, 0], [0, 0, sx * 0.15]); add(B['shin' + (sx > 0 ? 'L' : 'R')], bevelBox(0.16, 0.14, 0.08, P.oxide, 0.015, 0.03), [0, 0.02, 0.1]); }
@@ -113,9 +116,10 @@ const FRAMES = {
   grenadier(B, P) {
     core(B, P, 1); arms(B, P, 1); legs(B, P, 1); head(B, P, 'grenadier');
     // launcher tube on the back, bandolier across the chest
-    const tubeM = cyl(0.08, 0.075, 0.66, P.gun, 14); tubeM.position.set(-0.24, 0.4, 0.08); tubeM.rotation.set(Math.PI / 2 - 0.35, 0, 0); add(B.chest, tubeM); // launcher rides the left shoulder, muzzle forward and up
-    add(B.chest, bevelBox(0.1, 0.16, 0.2, P.oxide, 0.012, 0.03), [-0.24, 0.26, -0.02]);
-    add(B.chest, torus(0.085, 0.012, neon(P.N, 1.8), 18), [-0.24, 0.52, 0.39], [Math.PI / 2 - 0.35, 0, 0]).castShadow = false;
+    const tubeM = cyl(0.075, 0.07, 0.56, P.gun, 14); tubeM.position.set(-0.34, 0.3, 0.0); tubeM.rotation.set(Math.PI / 2 - 0.35, 0, 0); add(B.chest, tubeM); // launcher outboard of the left shoulder, muzzle forward and up
+    add(B.chest, bevelBox(0.12, 0.14, 0.24, P.oxide, 0.012, 0.03), [-0.34, 0.2, -0.06]);
+    add(B.chest, bevelBox(0.08, 0.1, 0.1, P.gun, 0.01), [-0.28, 0.24, -0.02]); // mount bracket to the pauldron
+    add(B.chest, torus(0.08, 0.012, neon(P.N, 1.8), 18), [-0.34, 0.3 + 0.28 * 0.343, 0.28 * 0.94], [Math.PI / 2 - 0.35, 0, 0]).castShadow = false;
     for (let i = 0; i < 4; i++) { const g = cyl(0.04, 0.04, 0.11, P.carbon, 10); g.position.set(-0.14 + i * 0.1, 0.18 - i * 0.06, 0.2); g.rotation.z = -0.5; add(B.chest, g); const cap = cyl(0.035, 0.035, 0.014, neon(P.N, 1.4), 10); cap.position.set(-0.14 + i * 0.1 + 0.03, 0.18 - i * 0.06 + 0.055, 0.2); cap.rotation.z = -0.5; cap.castShadow = false; B.chest.add(cap); }
     add(B.chest, decal('unit', P.N, 0.1, 0.1), [0.15, 0.08, 0.16]);
   },
@@ -125,7 +129,7 @@ export function applyLegionFrame(model, kind, opts = {}) {
   const build = FRAMES[kind]; if (!build) return model;
   for (const n in model.bones) model.bones[n].rotation.set(0, 0, 0);
   for (const m of model.meshes) m.visible = false;
-  const P = palette(kind); P.N = opts.neon || RED;
+  const P = palette(kind);
   build(model.bones, P);
   model.robot = 'legion:' + kind; model.legion = kind; model.joints = P.joints;
   model.root.scale.multiplyScalar(kind === 'suppressor' ? 1.06 : 1.02);
