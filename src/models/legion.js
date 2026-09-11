@@ -14,7 +14,8 @@ const { armour, neon, neonOwn, dark, add, box, cyl, sphere, torus, capsule, chan
 const RED = '#ff3b1f';
 
 function palette(kind) {
-  const oxide = armour('gunmetal', kind === 'suppressor' ? '#5a2f26' : '#6d3a2c'), carbon = armour('carbon'), gun = armour('gunmetal'), gunLight = armour('gunmetal', '#9aa0aa');
+  // readable in the orange light: oxide-red plates over a graphite core, light gunmetal joints
+  const oxide = armour('gunmetal', kind === 'suppressor' ? '#c4583e' : '#d0684c'), carbon = armour('gunmetal', '#4a4f5a'), gun = armour('gunmetal', '#7c828e'), gunLight = armour('gunmetal', '#b4bac6');
   return { oxide, carbon, gun, gunLight, N: RED, joints: [] };
 }
 
@@ -33,7 +34,7 @@ function legs(B, P, bulk = 1, kneeGlow = 1.2) {
     add(B['shin' + side], cyl(0.018, 0.018, 0.26, P.gunLight, 8), [sx * 0.07, -0.2, -0.07]);
     add(B['foot' + side], box(0.18 * bulk, 0.09, 0.3, P.carbon), [0, -0.045, 0.05]);
     add(B['foot' + side], bevelBox(0.16 * bulk, 0.05, 0.14, P.oxide, 0.01, 0.02), [0, 0.0, 0.14]);
-    add(B['foot' + side], channel(0.12, P.N, 0.9, 0.014), [0, -0.06, 0.2]);
+    add(B['foot' + side], channel(0.12, P.N, 1.4, 0.014), [0, -0.06, 0.2]);
   }
 }
 
@@ -42,14 +43,14 @@ function arms(B, P, bulk = 1) {
     const sx = side === 'L' ? 1 : -1; const sh = B['shoulder' + side], ua = B['upperArm' + side], fa = B['forearm' + side], ha = B['hand' + side];
     add(sh, sphere(0.065, P.gun, 14), [sx * 0.02, 0, 0]);
     add(sh, bevelBox(0.24 * bulk, 0.13, 0.26 * bulk, P.oxide, 0.025, 0.04), [sx * 0.08, 0.06, 0], [0, 0, sx * 0.2]);
-    add(sh, channel(0.16, P.N, 1.1), [sx * 0.08, 0.13, 0.02], [Math.PI / 2, 0, sx * 0.2]);
+    add(sh, channel(0.16, P.N, 1.7), [sx * 0.08, 0.13, 0.02], [Math.PI / 2, 0, sx * 0.2]);
     add(ua, capsule(0.06, 0.14, P.carbon), [0, -0.15, 0]);
     add(ua, bevelBox(0.1, 0.18, 0.12, P.oxide, 0.012, 0.02), [sx * 0.03, -0.16, 0]);
     const ring = add(fa, torus(0.05, 0.012, neonOwn(P.N, 1.1), 20), [0, 0, 0], [0, Math.PI / 2, 0]); ring.castShadow = false; P.joints.push(ring);
     add(fa, cyl(0.045, 0.045, 0.12, P.gun, 12), [0, 0, 0], [0, 0, Math.PI / 2]);
     add(fa, box(0.1, 0.24, 0.12, P.carbon), [0, -0.14, 0]);
     add(fa, bevelBox(0.11, 0.18, 0.05, P.oxide, 0.012, 0.02), [0, -0.13, 0.065]);
-    add(fa, channel(0.14, P.N, 1.0, 0.012), [sx * 0.058, -0.13, 0.02], [0, 0, Math.PI / 2]);
+    add(fa, channel(0.14, P.N, 1.6, 0.012), [sx * 0.058, -0.13, 0.02], [0, 0, Math.PI / 2]);
     add(ha, bevelBox(0.085, 0.09, 0.09, P.carbon, 0.01, 0.02), [0, -0.045, 0.01]);
     for (let f = 0; f < 3; f++) add(ha, box(0.022, 0.055, 0.022, P.gun), [-0.026 + f * 0.026, -0.11, 0.035], [0.5, 0, 0]);
     add(ha, box(0.024, 0.05, 0.024, P.gun), [sx * 0.05, -0.06, 0.04], [0.7, 0, sx * 0.6]);
@@ -61,13 +62,13 @@ function core(B, P, bulk = 1) {
   add(B.root, bevelBox(0.28, 0.1, 0.06, P.oxide, 0.012, 0.02), [0, -0.03, 0.15]);
   for (const sx of [-1, 1]) { const hip = cyl(0.06, 0.06, 0.08, P.gun, 12); hip.rotation.z = Math.PI / 2; hip.position.set(sx * 0.16 * bulk, -0.07, 0); add(B.root, hip); }
   for (let i = 0; i < 3; i++) add(B.spine, bevelBox(0.28 + i * 0.03, 0.065, 0.22 + i * 0.01, i % 2 ? P.gun : P.carbon, 0.01), [0, -0.03 + i * 0.07, 0]);
-  add(B.spine, channel(0.12, P.N, 1.0), [0, 0.02, 0.135], [0, 0, Math.PI / 2]);
+  add(B.spine, channel(0.12, P.N, 1.5), [0, 0.02, 0.135], [0, 0, Math.PI / 2]);
   add(B.chest, bevelBox(0.42 * bulk, 0.32, 0.28, P.carbon, 0.025), [0, 0.1, 0]);
   add(B.chest, bevelBox(0.42 * bulk, 0.16, 0.08, P.oxide, 0.02, 0.03), [0, 0.22, 0.14], [0.2, 0, 0]);
   add(B.chest, bevelBox(0.36 * bulk, 0.14, 0.07, P.oxide, 0.02, 0.03), [0, 0.02, 0.15], [-0.15, 0, 0]);
-  add(B.chest, channel(0.24 * bulk, P.N, 1.0), [0, 0.13, 0.19]);
+  add(B.chest, channel(0.24 * bulk, P.N, 1.7), [0, 0.13, 0.19]);
   add(B.chest, bevelBox(0.24, 0.28, 0.12, P.carbon, 0.02), [0, 0.1, -0.18]);            // backpack
-  add(B.chest, channel(0.2, P.N, 0.9), [0, 0.1, -0.245], [0, 0, Math.PI / 2]);
+  add(B.chest, channel(0.2, P.N, 1.4), [0, 0.1, -0.245], [0, 0, Math.PI / 2]);
   add(B.chest, bevelBox(0.2, 0.04, 0.16, P.gun, 0.01), [0, 0.28, 0]);                   // collar
   add(B.neck, cyl(0.055, 0.07, 0.14, P.carbon, 12), [0, 0.02, 0]);
 }
@@ -128,7 +129,7 @@ export function applyLegionFrame(model, kind, opts = {}) {
     const sp = Math.hypot(vx, vz); const ph = model.animator ? Math.floor(model.animator.phase / Math.PI) : 0;
     if (ph !== lastPhase && sp > 0.5) { lastPhase = ph; pulse = 1; }
     pulse = damp(pulse, 0, 6, dt);
-    const it = 0.9 + pulse * 1.4 + sp * 0.05 + (land || 0) * 1.2;
+    const it = 1.4 + pulse * 1.6 + sp * 0.05 + (land || 0) * 1.2;
     for (const j of P.joints) j.material.emissiveIntensity = it;
   };
   return model;

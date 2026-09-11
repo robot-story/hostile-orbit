@@ -108,13 +108,14 @@ export function buildLegionHeavy() {
   const g = new THREE.Group(); g.name = 'weapon:legion_heavy';
   const gm = Mat.gunMetal(), lm = Mat.legionArmor(), n = Mat.neon(COLORS.redOrange, 2.4);
   g.add(at(B(0.10, 0.14, 0.56, lm), 0, 0.06, 0.14));
-  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; g.add(at(C(0.016, 0.016, 0.60, gm), Math.cos(a) * 0.035, 0.07 + Math.sin(a) * 0.035, 0.72)); }
+  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; g.add(at(C(0.016, 0.016, 0.42, gm), Math.cos(a) * 0.035, 0.07 + Math.sin(a) * 0.035, 0.6)); }
+  g.add(at(C(0.07, 0.06, 0.12, gm), 0, 0.07, 0.78)); // muzzle shroud
   g.add(at(B(0.05, 0.12, 0.07, gm), 0, -0.04, 0.05));
   g.add(at(B(0.18, 0.16, 0.16, gm), -0.12, -0.02, 0.10));
   g.add(at(B(0.06, 0.08, 0.20, lm), 0, 0.05, -0.24));
   g.add(at(B(0.02, 0.02, 0.40, n), 0, 0.15, 0.30));
   g.add(at(B(0.05, 0.05, 0.02, n), -0.12, 0.02, 0.19));
-  return finish(g, 1.04, 0.07);
+  return finish(g, 0.86, 0.07);
 }
 
 export function buildLongshot(neon = COLORS.cyan) {

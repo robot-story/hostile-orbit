@@ -93,9 +93,19 @@ export function terrainHeightMap(mx, my, map = null) {
   }
   const ridge = 13 + ridgeNoise * 14;
   const wallT = smoothstep(0, 20, d);
+  // authored features: berms and craters on the floor for cover and vantage, pinnacles on the mesas for skyline
+  let feat = 0;
+  const F = map?.terrain?.features; if (F) for (const f of F) {
+    const dist = Math.hypot(mx - f.mx, my - f.my); if (dist > f.r * 1.6) continue;
+    const t = 1 - smoothstep(f.r * 0.25, f.r, dist);
+    if (f.type === 'mound') feat += f.h * t * t * (3 - 2 * t);
+    else if (f.type === 'crater') { const bowl = 1 - smoothstep(0, f.r * 0.85, dist); const rim = Math.exp(-Math.pow((dist - f.r * 0.95) / (f.r * 0.22), 2)); feat += -f.h * bowl + f.h * 0.45 * rim; }
+    else if (f.type === 'pinnacle') { const k = 1 - smoothstep(0, f.r, dist); feat += f.h * k * k; }
+    else if (f.type === 'berm') { const along = f.dir ? Math.abs((mx - f.mx) * f.dir[1] - (my - f.my) * f.dir[0]) : dist; const k = 1 - smoothstep(f.w * 0.3, f.w, along); const len = f.dir ? Math.abs((mx - f.mx) * f.dir[0] + (my - f.my) * f.dir[1]) : 0; feat += f.h * k * (1 - smoothstep(f.r * 0.7, f.r, len)); }
+  }
   // Trench lift: lower floor with sharp walls
   const liftT = lift < 0 ? (1 - smoothstep(0, 3, d)) : (1 - smoothstep(0, 10, d));
-  let h = floor + wallT * ridge + lift * liftT;
+  let h = floor + wallT * ridge + lift * liftT + feat;
   // rocky detail on rock, subtle on floor
   const detail = (fbm2(mx * 0.12, my * 0.12, 3) - 0.5);
   h += detail * lerp(0.35, 4.0, wallT);
