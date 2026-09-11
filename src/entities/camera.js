@@ -93,7 +93,7 @@ export class ThirdPersonCamera {
     // FOV
     const fovBase = settings.data.fov;
     const zoom = target.zoom ?? 0.72;
-    this.fovTarget = lerp(fovBase, fovBase * zoom, this.aim) + this.sprint * 6 * (1 - this.aim);
+    this.fovTarget = lerp(fovBase, fovBase * zoom, this.aim) + this.sprint * 6 * (1 - this.aim) + (this.speedKick || 0) * 9 * (1 - this.aim);
     this.camera.fov = damp(this.camera.fov, this.fovTarget, 10, dt);
     this.camera.updateProjectionMatrix();
     this.camera.userData.focus = _pivot;

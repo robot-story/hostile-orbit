@@ -32,6 +32,7 @@ export class World {
     this.nextId = 1;
     this.updatables = new Set();
     this.hitTargets = []; // entities with hitboxes
+    this.rails = []; // grind rails: { curve, samples: Vector3[], length }
     this.dynamicMeshes = [];
     this._setupLights();
     this.sky = createSky(map?.sky || {});

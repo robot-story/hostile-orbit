@@ -507,6 +507,10 @@ export class Game {
     if (!pod.landed && pod.t > 0) this.localPlayer.cam.shake(0.02 * k);
     if (pod.doneSignal && !pod.opened) pod.opened = true;
   }
+  _speedLines(k) {
+    let el = this._speedEl; if (!el) { el = this._speedEl = document.createElement('div'); el.id = 'speedlines'; el.innerHTML = '<div class="sl"></div>'; this.ui.appendChild(el); const css = document.createElement('style'); css.textContent = `#speedlines{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .12s;z-index:5}#speedlines .sl{position:absolute;inset:-20%;background:repeating-conic-gradient(from 0deg at 50% 52%,rgba(255,255,255,0) 0deg 5deg,rgba(200,240,255,.28) 5.6deg 6.2deg,rgba(255,255,255,0) 7deg 12deg);-webkit-mask:radial-gradient(ellipse at 50% 52%,transparent 34%,#000 78%);mask:radial-gradient(ellipse at 50% 52%,transparent 34%,#000 78%);animation:slspin .9s linear infinite}@keyframes slspin{to{transform:rotate(12deg)}}`; document.head.appendChild(css); }
+    el.style.opacity = (k * 0.85).toFixed(2);
+  }
   beginPlay() {
     this.mode = 'play'; this.paused = false;
     input.setGameplay(true);
@@ -661,7 +665,7 @@ export class Game {
     if (s && this.world) {
       if (this.mode === 'play') {
         this.time += dt;
-        s.player.update(dt);
+        s.player.update(dt); this._speedLines(s.player.speedFx || 0);
         this.world.nav.update();
         if (!this.dev?.state.freezeEnemies) s.director.update(dt);
         s.projectiles.update(dt); s.abilities.update(dt); s.mission.update(dt); s.netsync?.update(dt);
@@ -671,6 +675,7 @@ export class Game {
         this.renderer.fx.lowHealth = s.player.health < 30 && !s.player.dead ? 1 - s.player.health / 30 : 0;
         if (this.mapOpen) this.menus.showTacticalMap(this.tacticalMapState(s));
       } else if (this.mode === 'intro') {
+        this._speedLines(0);
         this.updateIntro(dt);
       } else if (this.mode === 'drop') {
         this.time += dt; this.updateDrop(dt); s.director.update(dt); s.projectiles.update(dt); s.mission.update(dt); s.abilities.update(dt); s.netsync?.update(dt);

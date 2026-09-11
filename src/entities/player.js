@@ -55,14 +55,14 @@ export class Player {
   equip(slot) { this.slot = slot; while (this.weaponGroup.children.length) this.weaponGroup.remove(this.weaponGroup.children[0]); this.weaponGroup.add(this.weapon.model); this.reloadT = -1; audio.play('weapon_swap', { volume: 0.6 }); events.emit('player:weapon', this.weapon); }
   spawnAt(p, yaw = 0) { this.position.copy(p); this.yaw = yaw; this.cam.yaw = yaw; this.velocity.set(0, 0, 0); this.model.root.position.copy(p); }
   get eyeHeight() { const lift = this.model?.robot ? 0.22 : 0; return (this.crouching || (this.state === 'cover' && this.cover?.height === 'low' && !this.aiming) ? 1.15 : 1.55) + lift; }
-  get moveSpeedMax() { const w = this.weapon.def.moveMult || 1; if (this.aiming) return (this.weapon.def.kind === 'sniper' ? 1.6 : 3.1) * w; if (this.crouching) return 3.1; if (this.sprinting) return (this.model?.robot ? 12.2 : 9.8) * w; return 7.4 * w; }
+  get moveSpeedMax() { const w = this.weapon.def.moveMult || 1; if (this.aiming) return (this.weapon.def.kind === 'sniper' ? 1.6 : 3.1) * w; if (this.crouching) return 3.1; if (this.sprinting || (this.rollMode && this.model?.robot)) return (this.model?.robot ? 12.2 : 9.8) * w; return 7.4 * w; }
 
   update(dt) {
     this.stateT += dt; this.spawnT += dt;
     const m = input.consumeMouse();
     // Aim assist: snap on aim press, soft magnetism while aiming (mouse still adjusts inside the lock)
     const assist = settings.data.aimAssist !== false;
-    if (assist && input.aimPressed && !this.dead) this.aimTarget = this.findAimTarget(0.26);
+    if (assist && input.aimPressed && !this.dead) this.aimTarget = this.findAimTarget(this.grounded ? 0.26 : 0.4);
     if (!input.aim()) this.aimTarget = null;
     const onTarget = assist && this.aimTarget && !this.aimTarget.dead && this.aiming;
     const sensScale = onTarget ? 1 - 0.45 * (settings.data.aimAssistStrength ?? 0.7) : 1;
@@ -95,6 +95,7 @@ export class Player {
       else if (this.state === 'roll') this.updateRoll(dt);
       else if (this.state === 'vault') this.updateVault(dt);
       else if (this.state === 'cover') this.updateCover(dt, wish, ax, aimNow);
+      else if (this.state === 'grind') this.updateGrind(dt, ax);
     }
     this.integrate(dt);
     if (!this.dead) { this.updateWeapon(dt); this.updateGrenade(dt); }
@@ -117,7 +118,7 @@ export class Player {
     const prevYaw = this._prevYaw ?? this.yaw; this._prevYaw = this.yaw;
     const turnN = clamp(angleDiff(prevYaw, this.yaw) / Math.max(dt, 1e-3) / 5, -1, 1);
     this._turnS = damp(this._turnS || 0, turnN, 8, dt);
-    this.landT = Math.max(0, (this.landT || 0) - dt);
+    this.landT = Math.max(0, (this.landT || 0) - dt); this.ramChainT = Math.max(0, (this.ramChainT || 0) - dt); if (this.ramChainT <= 0) this.ramChain = 0;
     const s = {
       speed: this.state === 'cover' ? speedN * 0.6 : speedN, strafe: clamp(local.x / 4, -1, 1), forward: local.z >= -0.3 ? 1 : -1, moveDir: { x: speedN > 0.03 ? local.x / llen : 0, z: speedN > 0.03 ? local.z / llen : 1 }, velocity: this.grounded ? Math.hypot(this.velocity.x, this.velocity.z) : 0, groundAt: this.grounded ? (ox, oz) => this.world.groundHeight(this.position.x + ox, this.position.z + oz, this.position.y) : null, accel: this._accelS, turn: this._turnS, land: this.landT > 0 ? this.landT / 0.5 : 0, turning: !!this.turning,
       sprint: this.sprinting && speedN > 0.3 ? 1 : (speedN > 0.35 && !this.aiming && !this.crouching && this.state === 'normal' ? 0.55 : 0), crouch: this.crouching ? 1 : 0, aim: this.aiming ? 1 : 0,
@@ -136,7 +137,9 @@ export class Player {
         if (d > 1.35 || Math.abs(e.position.y - this.position.y) > 1.6) continue;
         if (e._ramT != null && now - e._ramT < 0.7) continue; e._ramT = now;
         const hit = { entity: e, dist: d, zone: 'chest', point: e.hitCenter.clone(), normal: dir.clone().negate() };
-        this.game.combat.playerHit(hit, (this.model?.fold || 0) > 0.6 ? RAM_BALL : RAM_DEF, dir);
+        const base = (this.model?.fold || 0) > 0.6 ? RAM_BALL : RAM_DEF; const chain = this.ramChainT > 0 ? (this.ramChain || 0) : 0;
+        this.game.combat.playerHit(hit, chain ? { ...base, damage: Math.round(base.damage * (1 + 0.25 * chain)) } : base, dir);
+        this.ramChain = Math.min(6, chain + 1); this.ramChainT = 3; if (this.ramChain >= 2) events.emit('toast', `RAM CHAIN x${this.ramChain}`, 'good');
         this.fx.sparksBurst?.(e.hitCenter.clone(), dir, 18, '#7fe9ff'); this.fx.dust?.(e.position.clone(), 1.5);
         audio.play('impact_metal', { pos: e.position, volume: 1, pitchVar: 0.15 }); events.emit('fx:shake', 0.5);
         this.velocity.multiplyScalar(0.82);
@@ -163,15 +166,22 @@ export class Player {
     if (input.pressed('crouch') && !input.crouchToggleHandled) { /* handled by input.crouch() toggle */ }
     this.crouching = input.crouch();
     this.aiming = aimNow && this.reloadT < 0;
-    this.sprinting = input.sprint() && ax.z > 0.1 && !this.aiming && !this.crouching;
+    if (this.model?.robot) {
+      if (input.pressed('sprint')) { this.rollMode = !this.rollMode; audio.play(this.rollMode ? 'armor_rustle' : 'kinetic_charge', { pos: this.position, volume: 0.6, pitch: this.rollMode ? 0.8 : 1.5 }); if (this.rollMode) input.clearSprintToggle(); }
+      if (this.rollMode && (input.aimPressed || input.firePressed || this.crouching)) this.rollMode = false; // aim or fire pops you straight out
+      this.sprinting = this.rollMode && ax.active && !this.aiming;
+    } else this.sprinting = input.sprint() && ax.z > 0.1 && !this.aiming && !this.crouching;
     if (this.grounded && !this.jet) this._ballAir = false;
-    if (this.model) this.model.sprintBall = !!(this.model.robot && ((this.sprinting && this.grounded) || (this._ballAir && !this.grounded)));
+    if (this.model?.sprintBall && this.state === 'normal' && this.vy <= 0.5 && this.tryGrind()) return;
+    if (this.model) this.model.sprintBall = !!(this.model.robot && (this.rollMode || (this._ballAir && !this.grounded)));
     // auto-hop: a low wall in the run direction gets vaulted without a key press
     this._hopT = (this._hopT || 0) - dt; if (this.sprinting && this.grounded && this._hopT <= 0 && wish.lengthSq() > 0.1) { this._hopT = 0.15; if (this.tryVaultAlong(wish.clone().normalize())) return; }
     const max = this.moveSpeedMax;
     const target = wish.clone().multiplyScalar(max);
     const accel = this.grounded ? 34 : (this.jet ? (this._ballAir ? 3 : 14) : 6);
     this.velocity.x = damp(this.velocity.x, target.x, accel * 0.5, dt); this.velocity.z = damp(this.velocity.z, target.z, accel * 0.5, dt);
+    if (this.model?.sprintBall && this.grounded) { const n = this.world.terrain.getNormal(this.position.x, this.position.z); const sp = Math.hypot(this.velocity.x, this.velocity.z); if (sp > 1) { const down = (n.x * this.velocity.x + n.z * this.velocity.z) / sp; const k = 1 + Math.abs(down) * 9 * dt; const cap = 19; const ns = Math.min(cap, sp * k); this.velocity.x *= ns / sp; this.velocity.z *= ns / sp; this._slopeUp = -down; if (-down > 0.12) { this._rampFx = (this._rampFx || 0) - dt; if (this._rampFx <= 0) { this._rampFx = 0.06; this.fx?.sparksBurst?.(this.position.clone(), new THREE.Vector3(0, 1, 0), 3, '#7fe9ff'); } } } } // down or up, momentum builds: ramps are turbos
+    const spd = Math.hypot(this.velocity.x, this.velocity.z); this.speedFx = clamp((spd - 8.5) / 8, 0, 1); this.cam.speedKick = this.speedFx;
     // Facing: sprint turns the body into the run direction; every other movement strafes (body faces the camera);
     // standing still only turns in place once the camera has swung far enough (no constant spinning).
     if (this.sprinting && ax.active) { this.turning = false; this.yaw = angleDamp(this.yaw, Math.atan2(-wish.x, -wish.z), 11, dt); }
@@ -196,6 +206,67 @@ export class Player {
     this.velocity.x = this.rollDir.x * sp; this.velocity.z = this.rollDir.z * sp;
     this.crouching = false; this.aiming = false; this.sprinting = false;
     if (t >= 1) { this.state = 'normal'; this.stateT = 0; if (this.vaultFast) { const d = this.vaultTo.clone().sub(this.vaultFrom).setY(0).normalize(); this.velocity.copy(d.multiplyScalar(8)); } this.vaultFast = false; }
+  }
+  /** Grind rails: a rolled frame that comes down onto a rail locks to it and rides the curve, sparks flying. */
+  tryGrind() {
+    if (!this.world.rails?.length || !this.model?.sprintBall) return false;
+    let best = null, bd = 1.1, bi = 0;
+    for (const rail of this.world.rails) { const S = rail.samples; for (let i = 0; i < S.length; i++) { const dx = S[i].x - this.position.x, dy = S[i].y - this.position.y, dz = S[i].z - this.position.z; if (dy < -0.3 || dy > 1.0) continue; const d = Math.hypot(dx, dz) + Math.max(0, dy - 0.2) * 0.5; if (d < bd) { bd = d; best = rail; bi = i; } } }
+    if (!best) return false;
+    const S = best.samples; const n = S.length; const tan = S[Math.min(n - 1, bi + 1)].clone().sub(S[Math.max(0, bi - 1)]).setY(0).normalize();
+    const along = tan.x * this.velocity.x + tan.z * this.velocity.z; const dir = along >= 0 ? 1 : -1;
+    this.grind = { rail: best, i: bi, dir, speed: Math.max(9, Math.abs(along)) }; this.state = 'grind'; this.stateT = 0; this.vy = 0; this._ballAir = false;
+    audio.play('impact_metal', { pos: this.position, volume: 0.8, pitch: 1.3 }); events.emit('fx:shake', 0.15); events.emit('toast', 'GRIND', 'good');
+    return true;
+  }
+  updateGrind(dt, ax) {
+    const G = this.grind; const S = G.rail.samples; const n = S.length;
+    // ride the samples: advance by speed; downhill adds, uphill bleeds, gentle constant gain so grinds feel fast
+    G.speed = clamp(G.speed + dt * 1.2, 6, 20);
+    let remaining = G.speed * dt;
+    while (remaining > 0) { const j = G.i + G.dir; if (j < 0 || j >= n) { this.exitGrind(0.35); return; } const seg = S[j].distanceTo(S[G.i]); if (seg <= remaining) { remaining -= seg; G.i = j; G.speed = clamp(G.speed - (S[j].y - S[G.i].y) * 4, 6, 20); } else { G.frac = remaining / seg; remaining = 0; } }
+    const j = clamp(G.i + G.dir, 0, n - 1); const a = S[G.i], b = S[j]; const f = G.frac || 0; const pos = a.clone().lerp(b, f); const tan = b.clone().sub(a).setY(0).normalize();
+    this.position.set(pos.x, pos.y + 0.02, pos.z); this.velocity.set(tan.x * G.speed, 0, tan.z * G.speed); this.grounded = true; this.vy = 0;
+    this.yaw = angleDamp(this.yaw, Math.atan2(-tan.x, -tan.z), 14, dt);
+    // sparks and scrape
+    this._grindFx = (this._grindFx || 0) - dt; if (this._grindFx <= 0) { this._grindFx = 0.04; const back = this.position.clone().addScaledVector(tan, -0.3); back.y += 0.05; this.fx?.sparksBurst?.(back, new THREE.Vector3(-tan.x, 0.6, -tan.z), 6, '#ffd27a'); }
+    if (!this._grindSound) this._grindSound = audio.play('armor_rustle', { pos: this.position, loop: true, volume: 0.5, pitch: 0.55 }); this._grindSound?.setPosition?.(this.position);
+    this.speedFx = clamp((G.speed - 6) / 10, 0, 1); this.cam.speedKick = this.speedFx;
+    // exits: jump off (boosted), lean off with sideways input held, or pop out of the roll
+    if (input.pressed('cover') || input.down('cover')) { this.exitGrind(1); return; }
+    if (Math.abs(ax.x) > 0.8 && this.stateT > 0.3) { this.exitGrind(0.3, ax.x); return; }
+    if (!this.rollMode) { this.exitGrind(0.2); return; }
+    this.anim.update(dt, { speed: 1, sprint: 1, crouch: 0, aim: 0, cover: null, moveDir: { x: 0, z: -1 }, velocity: G.speed, robotic: true });
+  }
+  exitGrind(hop = 0.3, side = 0) {
+    const G = this.grind; if (!G) return; this.grind = null; this.state = 'normal'; this.stateT = 0;
+    const sp = G.speed * (hop >= 1 ? 1.25 : 1); const tan = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).normalize();
+    this.velocity.set(tan.x * sp, 0, tan.z * sp); if (side) { const right = new THREE.Vector3(-tan.z, 0, tan.x); this.velocity.addScaledVector(right, side * 4); }
+    this.vy = hop >= 1 ? 8.5 : 4; this.grounded = false; this._ballAir = true; this._grindSound?.stop?.(0.15); this._grindSound = null;
+    audio.play('vault', { pos: this.position, volume: 0.6, pitch: hop >= 1 ? 1.3 : 1.0 }); this.fx?.sparksBurst?.(this.position.clone(), new THREE.Vector3(0, 1, 0), 10, '#ffd27a');
+  }
+  /** Arc projector: the bolt jumps to nearby enemies with falling damage; visual beams per hop. */
+  arcChain(hit, d) {
+    let from = hit.entity, fromP = hit.point.clone(); const done = new Set([from]);
+    for (let i = 0; i < d.chain.count; i++) {
+      let best = null, bd = d.chain.range;
+      for (const e of this.world.hitTargets || []) { if (!e.isEnemy || e.dead || done.has(e)) continue; const dist = e.hitCenter.distanceTo(fromP); if (dist < bd) { bd = dist; best = e; } }
+      if (!best) break; done.add(best);
+      const to = best.hitCenter.clone(); this.fx.tracer(fromP, to, '#bff6ff'); this.fx.sparksBurst?.(to, new THREE.Vector3(0, 1, 0), 6, '#7fe9ff');
+      const dir = to.clone().sub(fromP).normalize(); const dmg = Math.round(d.damage * Math.pow(d.chain.falloff, i + 1));
+      this.game.combat.playerHit({ entity: best, dist: bd, zone: 'chest', point: to, normal: dir.clone().negate() }, { ...d, damage: dmg, chain: null }, dir, this.id);
+      from = best; fromP = to;
+    }
+  }
+  /** Landing from a roll-jump slams a shockwave into whatever is underneath, scaled by fall speed and ground speed. */
+  rollSlam(fallSpeed) {
+    const sp = Math.hypot(this.velocity.x, this.velocity.z); const power = clamp((fallSpeed - 4) / 8 + sp / 16, 0.2, 1.6);
+    const p = this.position.clone(); p.y += 0.3;
+    const radius = 2.6 + power * 2.2, dmg = Math.round(70 + power * 90);
+    if (this.game.combat) this.game.combat.explode(p, radius, dmg, { kind: 'pod', attackerId: this.id, impulse: 10 + power * 8, selfMult: 0 });
+    this.fx?.dust?.(p, 3 + power * 2); events.emit('fx:shake', 0.3 + power * 0.4); audio.play('land', { pos: p, volume: 1, pitch: 0.7 });
+    events.emit('toast', power > 1 ? 'ROLL SLAM  //  HEAVY' : 'ROLL SLAM', 'good');
+    this.ramChain = Math.min(6, (this.ramChain || 0) + 1); this.ramChainT = 3;
   }
   /** Vault check along an arbitrary ground direction (sprint auto-hop). */
   tryVaultAlong(dir) {
@@ -295,10 +366,13 @@ export class Player {
     // map bounds
     this.position.x = clamp(this.position.x, -196, 196); this.position.z = clamp(this.position.z, -196, 196);
     const g = this.world.groundHeight(this.position.x, this.position.z, this.position.y, 0.55, this.radius);
-    this.vy -= (this.jet ? 6 : 22) * dt;
+    this.floating = !this.grounded && this.aiming && !this.jet && !this._ballAir && this.fuel > 0.02 && this.vy < 2;
+    if (this.floating) { this.fuel = Math.max(0, this.fuel - dt * 0.3); this.vy = Math.max(this.vy - 5 * dt, -2.4); this._floatFx = (this._floatFx || 0) - dt; if (this._floatFx <= 0) { this._floatFx = 0.07; this.fx?.sparksBurst?.(this.position.clone().add(new THREE.Vector3(0, 0.4, 0)), new THREE.Vector3(0, -1, 0), 2, '#7fe9ff'); } }
+    else this.vy -= (this.jet ? 6 : 22) * dt;
     let y = this.position.y + this.vy * dt;
-    if (y <= g + 0.02 && !(this.jet && this.vy > 0)) { y = this.grounded ? damp(this.position.y, g, 30, dt) : g; if (!this.grounded) { this.landT = Math.min(0.5, Math.max(0.16, -this.vy * 0.05)); if (this.vy < -6) audio.play('land', { pos: this.position }); this.fx?.dust?.(this.position.clone(), Math.min(3, -this.vy * 0.3 + 0.5)); } this.grounded = true; this.vy = 0; if (g - this.position.y > 0.05) y = damp(this.position.y, g, 25, dt); }
-    else if (this.grounded && !this.jet && this.vy <= 0 && y - g < 0.6) { y = g; this.vy = 0; } // ground stick: follow descending slopes instead of drifting off them
+    if (y <= g + 0.02 && !(this.jet && this.vy > 0)) { y = this.grounded ? damp(this.position.y, g, 30, dt) : g; if (!this.grounded) { this.landT = Math.min(0.5, Math.max(0.16, -this.vy * 0.05)); if ((this._ballAir || (this.model?.fold || 0) > 0.6) && this.vy < -4) this.rollSlam(-this.vy); if (this.vy < -6) audio.play('land', { pos: this.position }); this.fx?.dust?.(this.position.clone(), Math.min(3, -this.vy * 0.3 + 0.5)); } this.grounded = true; this.vy = 0; if (g - this.position.y > 0.05) y = damp(this.position.y, g, 25, dt); }
+    else if (this.grounded && !this.jet && this.vy <= 0 && y - g < 0.6 && !(this.model?.sprintBall && (this._slopeUp || 0) > 0.12 && Math.hypot(this.velocity.x, this.velocity.z) > 7)) { y = g; this.vy = 0; } // ground stick: follow descending slopes instead of drifting off them (but a rolling ball leaves a ramp lip)
+    else if (this.grounded && this.model?.sprintBall && (this._slopeUp || 0) > 0.12 && this.vy <= 0.5 && Math.hypot(this.velocity.x, this.velocity.z) > 7) { const sp = Math.hypot(this.velocity.x, this.velocity.z); this.vy = Math.max(this.vy, sp * Math.min(0.75, this._slopeUp * 1.6) + 1.5); this._ballAir = true; this.grounded = false; this._slopeUp = 0; this.fx?.dust?.(this.position.clone(), 2); audio.play('vault', { pos: this.position, volume: 0.7, pitch: 1.2 }); events.emit('fx:shake', 0.2); } // ramp launch
     else this.grounded = y - g < 0.15;
     if (this.grounded && y < g) y = g;
     this.position.y = y;
@@ -423,6 +497,7 @@ export class Player {
     const moving = clamp(this.velocity.length() / 6, 0, 1);
     const blind = this.state === 'cover' && !this.aiming;
     let spread = (this.aiming ? d.spreadAim : d.spread) + this.bloom + d.spreadMove * moving + (this.crouching ? -0.002 : 0) + (blind ? 0.06 : 0);
+    if (!this.grounded) spread *= this.floating ? 0.7 : 1.35; // thruster-stabilised aim in the air, wild while tumbling
     this.bloom = Math.min(d.bloomMax, this.bloom + d.bloom);
     const muzzle = w.model.userData.muzzle.getWorldPosition(new THREE.Vector3());
     this.cam.aimRay(_ray);
@@ -435,9 +510,10 @@ export class Player {
       const end = hit ? hit.point.clone() : _ray.origin.clone().addScaledVector(dir, d.range);
       this.fx.tracer(muzzle, end, d.tracer);
       if (hit) {
-        if (hit.entity) { this.hits++; this.game.combat.playerHit(hit, d, dir, this.id); }
+        if (hit.entity) { this.hits++; this.game.combat.playerHit(hit, d, dir, this.id); if (d.chain) this.arcChain(hit, d); }
         else { this.fx.impact(hit.point, hit.normal, hit.material); audio.play(hit.material === 'metal' ? 'hit_metal' : hit.material === 'rock' ? 'hit_rock' : 'hit_dirt', { pos: hit.point, volume: 0.5, pitchVar: 0.1 }); }
-      }
+        if (d.explosive) this.game.combat.explode(hit.point.clone().addScaledVector(hit.normal || dir, 0.3), d.explosive.radius, d.explosive.damage, { kind: 'grenade', attackerId: this.id, impulse: d.explosive.impulse, selfMult: 0.35 });
+      } else if (d.explosive) this.game.combat.explode(end, d.explosive.radius * 0.7, d.explosive.damage * 0.5, { kind: 'grenade', attackerId: this.id, impulse: d.explosive.impulse, selfMult: 0.35 });
     }
     this.game.combat.stats.shotsFired++;
     this.fx.muzzleFlash(muzzle, _ray.direction, d.tracer, d.kind === 'shotgun' ? 1.6 : d.kind === 'lmg' ? 1.3 : 1);

@@ -89,6 +89,7 @@ export function terrainHeightMap(mx, my, map = null) {
     if (f.type === 'mound') feat += f.h * t * t * (3 - 2 * t);
     else if (f.type === 'crater') { const bowl = 1 - smoothstep(0, f.r * 0.85, dist); const rim = Math.exp(-Math.pow((dist - f.r * 0.95) / (f.r * 0.22), 2)); feat += -f.h * bowl + f.h * 0.45 * rim; }
     else if (f.type === 'pinnacle') { const k = 1 - smoothstep(0, f.r, dist); feat += f.h * k * k; }
+    else if (f.type === 'ramp') { const ax = (mx - f.mx) * f.dir[0] + (my - f.my) * f.dir[1]; const lat = Math.abs((mx - f.mx) * f.dir[1] - (my - f.my) * f.dir[0]); const w = 1 - smoothstep(f.w * 0.6, f.w, lat); if (ax >= 0 && ax <= f.r) feat += f.h * (ax / f.r) * w; else if (ax > f.r && ax < f.r + 1.5) feat += f.h * (1 - (ax - f.r) / 1.5) * w; }
     else if (f.type === 'berm') { const along = f.dir ? Math.abs((mx - f.mx) * f.dir[1] - (my - f.my) * f.dir[0]) : dist; const k = 1 - smoothstep(f.w * 0.3, f.w, along); const len = f.dir ? Math.abs((mx - f.mx) * f.dir[0] + (my - f.my) * f.dir[1]) : 0; feat += f.h * k * (1 - smoothstep(f.r * 0.7, f.r, len)); }
   }
   // Trench lift: lower floor with sharp walls

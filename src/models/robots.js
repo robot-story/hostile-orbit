@@ -251,7 +251,7 @@ function buildOutrider(model, opts = {}) {
     if (firing) popT = 0.7; else popT -= dt;
     const ballRun = !!model.sprintBall;
     const want = ballRun ? 1 : st.cover ? (popT > 0 ? 0 : 1) : (crouch ? 0.45 : 0);
-    fold = damp(fold, want, want > fold ? (ballRun ? 9 : 4.5) : 16, dt); // curl in (fast when rolling), servo-fast pop out
+    fold = damp(fold, want, want > fold ? (ballRun ? 26 : 4.5) : (ballRun || fold > 0.9 ? 30 : 16), dt); // roll toggle is near-instant both ways; cover curl stays slow
     if (fold > 0.001) {
       const q = Math.round(fold * 14) / 14 * 0.7 + fold * 0.3; // slightly stepped, like servos settling
       const arm = (st.cover || ballRun) ? q : 0; // crouch only hunkers the torso; arms stay on the rifle

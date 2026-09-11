@@ -32,6 +32,7 @@ export const MERIDIAN = {
       { type: 'mound', mx: 70, my: 320, r: 34, h: -1.6 }, { type: 'mound', mx: 70, my: 320, r: 50, h: 1.8 },    // jammer sits in a bowl inside a ring berm
       { type: 'mound', mx: 300, my: 226, r: 14, h: 2.6 }, { type: 'crater', mx: 348, my: 276, r: 11, h: 1.2 },  // extraction: overwatch mound + shell hole
       { type: 'mound', mx: 292, my: 352, r: 10, h: 1.6 },                  // detention yard step
+      { type: 'ramp', mx: 200, my: 95, r: 9, w: 5, h: 2.6, dir: [0, 1] }, { type: 'ramp', mx: 204, my: 250, r: 10, w: 5, h: 3.0, dir: [0, 1] }, { type: 'ramp', mx: 296, my: 268, r: 9, w: 5, h: 2.6, dir: [0.7, -0.7] }, { type: 'ramp', mx: 152, my: 300, r: 8, w: 5, h: 2.4, dir: [0, 1] },
       { type: 'pinnacle', mx: 110, my: 182, r: 11, h: 14 }, { type: 'pinnacle', mx: 302, my: 150, r: 12, h: 16 }, { type: 'pinnacle', mx: 84, my: 118, r: 9, h: 11 }, { type: 'pinnacle', mx: 330, my: 105, r: 10, h: 12 }, { type: 'pinnacle', mx: 140, my: 250, r: 8, h: 9 },
     ] },
   lighting: null, // engine defaults (warm canyon daylight)

@@ -128,6 +128,22 @@ export function platform(world, pos, opts = {}) {
   return { group: g, colliders };
 }
 
+/** Grind rail: a tube along a curve on posts, registered with the world so a rolled frame can ride it. */
+export function grindRail(world, mapPts, opts = {}) {
+  const h = opts.height ?? 1.4, color = opts.color || COLORS.cyan;
+  const pts = mapPts.map(([mx, my, dy]) => { const p = M(mx, my); p.y = world.terrain.getHeight(p.x, p.z) + h + (dy || 0); return p; });
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+  const length = curve.getLength(); const samples = curve.getSpacedPoints(Math.max(8, Math.round(length / 1.2)));
+  const g = new THREE.Group(); g.userData.noMerge = true;
+  const rail = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(16, Math.round(length / 0.8)), 0.07, 8, false), new THREE.MeshStandardMaterial({ color: '#c8ced8', roughness: 0.35, metalness: 0.9 })); rail.castShadow = true; g.add(rail);
+  const glow = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(16, Math.round(length / 0.8)), 0.022, 6, false), Mat.neon(color, 1.8)); glow.position.y = 0.09; glow.castShadow = false; g.add(glow);
+  const postMat = Mat.darkMetal();
+  for (let i = 0; i < samples.length; i += 3) { const s = samples[i]; const gy = world.terrain.getHeight(s.x, s.z); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, s.y - gy, 8), postMat); post.position.set(s.x, (s.y + gy) / 2, s.z); post.castShadow = true; g.add(post); const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.08, 10), postMat); foot.position.set(s.x, gy + 0.04, s.z); g.add(foot); }
+  world.props.add(g);
+  world.rails.push({ curve, samples, length });
+  return { group: g, curve };
+}
+
 // ---------------------------------------------------------------- MERIDIAN vignettes
 export function dressMeridian(world, info) {
   const T = world.terrain;
@@ -240,6 +256,12 @@ export function dressMeridian(world, info) {
     for (const yaw of [0.6, 2.2]) sandbagWall(world, at(world, 300 + Math.cos(yaw) * 5, 226 + Math.sin(yaw) * 5), yaw + Math.PI / 2, { length: 3.6 });
     platform(world, at(world, 352, 236), { yaw: -0.8, h: 2.6, color: COLORS.cyan });
   }
+  // 9c. Traversal: grind rails along the routes and around the compounds (rolled frames ride them; sparks included)
+  grindRail(world, [[196, 150], [194, 175], [196, 205], [199, 235], [198, 262]], { height: 1.5 });
+  grindRail(world, [[214, 300], [230, 312], [236, 330], [228, 348], [214, 356]], { height: 1.6, color: '#ff5a1f' });
+  grindRail(world, [[300, 270], [312, 258], [326, 252], [342, 254]], { height: 1.4 });
+  grindRail(world, [[118, 152], [110, 176], [106, 200], [108, 226]], { height: 1.3 });
+  grindRail(world, [[176, 62], [190, 70], [206, 72], [222, 66]], { height: 1.2 });
   // 9b. Propaganda pass: posters cluster where the Commonwealth wants eyes (gates, plazas, the cells).
   {
     const gateY = 0; // poster fronts face south, toward the road
@@ -280,6 +302,11 @@ export function dressLantern(world, info, cityFns) {
     for (const [mx, my] of [[300, 300], [340, 300], [332, 344]]) { const g = at(world, mx, my); const top = g.clone(); top.y += 5; buildPylon(world, g, 5, '#ff3fd8'); cableRun(world, spire, top, { radius: 0.06, sag: 3.5 }); }
     pushRes(info, holoBillboard(world, at(world, 286, 288), facing([286, 288], [300, 300]), { text: 'DISSENT DIMS THE LIGHTS', sub: 'LEGION POWER BOARD', color: '#ff3fd8', light: true }));
   }
+  // Traversal: rails down the avenue and around the square
+  grindRail(world, [[188, 88], [186, 120], [190, 150], [188, 180], [190, 214]], { height: 1.5, color: '#ff3fd8' });
+  grindRail(world, [[214, 96], [216, 130], [212, 160], [214, 190], [212, 226]], { height: 1.5, color: '#00e5ff' });
+  grindRail(world, [[186, 300], [196, 312], [212, 314], [222, 302]], { height: 1.6, color: '#ff3fd8' });
+  grindRail(world, [[84, 232], [76, 248], [80, 266]], { height: 1.3, color: '#00e5ff' });
   // Second content pass: the avenue is lined with screens; every block has something to say.
   {
     const lines = [['CURFEW 21:00', 'LIGHTS OFF, DOORS LOCKED'], ['REPORT UNLIT WINDOWS', 'LEGION POWER BOARD'], ['SMILE FOR THE LANTERN', 'IT IS WATCHING FOR YOU'], ['RATION CARDS RESET', 'QUEUE WITH DIGNITY'], ['THE MOON IS OURS', 'MERIDIAN COMMONWEALTH'], ['DISSENT DIMS THE LIGHTS', 'STAY BRIGHT']];

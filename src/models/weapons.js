@@ -141,9 +141,82 @@ export function buildLongshot(neon = COLORS.cyan) {
 
 import { CUSTOM, buildCustomWeapon } from './glbSoldier.js';
 const withCustom = (id, fn) => (neon) => (CUSTOM.weapon[id] ? buildCustomWeapon(CUSTOM.weapon[id], id, neon) : fn(neon));
-export const WEAPON_BUILDERS = { viper: withCustom('viper', buildViper), hammer: buildHammer, atlas: buildAtlas, sidearm: buildSidearm, longshot: withCustom('longshot', buildLongshot), legion_rifle: withCustom('legion_rifle', buildLegionRifle), legion_shotgun: buildLegionShotgun, legion_heavy: buildLegionHeavy };
+export const WEAPON_BUILDERS = { reaper: buildReaper, breaker: buildBreaker, javelin: buildJavelin, lancer: buildLancer, arc: buildArc, viper: withCustom('viper', buildViper), hammer: buildHammer, atlas: buildAtlas, sidearm: buildSidearm, longshot: withCustom('longshot', buildLongshot), legion_rifle: withCustom('legion_rifle', buildLegionRifle), legion_shotgun: buildLegionShotgun, legion_heavy: buildLegionHeavy };
 
 /** Frag grenade model */
+/** REAPER SMG: stubby receiver, side-fed magazine, ventilated shroud, folding stock. */
+export function buildReaper(neon = COLORS.cyan) {
+  const g = new THREE.Group(); g.name = 'weapon:reaper';
+  const gm = Mat.gunMetal(), wm = Mat.gunWhite(), n = Mat.neon(neon, 2.2);
+  g.add(at(B(0.07, 0.11, 0.34, gm), 0, 0.03, 0.06));
+  g.add(at(B(0.06, 0.05, 0.26, wm), 0, 0.1, 0.1));
+  g.add(at(C(0.022, 0.022, 0.22, gm, 12), 0, 0.05, 0.36));
+  for (let i = 0; i < 4; i++) g.add(at(C(0.03, 0.03, 0.012, wm, 8), 0, 0.05, 0.28 + i * 0.045));
+  g.add(at(B(0.09, 0.05, 0.12, gm), -0.06, 0.02, 0.04));            // side magazine
+  g.add(at(B(0.03, 0.14, 0.05, gm), 0, -0.09, -0.02));                // grip
+  g.add(at(B(0.025, 0.03, 0.2, gm), 0, 0.02, -0.2));                  // folding stock
+  g.add(at(B(0.012, 0.012, 0.26, n), 0.036, 0.06, 0.1));
+  g.add(at(B(0.012, 0.012, 0.26, n), -0.036, 0.06, 0.1));
+  return finish(g, 0.48, 0.05, { l: [-0.02, 0.0, 0.22] });
+}
+/** BREAKER auto-shotgun: fat drum under the receiver, wide shrouded barrel with heat rings. */
+export function buildBreaker(neon = COLORS.cyan) {
+  const g = new THREE.Group(); g.name = 'weapon:breaker';
+  const gm = Mat.gunMetal(), wm = Mat.gunWhite(), n = Mat.neon(COLORS.amber, 2.2);
+  g.add(at(B(0.09, 0.13, 0.46, wm), 0, 0.04, 0.1));
+  g.add(at(C(0.036, 0.036, 0.5, gm, 12), 0, 0.09, 0.5));
+  g.add(at(C(0.05, 0.05, 0.3, wm, 12), 0, 0.09, 0.42));
+  for (let i = 0; i < 5; i++) g.add(at(C(0.058, 0.058, 0.014, gm, 12), 0, 0.09, 0.3 + i * 0.06));
+  const drum = C(0.09, 0.09, 0.1, gm, 16); drum.rotation.set(0, 0, Math.PI / 2); g.add(at(drum, 0, -0.06, 0.1));
+  g.add(at(C(0.07, 0.07, 0.02, n, 16), 0.06, -0.06, 0.1));
+  g.add(at(B(0.035, 0.16, 0.06, gm), 0, -0.1, -0.08));
+  g.add(at(B(0.06, 0.08, 0.26, gm), 0, 0.02, -0.3));
+  g.add(at(B(0.014, 0.014, 0.4, n), 0.046, 0.07, 0.12));
+  return finish(g, 0.76, 0.09, { l: [-0.02, 0.02, 0.36] });
+}
+/** JAVELIN launcher: big tube on a shoulder rest, front cone, blast shield, warhead lights. */
+export function buildJavelin(neon = COLORS.cyan) {
+  const g = new THREE.Group(); g.name = 'weapon:javelin';
+  const gm = Mat.gunMetal(), wm = Mat.gunWhite(), n = Mat.neon(COLORS.amber, 2.4);
+  g.add(at(C(0.075, 0.075, 0.9, wm, 16), 0, 0.12, 0.2));
+  g.add(at(C(0.09, 0.075, 0.16, gm, 16), 0, 0.12, 0.7));
+  g.add(at(C(0.07, 0.09, 0.14, gm, 16), 0, 0.12, -0.3));
+  g.add(at(B(0.05, 0.1, 0.36, gm), 0, 0.02, 0.06));
+  g.add(at(B(0.035, 0.15, 0.06, gm), 0, -0.08, -0.02));
+  g.add(at(B(0.04, 0.06, 0.16, gm), 0, 0.0, 0.3));                    // foregrip
+  g.add(at(B(0.12, 0.16, 0.02, gm), 0, 0.2, 0.34));                   // blast shield
+  for (let i = 0; i < 3; i++) g.add(at(C(0.08, 0.08, 0.012, n, 16), 0, 0.12, 0.05 + i * 0.18));
+  g.add(at(B(0.05, 0.04, 0.1, wm), 0, 0.22, -0.05));                  // sight
+  return finish(g, 0.8, 0.12, { l: [-0.02, 0.0, 0.3] });
+}
+/** LANCER rail: long thin rail with acceleration coils, slim receiver, scope. */
+export function buildLancer(neon = COLORS.cyan) {
+  const g = new THREE.Group(); g.name = 'weapon:lancer';
+  const gm = Mat.gunMetal(), wm = Mat.gunWhite(), n = Mat.neon('#d8b4ff', 2.4);
+  g.add(at(B(0.05, 0.1, 0.4, wm), 0, 0.04, 0.02));
+  g.add(at(B(0.02, 0.03, 0.8, gm), 0, 0.09, 0.5));
+  g.add(at(B(0.02, 0.03, 0.8, gm), 0, 0.03, 0.5));
+  for (let i = 0; i < 6; i++) { const ring = C(0.045, 0.045, 0.02, i % 2 ? n : gm, 12); g.add(at(ring, 0, 0.06, 0.24 + i * 0.11)); }
+  g.add(at(B(0.03, 0.05, 0.16, gm), 0, 0.14, 0.04));                  // scope
+  g.add(at(C(0.02, 0.02, 0.02, n, 10), 0, 0.14, 0.13));
+  g.add(at(B(0.03, 0.14, 0.05, gm), 0, -0.08, -0.06));
+  g.add(at(B(0.04, 0.07, 0.28, gm), 0, 0.02, -0.3));
+  g.add(at(B(0.05, 0.08, 0.08, gm), 0, 0.0, 0.14));                   // magazine block
+  return finish(g, 0.92, 0.06, { l: [-0.02, 0.0, 0.32] });
+}
+/** ARC projector: squat emitter with tesla prongs and a glowing capacitor drum. */
+export function buildArc(neon = COLORS.cyan) {
+  const g = new THREE.Group(); g.name = 'weapon:arc';
+  const gm = Mat.gunMetal(), wm = Mat.gunWhite(), n = Mat.neon(neon, 2.6);
+  g.add(at(B(0.08, 0.12, 0.3, wm), 0, 0.03, 0.04));
+  const cap = C(0.06, 0.06, 0.14, gm, 14); cap.rotation.set(0, 0, Math.PI / 2); g.add(at(cap, 0, 0.1, 0.0));
+  g.add(at(C(0.045, 0.045, 0.15, n, 14), 0, 0.1, 0.0)).rotation.set(0, 0, Math.PI / 2);
+  for (const sx of [-1, 1]) { g.add(at(B(0.012, 0.012, 0.26, gm), sx * 0.035, 0.05, 0.3)); g.add(at(C(0.012, 0.004, 0.06, n, 8), sx * 0.035, 0.05, 0.45)); }
+  g.add(at(C(0.03, 0.03, 0.02, n, 12), 0, 0.05, 0.36));
+  g.add(at(B(0.035, 0.14, 0.05, gm), 0, -0.08, -0.04));
+  return finish(g, 0.46, 0.05, { l: [-0.02, 0.0, 0.2] });
+}
+
 export function buildGrenade() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 10), Mat.gunWhite()); body.scale.y = 1.25; body.castShadow = true; g.add(body);
