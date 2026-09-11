@@ -471,3 +471,9 @@
 .mp-weapons { flex: 1; font-size: 12px; letter-spacing: .08em; }
 .mp-code-input { width: 150px; text-align: center; letter-spacing: .3em; }
 @media (max-width: 1000px) { .mp-columns, .mp-entry-grid { grid-template-columns: 1fr; } }
+
+/* frame highlight picker */
+.neon-tile { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; }
+.neon-tile .neon-swatch { width: 26px; height: 26px; border-radius: 50%; }
+.neon-tile.on { box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
+.neon-tile .sr-name { font-size: 9px; }

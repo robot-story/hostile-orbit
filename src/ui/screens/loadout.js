@@ -77,6 +77,12 @@ export function createLoadoutScreen(api, mgr) {
     return wrap;
   }
 
+  const NEONS = [{ id: 'cyan', c: '#00e5ff', name: 'COMMONWEALTH CYAN' }, { id: 'amber', c: '#ffb020', name: 'HAZARD AMBER' }, { id: 'violet', c: '#c44dff', name: 'VOID VIOLET' }, { id: 'lime', c: '#7dff5a', name: 'REACTOR LIME' }];
+  function buildColourRow() {
+    const cur = loadout.neon || '#00e5ff';
+    const tiles = NEONS.map((n) => { const t = el('div', { class: 'sr-tile panel neon-tile' + (n.c === cur ? ' on' : ''), style: { borderColor: n.c === cur ? n.c : '' } }, [el('div', { class: 'neon-swatch', style: { background: n.c, boxShadow: `0 0 16px ${n.c}` } }), el('div', { class: 'sr-name', text: n.name })]); t.addEventListener('click', () => { loadout.neon = n.c; api.save.setLoadout({ ...api.save.profile.loadout, neon: n.c }); if (inLobby()) api.mp.setLoadout(api.save.profile.loadout); api.preview.setNeon(n.c); api.audio?.play?.('ui_confirm', { volume: 0.5 }); render(); }); return t; });
+    return el('div', { class: 'lo-support' }, [el('div', { class: 'lo-sub', text: 'FRAME HIGHLIGHTS' }), el('div', { class: 'sr-row' }, tiles)]);
+  }
   function buildSupportRow() {
     const tiles = Object.values(api.ABILITIES).map((a, i) => el('div', { class: 'sr-tile panel' }, [
       el('div', { class: 'sr-key', text: api.keyLabel(api.settings.data.binds[a.key]) }),
@@ -160,6 +166,7 @@ export function createLoadoutScreen(api, mgr) {
     root.appendChild(screenHeader(api, { title: 'DEPLOYMENT LOADOUT' }));
     const left = el('div', { class: 'lo-col-left stagger' });
     ['primary', 'secondary', 'grenade', 'armour'].forEach((slot) => buildCard(slot).forEach((n) => left.appendChild(n)));
+    left.appendChild(buildColourRow());
     left.appendChild(buildSupportRow());
     const center = el('div', { class: 'lo-col-center' });
     attachDrag(center);

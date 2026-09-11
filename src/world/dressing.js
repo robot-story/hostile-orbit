@@ -262,6 +262,10 @@ export function dressMeridian(world, info) {
   grindRail(world, [[300, 270], [312, 258], [326, 252], [342, 254]], { height: 1.4 });
   grindRail(world, [[118, 152], [110, 176], [106, 200], [108, 226]], { height: 1.3 });
   grindRail(world, [[176, 62], [190, 70], [206, 72], [222, 66]], { height: 1.2 });
+  grindRail(world, [[124, 300], [140, 316], [160, 326], [184, 330]], { height: 1.6, color: '#ff5a1f' });   // comms: gate to the pit
+  grindRail(world, [[252, 96], [262, 118], [266, 140]], { height: 1.5 });                                   // trench entry
+  grindRail(world, [[40, 300], [50, 320], [46, 342]], { height: 1.4, color: '#ff5a1f' });                  // jammer bowl rim
+  grindRail(world, [[300, 200], [318, 214], [332, 232]], { height: 1.5 });                                  // extraction approach
   // 9b. Propaganda pass: posters cluster where the Commonwealth wants eyes (gates, plazas, the cells).
   {
     const gateY = 0; // poster fronts face south, toward the road
@@ -307,6 +311,9 @@ export function dressLantern(world, info, cityFns) {
   grindRail(world, [[214, 96], [216, 130], [212, 160], [214, 190], [212, 226]], { height: 1.5, color: '#00e5ff' });
   grindRail(world, [[186, 300], [196, 312], [212, 314], [222, 302]], { height: 1.6, color: '#ff3fd8' });
   grindRail(world, [[84, 232], [76, 248], [80, 266]], { height: 1.3, color: '#00e5ff' });
+  grindRail(world, [[196, 60], [200, 80], [204, 100]], { height: 1.4, color: '#ff3fd8' });                   // out of the transit plaza
+  grindRail(world, [[300, 290], [312, 306], [322, 326], [316, 346]], { height: 1.5, color: '#ff3fd8' });     // around the substation
+  grindRail(world, [[150, 350], [166, 358], [184, 356]], { height: 1.4, color: '#00e5ff' });                 // holding block
   // Second content pass: the avenue is lined with screens; every block has something to say.
   {
     const lines = [['CURFEW 21:00', 'LIGHTS OFF, DOORS LOCKED'], ['REPORT UNLIT WINDOWS', 'LEGION POWER BOARD'], ['SMILE FOR THE LANTERN', 'IT IS WATCHING FOR YOU'], ['RATION CARDS RESET', 'QUEUE WITH DIGNITY'], ['THE MOON IS OURS', 'MERIDIAN COMMONWEALTH'], ['DISSENT DIMS THE LIGHTS', 'STAY BRIGHT']];

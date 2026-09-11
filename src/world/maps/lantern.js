@@ -106,6 +106,8 @@ export const LANTERN = {
     // authored relief (map coords): shell holes down the avenue, rubble mounds at the square, a sunken loading bay, raised plinths
     features: [
       { type: 'ramp', mx: 200, my: 62, r: 9, w: 5, h: 2.6, dir: [0, 1] }, { type: 'ramp', mx: 202, my: 240, r: 10, w: 5, h: 3.0, dir: [0, 1] }, { type: 'ramp', mx: 292, my: 300, r: 8, w: 4.5, h: 2.4, dir: [0.7, 0.7] },
+      { type: 'ramp', mx: 192, my: 128, r: 8, w: 4.5, h: 2.4, dir: [0, 1] }, { type: 'ramp', mx: 208, my: 190, r: 8, w: 4.5, h: 2.4, dir: [0, -1] }, { type: 'ramp', mx: 200, my: 150, r: 9, w: 5, h: 2.8, dir: [0, 1] },
+      { type: 'ramp', mx: 176, my: 336, r: 9, w: 5, h: 3.0, dir: [0.6, 0.8] }, { type: 'ramp', mx: 224, my: 336, r: 9, w: 5, h: 3.0, dir: [-0.6, 0.8] }, { type: 'ramp', mx: 322, my: 290, r: 8, w: 4.5, h: 2.6, dir: [0, 1] }, { type: 'ramp', mx: 90, my: 232, r: 8, w: 4.5, h: 2.6, dir: [-0.4, 0.9] },
       { type: 'crater', mx: 200, my: 96, r: 9, h: 1.0 }, { type: 'crater', mx: 194, my: 176, r: 10, h: 1.2 }, { type: 'crater', mx: 208, my: 236, r: 8, h: 0.9 },
       { type: 'mound', mx: 186, my: 128, r: 9, h: 1.4 }, { type: 'mound', mx: 214, my: 120, r: 8, h: 1.2 },
       { type: 'crater', mx: 196, my: 336, r: 13, h: 1.5 }, { type: 'berm', mx: 176, my: 300, r: 10, w: 3, h: 1.1, dir: [1, 0] }, { type: 'berm', mx: 226, my: 300, r: 10, w: 3, h: 1.1, dir: [1, 0] },

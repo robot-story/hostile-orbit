@@ -197,7 +197,7 @@ export class Game {
   ensureMenuScene() { if (!this.menuScene) { this.menuScene = createMenuScene(this.renderer.renderer); } return this.menuScene; }
   onMenuOpen(name) {
     const bg = MENU_BG[name];
-    if (name === 'loadout') { this.setBackground(null); const ms = this.ensureMenuScene(); ms.setMode('loadout'); ms.setWeapon(save.profile.loadout.primary); this.renderer.setScene(ms.scene, ms.camera); this.renderMenuScene = true; }
+    if (name === 'loadout') { this.setBackground(null); const ms = this.ensureMenuScene(); ms.setMode('loadout'); ms.setWeapon(save.profile.loadout.primary); ms.setNeon(save.profile.loadout.neon || '#00e5ff', false); this.renderer.setScene(ms.scene, ms.camera); this.renderMenuScene = true; }
     else if (name === 'pause') { /* keep gameplay scene visible, dimmed by the overlay */ }
     else { this.renderMenuScene = false; if (bg !== undefined) this.setBackground(bg); }
   }
@@ -212,7 +212,7 @@ export class Game {
       hasOperation: () => save.hasOperation,
       continueOperation: () => self.continueOperation(),
       startDeployment: (cfg) => self.startDeployment(cfg),
-      preview: { setMode: (m) => { if (m === 'loadout') self.onMenuOpen('loadout'); }, setWeapon: (id) => self.menuScene?.setWeapon(id), rotate: (d) => self.menuScene?.rotate(d), setArmour: (id) => self.menuScene?.setArmour?.(id) },
+      preview: { setMode: (m) => { if (m === 'loadout') self.onMenuOpen('loadout'); }, setWeapon: (id) => self.menuScene?.setWeapon(id), setNeon: (c, a) => self.menuScene?.setNeon(c, a), rotate: (d) => self.menuScene?.rotate(d), setArmour: (id) => self.menuScene?.setArmour?.(id) },
       resume: () => self.resume(), devMenu: () => { self.resume(); self.dev.toggle(true); }, restartCheckpoint: () => self.restartFromCheckpoint(), abortToOrbit: () => self.abortToOrbit(), quit: () => { try { window.close(); } catch { /* ignore */ } self.abortToOrbit(); },
       setFullscreen: (v) => self.setFullscreen(v),
       mp: self.mpApi(),

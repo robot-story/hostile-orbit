@@ -23,7 +23,7 @@ export class Player {
   constructor(game, camera, fx, loadout = { primary: 'viper', secondary: 'sidearm' }) {
     const world = game.world;
     this.game = game; this.world = world; this.fx = fx;
-    this.model = buildSoldier('vanguard', { neon: SQUAD_COLORS[net.slot ?? 0] || SQUAD_COLORS[0] });
+    this.model = buildSoldier('vanguard', { neon: loadout.neon || SQUAD_COLORS[net.slot ?? 0] || SQUAD_COLORS[0] });
     this.anim = new CharacterAnimator(this.model);
     this.cam = new ThirdPersonCamera(camera, world);
     this.position = new THREE.Vector3();

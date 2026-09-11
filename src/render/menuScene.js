@@ -532,6 +532,21 @@ export function createMenuScene(renderer) {
     attachWeapon(loadoutRig, currentWeaponId);
   }
   function rotate(delta) { loadoutRig.model.root.rotation.y += delta; }
+  let currentNeon = null; const slides = [];
+  function setNeon(color, animate = true) {
+    if (color === currentNeon) return; currentNeon = color;
+    const old = loadoutRig; const rotY = old.model.root.rotation.y;
+    const fresh = { model: buildSoldier(currentArmour, { neon: color }), anim: null, weaponGroup: null, style: currentArmour }; fresh.anim = new CharacterAnimator(fresh.model);
+    fresh.model.root.rotation.y = rotY; fresh.model.meshes.forEach((m) => { m.castShadow = true; }); loadoutGroup.add(fresh.model.root);
+    attachWeapon(fresh, currentWeaponId);
+    loadoutRig = fresh;
+    if (!animate) { fresh.model.root.position.set(0, 0, 0); loadoutGroup.remove(old.model.root); disposeGroupGeo(old.weaponGroup); old.model.dispose(); return; }
+    fresh.model.root.position.set(2.8, 0, 0);
+    slides.push({ rig: fresh, from: 2.8, to: 0, t: 0, dur: 0.45 }, { rig: old, from: old.model.root.position.x, to: -2.8, t: 0, dur: 0.4, dispose: true });
+  }
+  function updateSlides(dt) {
+    for (let i = slides.length - 1; i >= 0; i--) { const sl = slides[i]; sl.t += dt; const k = Math.min(1, sl.t / sl.dur); const e = 1 - Math.pow(1 - k, 3); sl.rig.model.root.position.x = sl.from + (sl.to - sl.from) * e; if (sl.dispose) sl.rig.anim.update(dt, { speed: 0, sprint: 0, crouch: 0, aim: 0, cover: null, weaponLow: 0 }); if (k >= 1) { if (sl.dispose) { loadoutGroup.remove(sl.rig.model.root); disposeGroupGeo(sl.rig.weaponGroup); sl.rig.model.dispose(); } slides.splice(i, 1); } }
+  }
 
   // ============================================================== per-frame update
   let t = 0;
@@ -562,7 +577,7 @@ export function createMenuScene(renderer) {
     ms[0].model.bones.head.rotation.y += ht.cur;
 
     // loadout + results soldiers
-    loadoutRig.anim.update(dt, { speed: 0, sprint: 0, crouch: 0, aim: 0, cover: null, weaponLow: 0 });
+    loadoutRig.anim.update(dt, { speed: 0, sprint: 0, crouch: 0, aim: 0, cover: null, weaponLow: 0 }); updateSlides(dt);
     resultsRig.anim.update(dt, { speed: 0, sprint: 0, crouch: 0, aim: 0, cover: null, weaponLow: 1 });
 
     // results-set fx: flicker fires, rising smoke, occasional flash
@@ -612,5 +627,5 @@ export function createMenuScene(renderer) {
     scene.clear();
   }
 
-  return { scene, camera, update, setMode, setWeapon, setArmour, rotate, dispose };
+  return { scene, camera, update, setMode, setWeapon, setArmour, setNeon, rotate, dispose };
 }

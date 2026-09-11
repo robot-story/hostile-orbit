@@ -33,6 +33,12 @@ export const MERIDIAN = {
       { type: 'mound', mx: 300, my: 226, r: 14, h: 2.6 }, { type: 'crater', mx: 348, my: 276, r: 11, h: 1.2 },  // extraction: overwatch mound + shell hole
       { type: 'mound', mx: 292, my: 352, r: 10, h: 1.6 },                  // detention yard step
       { type: 'ramp', mx: 207, my: 92, r: 9, w: 5, h: 2.6, dir: [0, 1] }, { type: 'ramp', mx: 206, my: 250, r: 10, w: 5, h: 3.0, dir: [0, 1] }, { type: 'ramp', mx: 296, my: 268, r: 9, w: 5, h: 2.6, dir: [0.7, -0.7] }, { type: 'ramp', mx: 152, my: 300, r: 8, w: 5, h: 2.4, dir: [0, 1] },
+      { type: 'ramp', mx: 192, my: 168, r: 8, w: 4.5, h: 2.4, dir: [0, 1] }, { type: 'ramp', mx: 208, my: 206, r: 8, w: 4.5, h: 2.4, dir: [0, -1] },   // main route kickers both ways
+      { type: 'ramp', mx: 116, my: 150, r: 9, w: 5, h: 2.8, dir: [-0.3, 0.95] }, { type: 'ramp', mx: 108, my: 232, r: 9, w: 5, h: 2.8, dir: [0.15, 0.99] },   // high route
+      { type: 'ramp', mx: 266, my: 128, r: 8, w: 4.5, h: 2.6, dir: [0.1, 1] }, { type: 'ramp', mx: 274, my: 226, r: 8, w: 4.5, h: 2.6, dir: [0.4, 0.92] },  // trench
+      { type: 'ramp', mx: 150, my: 330, r: 9, w: 5, h: 3.2, dir: [0.5, 0.86] }, { type: 'ramp', mx: 250, my: 322, r: 9, w: 5, h: 3.2, dir: [-0.5, 0.86] }, // comms base: fly over the pit
+      { type: 'ramp', mx: 70, my: 290, r: 9, w: 5, h: 3.0, dir: [0, 1] }, { type: 'ramp', mx: 330, my: 218, r: 9, w: 5, h: 2.8, dir: [0, 1] },            // jammer bowl entry and extraction hop
+      { type: 'crater', mx: 226, my: 174, r: 11, h: 2.2 }, { type: 'crater', mx: 176, my: 236, r: 11, h: 2.2 },                                          // bowls to carve
       { type: 'pinnacle', mx: 110, my: 182, r: 11, h: 14 }, { type: 'pinnacle', mx: 302, my: 150, r: 12, h: 16 }, { type: 'pinnacle', mx: 84, my: 118, r: 9, h: 11 }, { type: 'pinnacle', mx: 330, my: 105, r: 10, h: 12 }, { type: 'pinnacle', mx: 140, my: 250, r: 8, h: 9 },
     ] },
   lighting: null, // engine defaults (warm canyon daylight)
