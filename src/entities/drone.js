@@ -83,18 +83,35 @@ export class Drone {
         const eye = this.position, aim = _v2.copy(this.target.position).addScaledVector(UP, 1.3);
         this.canSee = d < 60 && this.world.hasLOS(eye, aim, { terrainStep: 2 });
         if (this.canSee) this.alert = true;
-        if (this.alert) {
-          this.orbitA += dt * 0.35 * this.orbitDir;
-          goal.set(this.target.position.x + Math.cos(this.orbitA) * this.type.orbitRadius, 0, this.target.position.z + Math.sin(this.orbitA) * this.type.orbitRadius);
-          goal.y = Math.max(this.world.terrain.getHeight(goal.x, goal.z), this.target.position.y) + this.type.hoverHeight + Math.sin(this.game.time * 1.3) * 0.6;
-          if (this.canSee) { this.markT += dt; if (this.markT > this.type.markTime && !this.marking) { this.marking = true; audio.play('drone_alert', { pos: this.position }); events.emit('player:marked', this); if (this.distToCam < 50) audio.say('ship_unauthorised_thoughts', { priority: 1 }); } }
-          else { this.markT = Math.max(0, this.markT - dt); if (this.markT === 0 && this.marking) { this.marking = false; events.emit('player:unmarked'); } }
-          this.callT -= dt;
-          if (this.marking && this.callT <= 0) { this.callT = this.type.callCooldown; this.game.director?.callReinforcements(this.target.position, this); audio.play('drone_marking', { pos: this.position, volume: 0.8 }); }
-        } else {
-          // idle scanning drift
+        // recon behaviour: patrol -> spot (hover and scan, killable) -> fetch the nearest squad -> lead them in
+        const grace = (this.game.mission?.time || 0) < 14; // nobody gets tagged in the first seconds after landing
+        this.scanT = this.scanT || 0; this.loseT = this.loseT || 0; this.state = this.state || 'patrol';
+        if (this.state === 'patrol' || this.state === 'return') {
+          if (this.canSee && !grace && d < 48) { this.state = 'spot'; this.scanT = 0; this.scanPhase = 0; audio.play('drone_alert', { pos: this.position }); events.emit('toast', 'RECON DRONE HAS YOU  //  KILL IT BEFORE IT SCANS', 'warn'); }
           this.orbitA += dt * 0.2; goal.x += Math.cos(this.orbitA) * 4; goal.z += Math.sin(this.orbitA) * 4;
         }
+        if (this.state === 'spot') {
+          // hover close and low, scanning beam sweeps up and down the target
+          const side = _v2.set(this.position.x - this.target.position.x, 0, this.position.z - this.target.position.z); if (side.lengthSq() < 1) side.set(1, 0, 0); side.normalize();
+          goal.set(this.target.position.x + side.x * 9, 0, this.target.position.z + side.z * 9); goal.y = Math.max(this.world.terrain.getHeight(goal.x, goal.z), this.target.position.y) + 4.2 + Math.sin(this.game.time * 2) * 0.3;
+          if (this.canSee) { this.scanT += dt; this.loseT = 0; this.marking = true; this.scanPhase = (this.scanPhase || 0) + dt * 2.2; }
+          else { this.loseT += dt; this.marking = false; if (this.loseT > 1.6) { this.state = 'patrol'; this.scanT = 0; events.emit('player:unmarked'); } }
+          if (this.scanT >= (this.type.markTime || 2.5) + 1.2) { this.state = 'fetch'; this.marking = false; events.emit('player:unmarked'); this.lastMark = this.target.position.clone(); events.emit('player:marked', this); audio.play('drone_marking', { pos: this.position, volume: 0.9 }); events.emit('toast', 'SCAN COMPLETE  //  DRONE IS FETCHING A PATROL', 'warn');
+            // pick the nearest awake-able squad within reach; fall back to calling a drop
+            let best = null, bd = 150; for (const e of this.game.director?.enemies || []) { if (e.dead || e.typeId === 'drone' || e.typeId === 'ravager' || e.isBoss || e.alert) continue; const dd = e.position.distanceTo(this.position); if (dd < bd) { bd = dd; best = e; } }
+            this.fetchTarget = best; if (!best) { this.game.director?.callReinforcements(this.lastMark, this); this.state = 'return'; this.callT = this.type.callCooldown; } }
+        }
+        if (this.state === 'fetch') {
+          const f = this.fetchTarget; if (!f || f.dead) { this.state = 'return'; }
+          else { goal.set(f.position.x, f.position.y + 5, f.position.z); if (this.position.distanceTo(f.position) < 8) { const squad = f.squad?.members || [f]; for (const m of squad) { if (m.dead) continue; m.alert = true; m.lastSeen = (m.lastSeen || new THREE.Vector3()).copy(this.lastMark || this.target.position); if (m.state !== 'cover') m.state = 'investigate'; } audio.play('drone_alert', { pos: this.position }); events.emit('toast', 'LEGION PATROL ALERTED  //  INBOUND', 'warn'); this.state = 'lead'; this.leadT = 0; } }
+        }
+        if (this.state === 'lead') {
+          // fly back toward the mark ahead of the squad, then resume spotting after a cooldown
+          this.leadT = (this.leadT || 0) + dt; const m = this.lastMark || this.target.position; goal.set(m.x, m.y + 6, m.z);
+          if (this.position.distanceTo(m) < 10 || this.leadT > 14) { this.state = 'return'; this.callT = this.type.callCooldown; this.spotCooldown = 12; }
+        }
+        if (this.state === 'return') { this.spotCooldown = Math.max(0, (this.spotCooldown || 0) - dt); if (this.spotCooldown <= 0) this.state = 'patrol'; }
+        if (this.state !== 'spot') this.marking = false;
       }
       const toGoal = _v2.subVectors(goal, this.position); const dist = toGoal.length();
       const speed = Math.min(this.type.speed, dist * 1.5);
@@ -109,7 +126,8 @@ export class Drone {
     // marking beam
     if (this.marking && this.target) {
       this.beam.visible = true;
-      const a = this.position, b = _v.copy(this.target.position).addScaledVector(UP, 1.2);
+      const sweep = 0.4 + (Math.sin(this.scanPhase || 0) * 0.5 + 0.5) * 1.5; // up and down the frame
+      const a = this.position, b = _v.copy(this.target.position).addScaledVector(UP, sweep);
       const mid = _v2.addVectors(a, b).multiplyScalar(0.5); const len = a.distanceTo(b);
       this.beam.position.copy(mid); this.beam.scale.set(1, len, 1); this.beam.quaternion.setFromUnitVectors(UP, b.clone().sub(a).normalize());
       this.model.userData.light.intensity = 10 + Math.sin(this.game.time * 20) * 4;
