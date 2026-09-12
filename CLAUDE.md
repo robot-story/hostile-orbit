@@ -35,6 +35,7 @@ Cross-system communication uses `events` from `src/core/events.js`. Names are `n
 ## Running
 - `npm run dev` (port 5173), `npm run build`, `npm run gen:audio`, `npm run gen:voice`.
 - Test in the in-app browser; check `read_console_messages` for errors after every UI or gameplay change.
+- Desktop / no-IDE launch (added 2026-09-12): `Launch HOSTILE ORBIT.cmd` runs `release/win-unpacked/HOSTILE ORBIT.exe` (builds first if missing); `Rebuild HOSTILE ORBIT.cmd` runs `npm run package` (clean-dist + vite build + electron-builder portable) then launches; `Host HOSTILE ORBIT on LAN.cmd` builds and serves `dist/` on http://localhost:4173 with the LAN URL for co-op joiners. `tools/clean-dist.mjs` exists because Dropbox locks `dist/` folders mid-sync (`emptyOutDir: false`). Electron shell is `electron/main.cjs` (local static server + frameless window, F11 fullscreen).
 
 ## Systems map (added 2026-09-09)
 - `src/game.js` orchestrates: boot → menus (`src/ui/menus.js`) → `buildSession()` (World + level + merge pass + FX + Combat + Director + Abilities + Mission + Player + NetSync) → `dropSequence()` → play → `endMission()`.
