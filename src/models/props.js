@@ -163,7 +163,7 @@ export function wreckedTransport(world, position, yaw = 0, opts = {}) {
   for (let i = 0; i < 3; i++) { const c = box(0.9, 0.9, 0.9, i === 1 ? skin2 : Mat.panel(0)); c.position.set(-7.4 - i * 0.9, 0.45, -0.7 + (i % 2) * 0.9); c.rotation.y = i * 0.7; g.add(c); }
   // peeled hull plates and internal fire glow
   for (const [px, py, pz, ry] of [[1.5, 3.05, 1.1, 0.5], [-1.8, 3.0, -1.3, -0.7], [3.2, 2.2, -1.7, 0.2]]) { const plate = box(1.6, 0.08, 1.2, skin); plate.position.set(px, py, pz); plate.rotation.set(ry, 0.3, ry * 0.6); g.add(plate); }
-  for (const [dx, dy, dz] of [[1.2, 2.2, 1.4], [-1.9, 2.1, -1.5], [-5.6, 1.3, -0.4]]) { const glow = box(0.8, 0.5, 0.5, flicker, false); glow.position.set(dx, dy, dz); g.add(glow); const pl = new THREE.PointLight(COLORS.redOrange, 2.2, 7, 2); pl.position.set(dx, dy + 0.3, dz); pl.castShadow = false; g.add(pl); }
+  for (const [dx, dy, dz] of [[1.2, 2.2, 1.4], [-1.9, 2.1, -1.5], [-5.6, 1.3, -0.4]]) { const glow = box(0.8, 0.5, 0.5, flicker, false); glow.position.set(dx, dy, dz); g.add(glow); const pl = new THREE.PointLight(COLORS.redOrange, 2.2, 7, 2); pl.position.set(dx, dy + 0.3, dz); pl.castShadow = false; pl.userData.anim = 'flicker'; g.add(pl); }
   // strip lighting still alive on the spine
   const spineStrip = box(6, 0.05, 0.08, Mat.neon(COLORS.cyan, 0.8)); spineStrip.position.set(0, 3.35, 0.65); spineStrip.castShadow = false; g.add(spineStrip);
   place(g, position, yaw);
@@ -236,7 +236,7 @@ export function lightTower(world, position, yaw = 0, opts = {}) {
   const mast = cyl(0.18, 0.24, height, Mat.darkMetal()); mast.position.y = height / 2 + 0.4; g.add(mast);
   const panel = box(1.6, 0.9, 0.12, new THREE.MeshStandardMaterial({ color: '#111', emissive: color, emissiveIntensity: 2 }));
   panel.position.set(0, height + 0.5, 0); panel.rotation.x = -0.3; g.add(panel);
-  const light = new THREE.PointLight(color, 10, 22, 2); light.position.set(0, height + 0.3, 0.6); light.castShadow = false; g.add(light);
+  const light = new THREE.PointLight(color, 10, 22, 2); light.position.set(0, height + 0.3, 0.6); light.castShadow = false; light.userData.anim = 'pulse'; light.userData.animMat = panel.material; g.add(light);
   place(g, position, yaw);
   world.props.add(g);
   const collider = world.addBox(new THREE.Vector3(position.x, position.y + height / 2 + 0.4, position.z), { x: 0.28, y: height / 2 + 0.2, z: 0.28 }, yaw, { material: 'metal', cover: false, mesh: mast });
@@ -310,7 +310,7 @@ export function antennaMast(world, position, yaw = 0, opts = {}) {
     const arm = box(1.4 - i * 0.3, 0.05, 0.05, Mat.darkMetal(), false); arm.position.y = height - 1 - i * 1.6; g.add(arm);
   }
   const beacon = new THREE.Mesh(icoGeo(0.12, 0), Mat.neon(COLORS.red, 3)); beacon.position.y = height + 0.15; g.add(beacon);
-  const light = new THREE.PointLight(COLORS.red, 4, 10, 2); light.position.y = height + 0.15; light.castShadow = false; g.add(light);
+  const light = new THREE.PointLight(COLORS.red, 4, 10, 2); light.position.y = height + 0.15; light.castShadow = false; light.userData.anim = 'strobe'; const bm = beacon.material.clone(); bm.userData.own = true; beacon.material = bm; light.userData.animMat = bm; g.add(light);
   place(g, position, yaw);
   world.props.add(g);
   const collider = world.addBox(new THREE.Vector3(position.x, position.y + height / 2, position.z), { x: 0.2, y: height / 2, z: 0.2 }, yaw, { material: 'metal', cover: false, mesh: mast });

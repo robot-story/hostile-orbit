@@ -487,7 +487,7 @@
 .nt-bar i { display: block; height: 3px; background: linear-gradient(90deg, rgba(0,229,255,.9), rgba(0,229,255,.3)); }
 
 /* death report: hold screen between frame loss and the replacement pod */
-.death-report { position: absolute; inset: 0; z-index: 69; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; background: radial-gradient(ellipse at center, rgba(8,4,6,.55) 0%, rgba(4,2,4,.86) 70%); opacity: 0; transition: opacity .35s ease; pointer-events: none; }
+.death-report { position: absolute; inset: 0; z-index: 69; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; background: radial-gradient(ellipse at center, rgba(8,4,6,.30) 0%, rgba(4,2,4,.66) 75%); opacity: 0; transition: opacity .35s ease; pointer-events: none; }
 .death-report.on { opacity: 1; }
 .death-report::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 4px); pointer-events: none; }
 .death-report .dr-head { text-align: center; }
@@ -512,7 +512,7 @@
 .death-report .dr-steps .ds-line.active { color: var(--yellow); opacity: 1; }
 .death-report .dr-steps .ds-line.done { color: var(--text); opacity: .55; }
 .death-report .dr-tip { margin-top: 10px; max-width: 640px; text-align: center; font-size: 11px; letter-spacing: .1em; line-height: 1.5; color: var(--text); opacity: .75; }
-.death-report.pod { background: radial-gradient(ellipse at center, rgba(4,6,10,.6) 0%, rgba(2,3,6,.9) 70%); }
+.death-report.pod { background: radial-gradient(ellipse at center, rgba(4,6,10,.35) 0%, rgba(2,3,6,.7) 75%); }
 
 /* pause: command tablet */
 .pause-grid { display: grid; grid-template-columns: 360px minmax(420px, 560px); gap: 18px; align-items: stretch; max-width: 96vw; }

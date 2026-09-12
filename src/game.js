@@ -642,7 +642,7 @@ export class Game {
   }
   updateLockHint() {
     if (!this.lockHint) { this.lockHint = document.createElement('div'); this.lockHint.id = 'lockhint'; this.lockHint.textContent = 'CLICK TO ENGAGE CONTROLS'; this.ui.appendChild(this.lockHint); }
-    const need = this.mode === 'play' && !input.locked && !input.lockUnavailable && !this.mapOpen && !this.dev?.open;
+    const need = this.mode === 'play' && !input.locked && !input.lockUnavailable && !this.mapOpen && !this.dev?.open && !this.localPlayer?.dead;
     this.cursorEl?.classList.toggle('hidden', ((this.mode === 'play' && !this.mapOpen && !this.dev?.open) || this.mode === 'drop' || input.locked));
     if (!need && this.lockHint.classList.contains('on')) this.lockHint.classList.remove('on');
     this.lockHint.classList.toggle('on', need);

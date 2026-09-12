@@ -23,9 +23,9 @@ export function neonStrip(len, thick = 0.08, color = COLORS.cyan, intensity = 2.
   const m = new THREE.Mesh(new THREE.BoxGeometry(len, thick, thick), Mat.neon(color, intensity));
   return m;
 }
-export function pointGlow(color, intensity, distance, decay = 2) {
+export function pointGlow(color, intensity, distance, decay = 2, anim = null) {
   const l = new THREE.PointLight(color, intensity, distance, decay);
-  l.castShadow = false;
+  l.castShadow = false; if (anim) l.userData.anim = anim;
   return l;
 }
 
@@ -37,7 +37,7 @@ export function buildPylon(world, pos, height = 9, color = COLORS.cyan) {
   const tube = new THREE.Mesh(new THREE.BoxGeometry(0.16, height * 0.7, 0.16), Mat.neon(color, 3)); tube.position.set(0.34, height * 0.55 + 0.6, 0); g.add(tube);
   const tube2 = tube.clone(); tube2.position.x = -0.34; g.add(tube2);
   const cap = box(0.9, 0.3, 0.9, Mat.panel(0)); cap.position.y = height + 0.75; g.add(cap);
-  const light = pointGlow(color, 14, 26); light.position.y = height * 0.6; g.add(light);
+  const light = pointGlow(color, 14, 26, 2, 'pulse'); light.position.y = height * 0.6; g.add(light);
   g.position.copy(pos);
   world.props.add(g);
   world.addBox(new THREE.Vector3(pos.x, pos.y + height / 2, pos.z), { x: 0.35, y: height / 2, z: 0.35 }, 0, { material: 'metal', cover: false, mesh: mast });
@@ -122,7 +122,7 @@ export function buildGate(world, center, yaw, width = 6, opts = {}) {
     const pillar = box(0.6, h, 0.6, Mat.panel(1)); pillar.position.set(px, y + h / 2, pz); world.props.add(pillar); g.add(pillar);
     world.addBox(new THREE.Vector3(px, y + h / 2, pz), { x: 0.3, y: h / 2, z: 0.3 }, 0, { material: 'metal', mesh: pillar });
     const strip = cyl(0.05, 0.05, h * 0.75, 6, Mat.neon(color, 2.4)); strip.position.set(px, y + h * 0.55, pz); strip.castShadow = false; world.props.add(strip);
-    const beacon = pointGlow(color, 5, 9); beacon.position.set(px, y + h + 0.3, pz); world.props.add(beacon);
+    const beacon = pointGlow(color, 5, 9, 2, 'strobe'); beacon.position.set(px, y + h + 0.3, pz); world.props.add(beacon);
   }
   const midY = world.terrain.getHeight(center.x, center.z);
   const beam = box(width + 0.8, 0.4, 0.5, Mat.darkMetal()); beam.position.set(center.x, midY + h + 0.2, center.z); beam.rotation.y = yaw; world.props.add(beam);
@@ -150,7 +150,7 @@ export function buildWatchtower(world, position, yaw = 0, opts = {}) {
     rail.position.set(position.x + Math.sin(a) * 1.4, deckY + 0.5, position.z + Math.cos(a) * 1.4);
     rail.rotation.y = a; world.props.add(rail);
   }
-  const light = pointGlow(opts.color || COLORS.redOrange, 6, 14); light.position.set(position.x, deckY + 1.2, position.z); world.props.add(light);
+  const light = pointGlow(opts.color || COLORS.redOrange, 6, 14, 2, 'hum'); light.position.set(position.x, deckY + 1.2, position.z); world.props.add(light);
   g.position.copy(position);
   return { group: g, deckCollider, legColliders, deckPosition: new THREE.Vector3(position.x, deckY + 0.15, position.z) };
 }
@@ -209,7 +209,7 @@ export function buildJammerOutpost(world, center) {
   }
   const dish = cyl(2.2, 0.3, 1.1, 12, Mat.panel(0));
   dish.position.set(center.x, y + towerHeight + 0.6, center.z); dish.rotation.x = 1.15; world.props.add(dish);
-  const warnLight = pointGlow(COLORS.red, 12, 22); warnLight.position.set(center.x, y + towerHeight, center.z); world.props.add(warnLight);
+  const warnLight = pointGlow(COLORS.red, 12, 22, 2, 'alarm'); warnLight.position.set(center.x, y + towerHeight, center.z); world.props.add(warnLight);
   const chargePoints = [
     new THREE.Vector3(center.x + 2.4, y + 1.2, center.z),
     new THREE.Vector3(center.x - 2.4, y + 1.2, center.z),
@@ -298,7 +298,7 @@ export function buildCommsBase(world, center) {
   for (const [dy, rotX] of [[towerH * 0.68, 0.5], [towerH * 0.88, -0.35]]) {
     const dish = cyl(1.5, 0.15, 0.9, 14, Mat.panel(0)); dish.position.set(towerPos.x, ty + dy, towerPos.z); dish.rotation.x = rotX; world.props.add(dish);
   }
-  const towerLight = pointGlow(COLORS.red, 8, 20); towerLight.position.set(towerPos.x, ty + towerH, towerPos.z); world.props.add(towerLight);
+  const towerLight = pointGlow(COLORS.red, 8, 20, 2, 'strobe'); towerLight.position.set(towerPos.x, ty + towerH, towerPos.z); world.props.add(towerLight);
   info.tower = { position: new THREE.Vector3(towerPos.x, ty, towerPos.z), height: towerH };
 
   // signage

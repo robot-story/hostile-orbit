@@ -89,10 +89,10 @@ export class World {
     this.props.traverse((o) => { if (o.isPointLight) lights.push(o); });
     if (lights.length <= maxLights) return;
     lights.sort((a, b) => (b.intensity * b.distance) - (a.intensity * a.distance));
-    const keep = Math.min(lights.length, maxLights * 2); // keep twice the budget in the scene; only the nearest `maxLights` are lit at any time
+    const keep = Math.min(lights.length, maxLights * 4); // keep four times the budget in the scene; only the nearest `maxLights` are lit at any time
     for (let i = keep; i < lights.length; i++) lights[i].parent?.remove(lights[i]);
     this.staticLights = lights.slice(0, keep); this.lightBudget = Math.min(maxLights, this.staticLights.length); this._lightT = 0;
-    for (const l of this.staticLights) { l.userData.worldPos = l.getWorldPosition(new THREE.Vector3()); }
+    for (const l of this.staticLights) { l.userData.worldPos = l.getWorldPosition(new THREE.Vector3()); l.userData.base = l.intensity; l.userData.phase = Math.random() * 6.28; }
     console.info(`[world] culled ${lights.length - keep} of ${lights.length} static point lights; ${this.lightBudget} lit per frame`);
   }
   /** Highest standable surface under (x,z) given the current feet y (steps up to stepH allowed). */
@@ -190,8 +190,23 @@ export class World {
     const sorted = L.slice().sort((a, b) => a.userData.score - b.userData.score);
     for (let i = 0; i < sorted.length; i++) sorted[i].visible = i < this.lightBudget;
   }
+  /** Per-area light behaviour: alarm lights breathe, holo glows flicker, masts strobe, floodlights hum. Only lit lights pay. */
+  animateLights(dt) {
+    const L = this.staticLights; if (!L) return; const t = this.time;
+    for (const l of L) {
+      if (!l.visible) continue; const k = l.userData.anim; if (!k) continue; const b = l.userData.base, ph = l.userData.phase; let f = 1;
+      if (k === 'pulse') f = 0.82 + 0.18 * Math.sin(t * 1.4 + ph);
+      else if (k === 'alarm') { const a = Math.abs(Math.sin(t * 2.6 + ph)); f = 0.35 + 0.85 * a * a; }
+      else if (k === 'strobe') { const u = ((t * 0.9 + ph) % 1); f = u < 0.07 ? 1.8 : u < 0.14 ? 0.9 : 0.12; }
+      else if (k === 'flicker') { f = 0.7 + 0.2 * Math.sin(t * 17 + ph) + 0.1 * Math.sin(t * 41 + ph * 3); if (Math.sin(t * 3.1 + ph * 7) > 0.985) f *= 0.15; }
+      else if (k === 'hum') f = 0.94 + 0.06 * Math.sin(t * 23 + ph) * Math.sin(t * 5 + ph);
+      l.intensity = b * f;
+      const m = l.userData.animMat; if (m) m.emissiveIntensity = (m.userData.baseEm ?? (m.userData.baseEm = m.emissiveIntensity)) * (0.5 + 0.5 * f);
+    }
+  }
   update(dt, camera) {
     this.updateLightBudget(dt, camera);
+    this.animateLights(dt);
     this.time += dt;
     this.sky.userData.update(this.time);
     this.celestials.userData.update(this.time, dt);

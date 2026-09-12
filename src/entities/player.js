@@ -42,6 +42,7 @@ export class Player {
     this.fireT = 0; this.bloom = 0; this.reloadT = -1; this.reloadStage = 0; this.trigger = false;
     this.shots = 0; this.hits = 0;
     world.actors.add(this.model.root);
+    this.heroLight = new THREE.PointLight(loadout.neon || '#00e5ff', 1.4, 6.5, 2); this.heroLight.position.set(0, 1.25, 0); this.heroLight.castShadow = false; this.model.root.add(this.heroLight); // frame highlight spill: walls and floor pick up your colour
     this.entityType = 'player'; this.isPlayer = true; this.id = null;
     this.hitboxes = true; this.hitRadius = 1.3; this.hitCenter = new THREE.Vector3();
     this.downed = false; this.lastDamageT = -99; this.regenDelay = 9; this.armourHp = 0;
@@ -186,6 +187,7 @@ export class Player {
     this.velocity.x = damp(this.velocity.x, target.x, accel * 0.5, dt); this.velocity.z = damp(this.velocity.z, target.z, accel * 0.5, dt);
     if (this.model?.robot && this.grounded) { const ball = !!this.model?.sprintBall; const n = this.world.terrain.getNormal(this.position.x, this.position.z); const sp = Math.hypot(this.velocity.x, this.velocity.z); if (sp > 1) { const down = (n.x * this.velocity.x + n.z * this.velocity.z) / sp; const k = 1 + Math.abs(down) * (ball ? 9 : 5) * dt; const cap = ball ? 19 : 13.5; const ns = Math.min(cap, sp * k); this.velocity.x *= ns / sp; this.velocity.z *= ns / sp; this._slopeUp = -down; if (-down > 0.12) { this._slopeMem = 0.2; this._slopePeak = -down; } else this._slopeMem = Math.max(0, (this._slopeMem || 0) - dt); if (-down > 0.12) { this._rampFx = (this._rampFx || 0) - dt; if (this._rampFx <= 0) { this._rampFx = 0.06; this.fx?.sparksBurst?.(this.position.clone(), new THREE.Vector3(0, 1, 0), 3, '#7fe9ff'); } } } } // down or up, momentum builds: ramps are turbos
     const spd = Math.hypot(this.velocity.x, this.velocity.z); this.speedFx = clamp((spd - 8.5) / 8, 0, 1); this.cam.speedKick = this.speedFx;
+    if (this.heroLight) { this.heroLight.intensity = 1.2 + this.speedFx * 1.4 + (this.fireT > 0 ? 1.2 : 0); this.heroLight.position.y = this.model?.sprintBall ? 0.7 : 1.25; }
     // Facing: sprint turns the body into the run direction; every other movement strafes (body faces the camera);
     // standing still only turns in place once the camera has swung far enough (no constant spinning).
     if (this.sprinting && ax.active) { this.turning = false; this.yaw = angleDamp(this.yaw, Math.atan2(-wish.x, -wish.z), 11, dt); }

@@ -280,7 +280,7 @@ export function holoBillboard(world, pos, yaw = 0, opts = {}) {
   const poster = mesh(planeGeo(w, h), posterMat, false);
   poster.position.y = mastH + h / 2 + 0.4; poster.position.z = 0.06; poster.userData.noMerge = true; g.add(poster); // in front of the backing plate, never inside it
   const frame = box(w + 0.2, h + 0.2, 0.06, Mat.darkMetal(), false); frame.position.y = poster.position.y; frame.position.z = -0.02; g.add(frame);
-  const glow = pointGlow(color, 6, 12); glow.position.y = poster.position.y; if (opts.light) g.add(glow);
+  const glow = pointGlow(color, 6, 12, 2, 'flicker'); glow.position.y = poster.position.y; if (opts.light) g.add(glow);
   place(g, new THREE.Vector3(pos.x, y0, pos.z), yaw);
   g.userData.noMerge = true;
   world.props.add(g);
@@ -313,7 +313,7 @@ export function streetLamp(world, pos, opts = {}) {
   const collider = world.addBox(new THREE.Vector3(pos.x, y0 + h / 2, pos.z), { x: 0.12, y: h / 2, z: 0.12 }, 0, { material: 'metal', cover: false, mesh: pole });
   registerBreakable(world, { hp: 140, position: new THREE.Vector3(pos.x, y0 + 1, pos.z), radius: 1.2, parts: [], colliders: [collider], material: 'metal', kind: 'lamp', light: g.getObjectByProperty('isPointLight', true) || null, onBreak: (b, d) => { g.rotation.z = 0.35 * (d.x >= 0 ? -1 : 1); g.rotation.x = 0.25 * (d.z >= 0 ? -1 : 1); g.traverse((o) => { if (o.material?.emissive) { o.material = o.material.clone(); o.material.emissiveIntensity = 0; } }); } });
   let light = null;
-  if (opts.light) { light = pointGlow(color, 7, 14); light.position.set(pos.x, y0 + h - 0.05, pos.z + 0.68); world.props.add(light); }
+  if (opts.light) { const faulty = ((Math.abs(pos.x * 7.13 + pos.z * 3.71) % 1) < 0.18); light = pointGlow(color, 7, 14, 2, faulty ? 'flicker' : 'hum'); light.position.set(pos.x, y0 + h - 0.05, pos.z + 0.68); if (faulty) { head.material = head.material.clone(); head.material.userData.own = true; light.userData.animMat = head.material; } world.props.add(light); }
   return { group: g, collider, light };
 }
 
@@ -407,7 +407,7 @@ export function buildSubstation(world, center) {
   }
   const dish = cyl(2.0, 0.3, 1.0, Mat.panel(0), 12);
   dish.position.set(center.x, y + towerHeight + 0.6, center.z); dish.rotation.x = 1.1; world.props.add(dish);
-  const warnLight = pointGlow(COLORS.violet, 10, 20); warnLight.position.set(center.x, y + towerHeight, center.z); world.props.add(warnLight);
+  const warnLight = pointGlow(COLORS.violet, 10, 20, 2, 'alarm'); warnLight.position.set(center.x, y + towerHeight, center.z); world.props.add(warnLight);
 
   const towers = [];
   for (const a of [gateAngle + 1.1, gateAngle - 1.1]) {
@@ -478,7 +478,7 @@ export function buildBroadcastTower(world, center) {
     strip.position.set(towerPos.x + Math.cos(a) * 0.95, ty + towerH * 0.5, towerPos.z + Math.sin(a) * 0.95);
     world.props.add(strip);
   }
-  const towerLight = pointGlow(MAGENTA, 8, 20); towerLight.position.set(towerPos.x, ty + towerH, towerPos.z); world.props.add(towerLight);
+  const towerLight = pointGlow(MAGENTA, 8, 20, 2, 'strobe'); towerLight.position.set(towerPos.x, ty + towerH, towerPos.z); world.props.add(towerLight);
   info.tower = { position: new THREE.Vector3(towerPos.x, ty, towerPos.z), height: towerH };
 
   // signage
