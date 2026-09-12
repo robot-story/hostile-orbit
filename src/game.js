@@ -38,7 +38,7 @@ import { Transport } from './net/transport.js';
 import { NetSync } from './net/netsync.js';
 
 const BASE = import.meta.env.BASE_URL || './';
-const MENU_BG = { main: 'hero_main', operation: 'operation', multiplayer: 'lobby', armoury: 'armoury', record: 'record', settings: 'settings', results: 'results', failed: 'failed', pause: null, loadout: null };
+const MENU_BG = { main: 'title_moon', operation: 'operation', multiplayer: 'lobby', armoury: 'armoury', record: 'record', settings: 'settings', results: 'results', failed: 'failed', pause: null, loadout: null };
 
 export class Game {
   constructor(canvas, uiRoot) {
@@ -308,7 +308,7 @@ export class Game {
     config.map = config.map || save.profile.loadout.map || DEFAULT_MAP;
     this.lastConfig = config;
     save.setLoadout({ ...config.loadout, difficulty: config.difficulty, dropZone: config.dropZone, map: config.map || save.profile.loadout.map || DEFAULT_MAP });
-    this.menus.hide(); this.setBackground(null);
+    this.menus.hide(); this.setBackground('title_moon'); // same backdrop as the title card: the menu dissolves into the loading screen
     this.mode = 'loading';
     await this.showLoading('PREPARING DEPLOYMENT');
     this.setLoadProgress(0.08, 'BUILDING BATTLESPACE'); await new Promise((r) => setTimeout(r, 0));
@@ -326,7 +326,7 @@ export class Game {
     const cp = save.profile.operationInProgress; if (!cp) return;
     const config = { difficulty: cp.difficulty || save.profile.loadout.difficulty, dropZone: save.profile.loadout.dropZone, map: cp.map || save.profile.loadout.map, loadout: cp.loadout || save.profile.loadout };
     this.lastConfig = config;
-    this.menus.hide(); this.setBackground(null); this.mode = 'loading';
+    this.menus.hide(); this.setBackground('title_moon'); this.mode = 'loading';
     await this.showLoading('RESTORING OPERATION');
     this.buildSession(config);
     this.hideLoading();
@@ -352,8 +352,9 @@ export class Game {
           <div class="corner tl"></div><div class="corner br"></div><div class="tip"></div>`;
         this.ui.appendChild(el);
         const css = document.createElement('style'); css.textContent = `
-          #loading{position:absolute;inset:0;z-index:60;background:#02030a;overflow:hidden;font-family:var(--font);display:none}
-          #loading .bg{position:absolute;inset:-4%;background-size:cover;background-position:center;animation:loadZoom 30s ease-out forwards;filter:saturate(1.05) brightness(.85)}
+          #loading{position:absolute;inset:0;z-index:60;background:transparent;overflow:hidden;font-family:var(--font);display:none;opacity:0;transition:opacity .5s ease}
+          #loading.vis{opacity:1}
+          #loading .bg{display:none}
           #loading .haze{position:absolute;inset:0;background:radial-gradient(ellipse at 30% 55%,rgba(0,0,0,.78),rgba(0,0,0,.2) 55%,rgba(0,0,0,.65))}
           #loading .scan{position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px);pointer-events:none}
           #loading .wrap{position:absolute;left:8vw;top:50%;transform:translateY(-52%)}
@@ -373,7 +374,7 @@ export class Game {
           @keyframes lslide{from{margin-left:0}to{margin-left:62%}}`;
         document.head.appendChild(css);
       }
-      el.style.display = 'block'; el.querySelector('.ltxt').textContent = text;
+      el.style.display = 'block'; el.classList.remove('vis'); setTimeout(() => el.classList.add('vis'), 20); el.querySelector('.ltxt').textContent = text;
       const TIPS = ['Hold SPACE to jet. Fuel returns on the ground.', 'Sprint into Legion troopers to ram them. Momentum is a weapon.', 'F to snap to cover. R rolls out of it.', 'M opens the tactical map. Pins are live.', 'Reinforcements are finite. Extraction is not guaranteed.', 'Charge points around the jammer must be held, not touched.', 'Orbital abilities are on cooldown from the moment you land. Plan.', 'Your sacrifice has been pre-approved.'];
       const fv = FRAME_VARIANTS[save.profile.loadout.neon] || FRAME_VARIANTS['#00e5ff']; el.querySelector('.tip').textContent = `FRAME  ${fv.name}  //  ${fv.role}  —  ${fv.blurb}   ·   ` + TIPS[Math.floor(Math.random() * TIPS.length)];
       const steps = text.startsWith('RESTORING') ? ['REACQUIRING TELEMETRY', 'REBUILDING BATTLESPACE', 'RESTORING SQUAD STATE', 'ARMING REINFORCEMENT POD'] : ['AUTHENTICATING DEPLOYMENT ORDER', 'BUILDING BATTLESPACE', 'COMPILING MATERIALS', 'WARMING RECON FEED', 'ARMING DROP POD'];
@@ -384,7 +385,8 @@ export class Game {
   }
   setLoadProgress(frac, label) { const el = document.getElementById('loading'); if (!el) return; const bar = el.querySelector('.lbar i'); if (bar) { bar.style.animation = 'none'; bar.style.marginLeft = '0'; bar.style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`; } if (label) { clearInterval(this._loadStepTimer); const st = el.querySelector('.lstep'); if (st) st.textContent = label; } }
   hideLoading() {
-    clearInterval(this._loadStepTimer); const el = document.getElementById('loading'); if (el) el.style.display = 'none'; }
+    clearInterval(this._loadStepTimer); const el = document.getElementById('loading'); if (el) { el.classList.remove('vis'); setTimeout(() => { if (!el.classList.contains('vis')) el.style.display = 'none'; }, 520); }
+    this.setBackground(null); }
   /** Cinematic pod drop that ends with the player standing at `target`. */
   /** Warm-up on the loading screen: render the level from every flyover stop so shaders compile and textures upload
    *  before the camera moves. Costs a second or two of loading, saves the hitches during the cinematic. */

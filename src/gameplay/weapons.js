@@ -109,10 +109,10 @@ export const WEAPONS = {
 
 /** Frame highlight variants: the same OUTRIDER, tuned a touch differently. Preference, not power. */
 export const FRAME_VARIANTS = {
-  '#00e5ff': { id: 'cyan', name: 'COMMONWEALTH CYAN', role: 'BALANCED', blurb: 'Standard issue. No surprises.', hp: 1.0, speed: 1.0, fuel: 1.0, ram: 1.0 },
-  '#ffb020': { id: 'amber', name: 'HAZARD AMBER', role: 'ARMOURED', blurb: '+12% frame integrity, a touch slower.', hp: 1.12, speed: 0.97, fuel: 1.0, ram: 1.1 },
-  '#c44dff': { id: 'violet', name: 'VOID VIOLET', role: 'SWIFT', blurb: '+6% pace, thinner plating.', hp: 0.92, speed: 1.06, fuel: 1.0, ram: 0.95 },
-  '#7dff5a': { id: 'lime', name: 'REACTOR LIME', role: 'HIGH-FLYER', blurb: '+35% jet fuel, standard plating.', hp: 0.97, speed: 1.0, fuel: 1.35, ram: 1.0 },
+  '#00e5ff': { id: 'cyan', name: 'KESTREL-7', face: 'kestrel', role: 'BALANCED', blurb: 'Standard issue. No surprises.', hp: 1.0, speed: 1.0, fuel: 1.0, ram: 1.0 },
+  '#ffb020': { id: 'amber', name: 'BASTION-4', face: 'bastion', role: 'ARMOURED', blurb: '+12% frame integrity, a touch slower.', hp: 1.12, speed: 0.97, fuel: 1.0, ram: 1.1 },
+  '#c44dff': { id: 'violet', name: 'WRAITH-3', face: 'wraith', role: 'SWIFT', blurb: '+6% pace, thinner plating.', hp: 0.92, speed: 1.06, fuel: 1.0, ram: 0.95 },
+  '#7dff5a': { id: 'lime', name: 'JOLT-9', face: 'jolt', role: 'HIGH-FLYER', blurb: '+35% jet fuel, standard plating.', hp: 0.97, speed: 1.0, fuel: 1.35, ram: 1.0 },
 };
 export const GRENADE = { id: 'frag', name: 'FRAG', damage: 160, radius: 6.5, fuse: 3.0, count: 4, maxCount: 6, throwSpeed: 16, impulse: 14 };
 export const INJECTOR = { id: 'injector', name: 'WELLNESS INJECTOR', heal: 65, duration: 1.6, count: 4, maxCount: 6, useTime: 1.4 };
@@ -122,10 +122,10 @@ export const ARMOUR = {
 };
 
 export const ABILITIES = {
-  kinetic: { id: 'kinetic', name: 'KINETIC STRIKE', key: 'ability1', cooldown: 45, delay: 3.2, radius: 13, damage: 900, description: 'Tungsten rod from orbit. Ruins the afternoon of everything within thirteen metres.' },
-  gunship: { id: 'gunship', name: 'GUNSHIP RUN', key: 'ability2', cooldown: 60, delay: 4.0, radius: 6, damage: 140, description: 'Strafing run along your marker. Please stand somewhere else.' },
-  sentry: { id: 'sentry', name: 'SENTRY POD', key: 'ability3', cooldown: 75, delay: 3.0, duration: 60, damage: 18, description: 'Autonomous turret pod. It does not check who signed its contract.' },
-  supply: { id: 'supply', name: 'SUPPLY POD', key: 'ability4', cooldown: 90, delay: 3.0, description: 'Ammunition, grenades and wellness. Arrives at terminal velocity.' },
+  kinetic: { id: 'kinetic', name: 'KINETIC STRIKE', key: 'ability1', code: ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowDown'], cooldown: 45, delay: 3.2, radius: 13, damage: 900, description: 'Tungsten rod from orbit. Ruins the afternoon of everything within thirteen metres.' },
+  gunship: { id: 'gunship', name: 'GUNSHIP RUN', key: 'ability2', code: ['ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowLeft'], cooldown: 60, delay: 4.0, radius: 6, damage: 140, description: 'Strafing run along your marker. Please stand somewhere else.' },
+  sentry: { id: 'sentry', name: 'SENTRY POD', key: 'ability3', code: ['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowUp'], cooldown: 75, delay: 3.0, duration: 60, damage: 18, description: 'Autonomous turret pod. It does not check who signed its contract.' },
+  supply: { id: 'supply', name: 'SUPPLY POD', key: 'ability4', code: ['ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowUp'], cooldown: 90, delay: 3.0, description: 'Ammunition, grenades and wellness. Arrives at terminal velocity.' },
 };
 
 export const DIFFICULTIES = {

@@ -124,6 +124,7 @@ function decal(kind, color, w, h) {
 }
 
 // ------------------------------------------------------------------ A. OUTRIDER (monowheel) -- the protagonist frame
+const FACE_BY_NEON = { '#00e5ff': 'kestrel', '#ffb020': 'bastion', '#c44dff': 'wraith', '#7dff5a': 'jolt' };
 function buildOutrider(model, opts = {}) {
   const B = model.bones; const N = opts.neon || COLORS.cyan;
   const ceramic = armour('ceramic'), carbon = armour('carbon'), gun = armour('gunmetal'), gunLight = armour('gunmetal', '#b9bec8'), slate = armour('gunmetal', '#6a7486');
@@ -159,18 +160,49 @@ function buildOutrider(model, opts = {}) {
   add(B.chest, decal('hazard', N, 0.14, 0.03), [0, -0.05, -0.275], [0, Math.PI, 0]);
   add(B.neck, cyl(0.06, 0.075, 0.16, carbon, 14), [0, 0.02, 0]);
   add(B.neck, torus(0.065, 0.008, glowS(1.2), 20), [0, 0.06, 0], [Math.PI / 2, 0, 0]).castShadow = false;
-  // ---- helmet: lathe dome with brow, visor slit recessed and glowing, cheek plates, ear pods, antenna nub
-  add(B.head, bevelBox(0.25, 0.15, 0.25, ceramic, 0.03, 0.06), [0, 0.19, -0.01]);                             // crown
-  add(B.head, bevelBox(0.23, 0.12, 0.2, carbon, 0.02, 0.04), [0, 0.07, -0.02]);                                // jaw / base shell
-  add(B.head, bevelBox(0.24, 0.16, 0.05, ceramic, 0.02, 0.03), [0, 0.11, 0.12], [-0.3, 0, 0]);                 // face plate, raked back
-  add(B.head, bevelBox(0.28, 0.05, 0.14, ceramic, 0.015, 0.03), [0, 0.2, 0.1], [0.25, 0, 0]);                  // brow overhang
-  add(B.head, hexPlate(0.05, 0.03, carbon), [0, 0.11, 0.15]);                                                   // visor recess
-  const visor = add(B.head, hexPlate(0.024, 0.012, glow(1.1)), [0, 0.11, 0.163]); visor.castShadow = false; model.visor = visor;
-  add(B.head, channel(0.16, N, 2.2, 0.018), [0, 0.135, 0.15], [-0.3, 0, 0]);                                    // visor slit
-  for (const sx of [-1, 1]) { add(B.head, bevelBox(0.06, 0.12, 0.14, carbon, 0.01), [sx * 0.15, 0.09, 0.02]); const ear = lathe([[0, 0], [0.035, 0], [0.04, 0.02], [0.03, 0.035], [0, 0.035]], gun, 14); ear.rotation.z = sx * -Math.PI / 2; ear.position.set(sx * 0.18, 0.12, -0.01); add(B.head, ear); const earL = cyl(0.016, 0.016, 0.008, glowS(1.6), 10); earL.rotation.z = Math.PI / 2; earL.position.set(sx * 0.215, 0.12, -0.01); earL.castShadow = false; B.head.add(earL); }
-  add(B.head, bevelBox(0.04, 0.03, 0.04, gun, 0.006), [-0.09, 0.275, -0.06]);                                   // sensor mast base
-  add(B.head, cyl(0.007, 0.009, 0.07, gun, 6), [-0.09, 0.32, -0.06]);
-  add(B.head, sphere(0.011, glowS(2), 8), [-0.09, 0.36, -0.06]).castShadow = false;
+  // ---- helmet: four faces share the chassis. KESTREL-7 visor slit, BASTION-4 welder bar, WRAITH-3 tri-eye, JOLT-9 mono-lens.
+  const face = opts.face || FACE_BY_NEON[String(N).toLowerCase()] || 'kestrel';
+  model.face = face;
+  if (face === 'bastion') {
+    add(B.head, bevelBox(0.29, 0.13, 0.27, ceramic, 0.03, 0.06), [0, 0.2, -0.01]);                             // low wide crown
+    add(B.head, bevelBox(0.05, 0.035, 0.24, gun, 0.006), [0, 0.28, -0.02]);                                     // crest ridge
+    add(B.head, bevelBox(0.26, 0.14, 0.22, carbon, 0.02, 0.04), [0, 0.06, -0.02]);                              // heavy jaw
+    add(B.head, bevelBox(0.2, 0.05, 0.06, gun, 0.01), [0, 0.03, 0.12]);                                          // chin guard
+    add(B.head, bevelBox(0.27, 0.17, 0.05, ceramic, 0.02, 0.03), [0, 0.12, 0.12], [-0.12, 0, 0]);               // flat face plate
+    add(B.head, bevelBox(0.31, 0.06, 0.16, ceramic, 0.015, 0.03), [0, 0.215, 0.09], [0.2, 0, 0]);               // brow visor hood
+    add(B.head, bevelBox(0.21, 0.04, 0.02, carbon, 0.006), [0, 0.13, 0.145]);                                    // visor recess bar
+    const visor = add(B.head, bevelBox(0.19, 0.022, 0.008, glow(1.3), 0.003), [0, 0.13, 0.158]); visor.castShadow = false; model.visor = visor;
+    for (const sx of [-1, 1]) { add(B.head, sphere(0.011, glowS(2.4), 8), [sx * 0.075, 0.13, 0.163]).castShadow = false; add(B.head, bevelBox(0.07, 0.13, 0.16, carbon, 0.01), [sx * 0.165, 0.09, 0.0]); const ear = cyl(0.045, 0.045, 0.03, gun, 14); ear.rotation.z = Math.PI / 2; ear.position.set(sx * 0.215, 0.11, -0.01); add(B.head, ear); }
+  } else if (face === 'wraith') {
+    add(B.head, bevelBox(0.2, 0.17, 0.26, ceramic, 0.03, 0.06), [0, 0.19, -0.02]);                              // narrow tall crown
+    for (const sx of [-1, 1]) { add(B.head, bevelBox(0.03, 0.05, 0.17, ceramic, 0.008), [sx * 0.115, 0.26, -0.07], [0.5, 0, sx * 0.12]); add(B.head, bevelBox(0.03, 0.12, 0.16, carbon, 0.008), [sx * 0.125, 0.09, 0.01], [0, 0, sx * -0.1]); add(B.head, cyl(0.005, 0.005, 0.09, gun, 6), [sx * 0.05, 0.31, -0.09], [0.35, 0, 0]); }
+    add(B.head, bevelBox(0.18, 0.1, 0.18, carbon, 0.02, 0.04), [0, 0.06, -0.02]);                               // slim jaw
+    add(B.head, bevelBox(0.18, 0.19, 0.05, ceramic, 0.02, 0.03), [0, 0.12, 0.12], [-0.4, 0, 0]);                // pointed face plate, raked hard
+    add(B.head, bevelBox(0.06, 0.2, 0.02, carbon, 0.006), [0, 0.12, 0.148], [-0.4, 0, 0]);                       // centre spine
+    const visor = add(B.head, sphere(0.014, glow(2.2), 10), [0, 0.165, 0.152]); visor.castShadow = false; model.visor = visor;
+    for (const sx of [-1, 1]) add(B.head, sphere(0.012, glowS(2.2), 10), [sx * 0.05, 0.095, 0.17]).castShadow = false;
+    add(B.head, channel(0.1, N, 1.6, 0.01), [0, 0.04, 0.135], [-0.4, 0, 0]);                                     // chin line
+  } else if (face === 'jolt') {
+    const dome = add(B.head, sphere(0.15, ceramic, 20), [0, 0.16, -0.01]); dome.scale.set(1, 0.82, 1);          // round crown
+    add(B.head, bevelBox(0.22, 0.1, 0.2, carbon, 0.02, 0.04), [0, 0.05, -0.02]);                                // jaw
+    add(B.head, torus(0.058, 0.014, gun, 28), [0, 0.12, 0.13]);                                                 // lens ring
+    const visor = add(B.head, sphere(0.046, glow(1.4), 18), [0, 0.12, 0.13]); visor.castShadow = false; model.visor = visor;
+    add(B.head, sphere(0.018, glowS(3), 10), [0, 0.12, 0.172]).castShadow = false;                               // pupil
+    add(B.head, cyl(0.012, 0.012, 0.05, gun, 8), [0, 0.02, 0.125], [Math.PI / 2, 0, 0]); add(B.head, sphere(0.009, glowS(2), 8), [0, 0.02, 0.152]).castShadow = false; // chin sensor
+    for (const sx of [-1, 1]) { add(B.head, cyl(0.006, 0.008, 0.1, gun, 6), [sx * 0.08, 0.3, -0.05], [0, 0, sx * -0.25]); add(B.head, sphere(0.012, glowS(2), 8), [sx * 0.092, 0.35, -0.05]).castShadow = false; const ear = cyl(0.04, 0.04, 0.02, gun, 14); ear.rotation.z = Math.PI / 2; ear.position.set(sx * 0.16, 0.12, -0.01); add(B.head, ear); }
+  } else {
+    add(B.head, bevelBox(0.25, 0.15, 0.25, ceramic, 0.03, 0.06), [0, 0.19, -0.01]);                             // crown
+    add(B.head, bevelBox(0.23, 0.12, 0.2, carbon, 0.02, 0.04), [0, 0.07, -0.02]);                                // jaw / base shell
+    add(B.head, bevelBox(0.24, 0.16, 0.05, ceramic, 0.02, 0.03), [0, 0.11, 0.12], [-0.3, 0, 0]);                 // face plate, raked back
+    add(B.head, bevelBox(0.28, 0.05, 0.14, ceramic, 0.015, 0.03), [0, 0.2, 0.1], [0.25, 0, 0]);                  // brow overhang
+    add(B.head, hexPlate(0.05, 0.03, carbon), [0, 0.11, 0.15]);                                                   // visor recess
+    const visor = add(B.head, hexPlate(0.024, 0.012, glow(1.1)), [0, 0.11, 0.163]); visor.castShadow = false; model.visor = visor;
+    add(B.head, channel(0.16, N, 2.2, 0.018), [0, 0.135, 0.15], [-0.3, 0, 0]);                                    // visor slit
+    for (const sx of [-1, 1]) { add(B.head, bevelBox(0.06, 0.12, 0.14, carbon, 0.01), [sx * 0.15, 0.09, 0.02]); const ear = lathe([[0, 0], [0.035, 0], [0.04, 0.02], [0.03, 0.035], [0, 0.035]], gun, 14); ear.rotation.z = sx * -Math.PI / 2; ear.position.set(sx * 0.18, 0.12, -0.01); add(B.head, ear); const earL = cyl(0.016, 0.016, 0.008, glowS(1.6), 10); earL.rotation.z = Math.PI / 2; earL.position.set(sx * 0.215, 0.12, -0.01); earL.castShadow = false; B.head.add(earL); }
+    add(B.head, bevelBox(0.04, 0.03, 0.04, gun, 0.006), [-0.09, 0.275, -0.06]);                                   // sensor mast base
+    add(B.head, cyl(0.007, 0.009, 0.07, gun, 6), [-0.09, 0.32, -0.06]);
+    add(B.head, sphere(0.011, glowS(2), 8), [-0.09, 0.36, -0.06]).castShadow = false;
+  }
   // ---- shoulders: double-shell pauldrons, unit decal (L) and chevron (R), light rail
   for (const side of ['L', 'R']) {
     const sx = side === 'L' ? 1 : -1; const sh = B['shoulder' + side];

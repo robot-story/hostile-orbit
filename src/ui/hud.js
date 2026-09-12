@@ -20,6 +20,7 @@ const WEAPON_ICONS = {
   pistol: '<svg viewBox="0 0 120 40"><path d="M30 12h60v9H50l-4 14h-14l4-14h-6z" fill="currentColor" opacity=".9"/><rect x="62" y="21" width="20" height="3" fill="currentColor" opacity=".6"/></svg>',
 };
 
+const ARROW_GLYPH = { ArrowUp: '\u2191', ArrowDown: '\u2193', ArrowLeft: '\u2190', ArrowRight: '\u2192' };
 export class Hud {
   constructor(root, map = null) {
     this.map = map;
@@ -34,6 +35,7 @@ export class Hud {
         <div class="radar"><canvas width="220" height="220"></canvas><div class="ring"></div><div class="rlabel">TAC-SCAN</div><div class="rn">N</div><div class="threat"></div></div>
         <div class="vitals"><div class="hpname">INTEGRITY</div><div class="hp"><div class="bar"><i></i><em></em></div><b class="hpnum">100</b></div><div class="fuel"><span>THRUST</span><div class="bar"><i></i></div></div><div class="lives"></div></div>
       </div>
+      <div class="strat"><div class="sname"></div><div class="scode"></div><div class="shint">ARROW KEYS TO CONFIRM</div></div>
       <div class="abilities"></div>
       <div class="hud-br"><div class="ammo"><div class="wicon"></div><div class="wname"></div><div class="count"><b class="mag">30</b><span class="res">/ 180</span></div><div class="pips"></div></div><div class="kit"><span class="gren"><i class="ico g"></i><b>4</b></span><span class="inj"><i class="ico h"></i><b>4</b></span></div></div>
       <div class="marked">TARGET MARKED — REINFORCEMENTS INBOUND</div>
@@ -115,6 +117,18 @@ export class Hud {
       #hud .ab .cd{position:absolute;inset:0;background:conic-gradient(rgba(0,0,0,.78) var(--cd,0%),transparent 0)}
       #hud .ab .key{margin-top:4px;font-size:10px;letter-spacing:.1em;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.3);color:#fff;display:inline-block;padding:1px 6px}
       #hud .ab.ready .ring{border-color:var(--cyan);box-shadow:0 0 14px rgba(0,229,255,.5)}
+      #hud .ab .code{margin-top:3px;font-size:11px;letter-spacing:.12em;color:rgba(255,255,255,.55)}
+      #hud .ab.arming .ring{border-color:var(--yellow,#ffd23f);box-shadow:0 0 18px rgba(255,210,63,.6)}
+      #hud .strat{position:absolute;left:50%;bottom:132px;transform:translateX(-50%) scale(var(--hs));text-align:center;opacity:0;transition:opacity .15s;pointer-events:none}
+      #hud .strat.on{opacity:1}
+      #hud .strat .sname{font-size:11px;letter-spacing:.3em;color:var(--yellow,#ffd23f)}
+      #hud .strat .scode{display:flex;gap:8px;justify-content:center;margin:6px 0 4px}
+      #hud .strat .scode i{font-style:normal;width:38px;height:38px;border:1px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;font-size:22px;color:rgba(255,255,255,.55);background:rgba(0,0,0,.55)}
+      #hud .strat .scode i.done{color:#0a0e12;background:var(--yellow,#ffd23f);border-color:var(--yellow,#ffd23f)}
+      #hud .strat .scode i.next{color:#fff;border-color:#fff;box-shadow:0 0 10px rgba(255,255,255,.4)}
+      #hud .strat.err .scode{animation:strat-err .3s ease}
+      @keyframes strat-err{0%{transform:translateX(-6px)}50%{transform:translateX(6px)}100%{transform:none}}
+      #hud .strat .shint{font-size:9px;letter-spacing:.26em;color:rgba(255,255,255,.5)}
       #hud .ab.locked{opacity:.4} #hud .ab .cdt{position:absolute;left:0;right:0;top:19px;font-size:14px;color:#fff;font-weight:600;z-index:2}
       /* bottom-right: weapon */
       #hud .hud-br{position:absolute;right:28px;bottom:28px;text-align:right;transform:scale(var(--hs));transform-origin:bottom right}
@@ -166,6 +180,7 @@ export class Hud {
       events.on('hud:fuel', (f, burning) => { const el = this.el.querySelector('.fuel'); el.classList.toggle('burn', !!burning); el.querySelector('.bar i').style.width = `${f * 100}%`; }),
       events.on('alert:level', (l) => { this.alertLevel = l; const r = this.el.querySelector('.radar'); r.className = 'radar' + (l > 0 ? ' t' + l : ''); }),
       events.on('hud:abilities', (cd, unlocked) => this.updateAbilities(cd, unlocked)),
+      events.on('hud:stratagem', (e) => this.setStratagem(e)),
       events.on('boss:spawn', (b) => this.setBoss(b)), events.on('boss:health', (b) => this.setBoss(b)), events.on('boss:died', () => this.setBoss(null)),
       events.on('lives:changed', (n) => this.setLives(n, this.maxLives)),
       events.on('player:marked', () => this.el.querySelector('.marked').classList.add('on')), events.on('player:unmarked', () => this.el.querySelector('.marked').classList.remove('on')),
@@ -176,9 +191,16 @@ export class Hud {
   }
   buildAbilities() {
     const c = this.el.querySelector('.abilities'); c.innerHTML = ''; this.abEls = {};
-    ['kinetic', 'gunship', 'sentry', 'supply'].forEach((id, i) => { const d = document.createElement('div'); d.className = 'ab locked'; d.innerHTML = `<div class="ring"><div class="cd"></div>${ABILITY_ICONS[id]}<div class="cdt"></div></div><div class="key">${keyLabel(settings.data.binds['ability' + (i + 1)])}</div>`; d.title = ABILITIES[id].name; c.appendChild(d); this.abEls[id] = d; });
+    ['kinetic', 'gunship', 'sentry', 'supply'].forEach((id, i) => { const d = document.createElement('div'); d.className = 'ab locked'; d.innerHTML = `<div class="ring"><div class="cd"></div>${ABILITY_ICONS[id]}<div class="cdt"></div></div><div class="key">${keyLabel(settings.data.binds['ability' + (i + 1)])}</div><div class="code">${(ABILITIES[id].code || []).map((k) => ARROW_GLYPH[k]).join('')}</div>`; d.title = ABILITIES[id].name; c.appendChild(d); this.abEls[id] = d; });
   }
   buildCompass() { const s = this.el.querySelector('.compass .strip'); let h = ''; const labels = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' }; for (let r = 0; r < 3; r++) for (let a = 0; a < 360; a += 15) h += `<span>${labels[a] || (a % 45 === 0 ? '' : '·')}</span>`; s.innerHTML = h; }
+  setStratagem(e) {
+    const el = this.el.querySelector('.strat'); if (!e) { el.classList.remove('on', 'err'); for (const id in this.abEls) this.abEls[id].classList.remove('arming'); return; }
+    el.classList.add('on'); el.classList.toggle('err', !!e.error); if (e.error) { void el.offsetWidth; }
+    el.querySelector('.sname').textContent = ABILITIES[e.id].name;
+    el.querySelector('.scode').innerHTML = e.code.map((k, i) => `<i class="${i < e.i ? 'done' : i === e.i ? 'next' : ''}">${ARROW_GLYPH[k]}</i>`).join('');
+    for (const id in this.abEls) this.abEls[id].classList.toggle('arming', id === e.id);
+  }
   updateAbilities(cd, unlocked) { this.el.querySelector('.abilities').classList.toggle('on', !!unlocked); for (const id in this.abEls) { const el = this.abEls[id]; const def = ABILITIES[id]; const v = cd[id] || 0; el.classList.toggle('locked', !unlocked); el.classList.toggle('ready', unlocked && v <= 0); el.querySelector('.cd').style.setProperty('--cd', `${(v / def.cooldown) * 100}%`); el.querySelector('.cdt').textContent = v > 0 ? Math.ceil(v) : ''; } }
   setLives(n, max = 4) { this.lives = n; this.maxLives = max; const c = this.el.querySelector('.lives'); c.innerHTML = ''; for (let i = 0; i < max; i++) { const e = document.createElement('em'); if (i >= n) e.classList.add('used'); c.appendChild(e); } const t = document.createElement('span'); t.className = 'lt'; t.textContent = 'REINFORCEMENTS'; c.appendChild(t); }
   setBoss(b) { const el = this.el.querySelector('.boss'); if (!b || b.dead) { el.classList.remove('on'); return; } el.classList.add('on'); el.querySelector('.bar i').style.width = `${Math.max(0, b.health / b.maxHealth * 100)}%`; el.querySelector('.plates').innerHTML = ['plateL', 'chest', 'plateR', 'kneeL', 'kneeR'].map(k => `<i class="${b.armour[k] > 0 ? '' : 'broken'}"></i>`).join(''); }

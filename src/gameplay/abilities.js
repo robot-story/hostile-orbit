@@ -10,6 +10,8 @@ import { v3 } from '../net/protocol.js';
 import { COLORS } from '../render/materials.js';
 
 const ORDER = ['kinetic', 'gunship', 'sentry', 'supply'];
+const ARROWS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+const ENTRY_WINDOW = 4.0; // seconds to finish a code once the first key is in
 
 export class Abilities {
   constructor(game) {
@@ -25,11 +27,33 @@ export class Abilities {
   update(dt) {
     for (const k in this.cooldowns) this.cooldowns[k] = Math.max(0, this.cooldowns[k] - dt);
     const p = this.game.localPlayer;
-    if (p && !p.dead && this.unlocked && input.enabled) {
-      ORDER.forEach((id, i) => { if (input.pressed(`ability${i + 1}`)) this.tryUse(id); });
-    }
+    if (p && !p.dead && this.unlocked && input.enabled && !this.game.session?.qte?.busy) {
+      // stratagem codes: the number key arms a call-in, the arrow sequence confirms it (a wrong arrow resets, the window expires)
+      ORDER.forEach((id, i) => { if (input.pressed(`ability${i + 1}`)) this.arm(id); });
+      const E = this.entry;
+      if (E) {
+        E.t += dt; if (E.i > 0 && E.t > ENTRY_WINDOW) { this.cancelEntry('timeout'); }
+        else for (const k of ARROWS) { if (!input._codePressed(k)) continue; if (k === E.code[E.i]) { E.i++; E.t = 0; audio.play('ui_tab', { volume: 0.7, pitch: 1 + E.i * 0.08 }); if (E.i >= E.code.length) { const id = E.id; this.entry = null; events.emit('hud:stratagem', null); this.tryUse(id); } else events.emit('hud:stratagem', { id: E.id, code: E.code, i: E.i }); } else { E.i = 0; E.t = 0; E.errors++; audio.ui('ui_error'); events.emit('hud:stratagem', { id: E.id, code: E.code, i: 0, error: true }); } break; }
+      }
+    } else if (this.entry) this.cancelEntry('interrupted');
     for (let i = this.active.length - 1; i >= 0; i--) { const a = this.active[i]; a.update(dt); if (a.done || a.removed || (a.poweredDown && a.removed)) this.active.splice(i, 1); }
     events.emit('hud:abilities', this.cooldowns, this.unlocked);
+  }
+  /** Arm a call-in: shows its code; pressing the same key again or another number switches or cancels. */
+  arm(id) {
+    const def = ABILITIES[id];
+    if (this.cooldowns[id] > 0) { audio.ui('ui_error'); events.emit('toast', `${def.name} RECHARGING ${Math.ceil(this.cooldowns[id])}s`, 'warn'); return; }
+    if (this.entry?.id === id) { this.cancelEntry('cancel'); return; }
+    if (!def.code) { this.tryUse(id); return; }
+    this.entry = { id, code: def.code, i: 0, t: 0, errors: 0 }; audio.play('ui_tab', { volume: 0.6, pitch: 0.9 });
+    events.emit('hud:stratagem', { id, code: def.code, i: 0 });
+  }
+  cancelEntry(reason) { this.entry = null; events.emit('hud:stratagem', null); if (reason === 'timeout') { audio.ui('ui_error'); events.emit('toast', 'CALL-IN CODE EXPIRED', 'warn'); } }
+  /** Host: a Legion breach pod lands a squad on `pos` (director decides when). Replicated like any pod. */
+  breach(pos, template = 'assault') {
+    if (!net.isHost) return; const g = this.world.groundHeight(pos.x, pos.z); const at = new THREE.Vector3(pos.x, g, pos.z);
+    net.send(MSG.EV_POD, { id: this.world.allocId(), kind: 'breach', p: v3(at), owner: 0, dir: [0, 0, 1], tmpl: template }, { reliable: true });
+    this._spawn('breach', at, 0, new THREE.Vector3(0, 0, 1), { delay: 3.4, template });
   }
   tryUse(id) {
     const def = ABILITIES[id]; const p = this.game.localPlayer;
@@ -54,7 +78,7 @@ export class Abilities {
     this._spawn(id, pos, owner, dir, def);
     this.game.combat.stats.orbitalStrikes++;
   }
-  spawnVisual(m) { this._spawn(m.kind, new THREE.Vector3(...m.p), m.owner, new THREE.Vector3(...(m.dir || [0, 0, 1])), ABILITIES[m.kind]); }
+  spawnVisual(m) { this._spawn(m.kind, new THREE.Vector3(...m.p), m.owner, new THREE.Vector3(...(m.dir || [0, 0, 1])), m.kind === 'breach' ? { delay: 3.4, template: m.tmpl } : ABILITIES[m.kind]); }
   _spawn(id, pos, owner, dir, def) {
     if (id === 'kinetic') {
       const zone = this.fx.warningZone(pos, def.radius, COLORS.red, def.delay);
@@ -79,6 +103,17 @@ export class Abilities {
       events.emit('toast', 'GUNSHIP RUN AUTHORISED', 'info');
     } else if (id === 'sentry') {
       const pod = new DropPod(this.game, pos, { kind: 'sentry', owner, color: COLORS.amber, duration: def.delay, onOpen: (pd) => { const t = new SentryTurret(this.game, pd.target.clone().setY(pd.target.y + 0.4), { owner, duration: def.duration, damage: def.damage }); this.active.push(t); pd.model.userData.body.visible = false; setTimeout(() => pd.remove(), 3000); } });
+      this.active.push(pod);
+    } else if (id === 'breach') {
+      // Legion breach: red flare, warning ring, then a black pod that unloads a squad already shooting
+      const zone = this.fx.warningZone(pos, 6, COLORS.red, def.delay + 0.4);
+      this.fx.beam?.(pos.clone().setY(pos.y + 300), pos.clone(), '#ff4a2a', 1.2, def.delay);
+      audio.play('kinetic_charge', { pos, volume: 0.6, pitch: 0.7, maxDistance: 300, refDistance: 25 });
+      events.emit('toast', 'LEGION BREACH INBOUND', 'warn'); events.emit('enemy:breach', pos);
+      const pod = new DropPod(this.game, pos, { kind: 'breach', owner, color: COLORS.red, duration: def.delay, onLand: () => { zone.remove(); events.emit('fx:shake', 0.8, pos); this.game.director?.noise?.(pos, 3); }, onOpen: (pd) => {
+        if (net.isHost) { const target = this.game.players?.find((q) => !q.dead) || null; this.game.director.spawnSquad(def.template || 'assault', pd.target.clone(), { alert: true, target, allowElite: true }); }
+        setTimeout(() => pd.remove(), 6000);
+      } });
       this.active.push(pod);
     } else if (id === 'supply') {
       const pod = new DropPod(this.game, pos, { kind: 'supply', owner, color: COLORS.green, duration: def.delay, onOpen: (pd) => {

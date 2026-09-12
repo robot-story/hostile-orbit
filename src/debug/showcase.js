@@ -19,17 +19,18 @@ import { ROBOTS } from '../models/robots.js';
  *  jump / turn phases so the locomotion flavour can be judged. `?showcase&robots[&robot=a|b|c][&angle=..&r=..&h=..]` */
 function robotShowcase(game, world, params, base) {
   const legion = params.has('legion');
-  const kinds = legion ? ['rifleman', 'breacher', 'suppressor', 'grenadier'] : (params.get('robot') && ROBOTS[params.get('robot')] ? [params.get('robot')] : ['a', 'b', 'c']);
+  const FACES = params.has('faces') ? ['#00e5ff', '#ffb020', '#c44dff', '#7dff5a'] : null; // ?faces: the four OUTRIDER variants side by side
+  const kinds = legion ? ['rifleman', 'breacher', 'suppressor', 'grenadier'] : FACES ? ['a', 'a', 'a', 'a'] : (params.get('robot') && ROBOTS[params.get('robot')] ? [params.get('robot')] : ['a', 'b', 'c']);
   const LW = { rifleman: 'legion_rifle', breacher: 'legion_shotgun', suppressor: 'legion_heavy', grenadier: 'legion_rifle' };
   const spacing = 7; const demos = [];
   const MAXV = 6.2;
   const PHASES = [{ n: 'idle', d: 2.2 }, { n: 'walk', d: 3.2, sp: 0.4 }, { n: 'sprint', d: 3.2, sp: 1, sprint: 1 }, { n: 'strafe', d: 3, sp: 0.5, strafe: 1 }, { n: 'crouch', d: 2.4, sp: 0.25, crouch: 1 }, { n: 'aim', d: 2.6, aim: 1, fire: 1 }, { n: 'jump', d: 1.5 }, { n: 'turn', d: 2, turn: 1 }, { n: 'cover', d: 3, cover: 1 }, { n: 'coverfire', d: 2, cover: 1, aim: 1, fire: 1 }];
   kinds.forEach((k, i) => {
-    const m = legion ? buildSoldier(k === 'suppressor' ? 'legionHeavy' : 'legion', { legion: k, custom: null }) : buildSoldier('vanguard', { robot: k }); const a = new CharacterAnimator(m); a.weaponSocket.add(WEAPON_BUILDERS[legion ? LW[k] : 'viper']());
+    const m = legion ? buildSoldier(k === 'suppressor' ? 'legionHeavy' : 'legion', { legion: k, custom: null }) : buildSoldier('vanguard', { robot: k, neon: FACES ? FACES[i] : undefined }); const a = new CharacterAnimator(m); a.weaponSocket.add(WEAPON_BUILDERS[legion ? LW[k] : 'viper']());
     const home = new THREE.Vector3(base.x + (i - (kinds.length - 1) / 2) * spacing, 0, base.z + 4); home.y = world.groundHeight(home.x, home.z);
     m.root.position.copy(home); world.actors.add(m.root);
     // name plate
-    const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgba(0,0,0,0)'; x.fillRect(0, 0, 512, 128); x.font = '700 54px Arial'; x.textAlign = 'center'; x.fillStyle = '#00e5ff'; x.fillText(legion ? k.toUpperCase() : ROBOTS[k].name, 256, 62); x.font = '400 26px Arial'; x.fillStyle = '#ffffff'; x.fillText(legion ? 'LEGION FRAME' : (k.toUpperCase() + '  //  ' + ROBOTS[k].blurb), 256, 104);
+    const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgba(0,0,0,0)'; x.fillRect(0, 0, 512, 128); x.font = '700 54px Arial'; x.textAlign = 'center'; x.fillStyle = '#00e5ff'; x.fillText(legion ? k.toUpperCase() : FACES ? (m.face || '').toUpperCase() : ROBOTS[k].name, 256, 62); x.font = '400 26px Arial'; x.fillStyle = '#ffffff'; x.fillText(legion ? 'LEGION FRAME' : (k.toUpperCase() + '  //  ' + ROBOTS[k].blurb), 256, 104);
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.scale.set(4, 1, 1); sp.position.set(home.x, home.y + 2.6, home.z); world.actors.add(sp);
     demos.push({ k, m, a, home, sprite: sp, pos: home.clone(), yaw: 0, vel: new THREE.Vector3(), idx: 0, t: 0, fireT: 0, jumpT: 0, land: 0, prevSpeed: 0, prevYaw: 0 });
   });

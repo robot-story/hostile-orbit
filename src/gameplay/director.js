@@ -28,6 +28,7 @@ export class Director {
     this.lastAlertLevel = 0;
     this.killCount = 0;
     this.grid = new Map();
+    this.breachT = 40; // first breach can come 40 s into a loud fight
   }
   get scaling() { return scaleForPlayers(this.game.players?.length || 1); }
   get diffCount() { return this.game.difficulty?.enemyCount ?? 1; }
@@ -122,6 +123,12 @@ export class Director {
     for (const e of this.enemies) { e.update(dt, this.game.camera); if (!e.dead && e.alert) alert++; }
     this.enemies = this.enemies.filter(e => !e.removed);
     for (const s of this.squads) s.update(dt); this.squads = this.squads.filter(s => s.members.length);
+    // Legion breach events: a sustained fight (alert 2+) draws a pod-borne squad every 45-75 s, landed 24-38 m from the squad
+    this.breachT -= dt;
+    if (this.alertLevel >= 2 && this.breachT <= 0 && this.activeCount() < this.budget() - 2) {
+      this.breachT = rand(45, 75); const p = players.find((q) => !q.dead);
+      if (p) { for (let k = 0; k < 8; k++) { const a = rand(0, 6.28), r = rand(24, 38); const c = this.world.nav.randomWalkableNear(p.position.x + Math.cos(a) * r, p.position.z + Math.sin(a) * r, 5); if (!c) continue; const pos = new THREE.Vector3(c.x, 0, c.z); if (pos.distanceTo(p.position) < 18) continue; this.game.session?.abilities?.breach(pos, pick(['assault', 'fire_team', 'patrol_heavy'])); break; } }
+    } else if (this.alertLevel < 1) this.breachT = Math.max(this.breachT, 20);
     // alert level for HUD/music
     this.alertLevel = alert === 0 ? Math.max(0, this.alertLevel - dt * 0.25) : Math.min(3, Math.max(this.alertLevel, alert >= 8 ? 3 : alert >= 3 ? 2 : 1));
     const lvl = Math.round(this.alertLevel);
