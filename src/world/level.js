@@ -17,6 +17,7 @@ import {
 import { membranePlant, blackGlassTree, glowPool, boneArch, sporeField } from '../models/alien.js';
 import { LOCATIONS, patrolRoutes, spawnPoints } from './locations.js';
 import { rand, randInt, pick, clamp } from '../core/mathx.js';
+import { buildMeridianStory } from './encampments.js';
 import { dressMeridian } from './dressing.js';
 
 function randSign() { return Math.random() < 0.5 ? -1 : 1; }
@@ -269,6 +270,7 @@ export function buildMeridian(world) {
   // curated vignettes on top of the procedural scatter
   try { buildHorizon(world); } catch (e) { console.warn('[level] horizon failed', e); }
   try { dressMeridian(world, info); } catch (e) { console.warn('[level] dressing failed', e); }
+  try { buildMeridianStory(world, info); } catch (e) { console.warn('[level] story layer failed', e); }
   world.level = info;
   return info;
 }

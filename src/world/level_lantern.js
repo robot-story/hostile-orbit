@@ -11,6 +11,7 @@ import {
   neonSign, holoBillboard, streetLamp, buildTransitPlaza, buildSubstation, buildBroadcastTower, buildRooftopPad,
 } from '../models/city.js';
 import { rand, pick, clamp } from '../core/mathx.js';
+import { buildLanternStory } from './encampments.js';
 import { dressLantern } from './dressing.js';
 
 const SLOGANS = [
@@ -202,6 +203,7 @@ export function buildLantern(world) {
 
   try { buildHorizon(world); } catch (e) { console.warn('[level] horizon failed', e); }
   try { dressLantern(world, info, { hoverWreck, dumpster, cableSpool, trafficBarrier, neonSign, holoBillboard, streetLamp }); } catch (e) { console.warn('[level] dressing failed', e); }
+  try { buildLanternStory(world, info); } catch (e) { console.warn('[level] story layer failed', e); }
   world.level = info;
   return info;
 }

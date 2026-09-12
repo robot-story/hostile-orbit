@@ -244,6 +244,8 @@ export class Mission {
     D.addGarrison(L.commsPlaza.pos, 30, ['beast'], { spread: 6 }); // the Legion keeps a war-beast chained in the yard
     D.addGarrison(L.detentionEntrance.pos, 35, ['patrol'], { spread: 8, alert: true });
     D.addGarrison(L.extractionApproach.pos, 70, ['patrol', 'heavy'], { spread: 16 });
+    // story-layer encampments: each camp is held by the squad the level assigned it
+    for (const c of (lv.camps || [])) D.addGarrison(c.pos, c.r, [c.squad], { spread: c.spread, alert: c.alert });
   }
   setupInteractables() {
     const lv = this.level;
@@ -410,6 +412,8 @@ export class Mission {
     this.updateInteract(dt);
     this.dropship?.update(dt);
     const p = this.game.localPlayer; const D = this.game.director;
+    // field intel: Voss narrates what happened here the first time a player reaches each point (local, cosmetic)
+    if (p && !p.dead && this.level.story) { this._storyT = (this._storyT || 0) - dt; if (this._storyT <= 0) { this._storyT = 0.5; for (const sp of this.level.story) { if (sp.done) continue; const dx = p.position.x - sp.pos.x, dz = p.position.z - sp.pos.z; if (dx * dx + dz * dz < sp.r * sp.r) { sp.done = true; events.emit('subtitle:show', { speaker: sp.speaker, text: sp.text, duration: 5.5, id: 'story' }); events.emit('toast', sp.toast, 'info'); break; } } } }
     if (net.isHost) {
       // stage triggers
       if (this.stage === 'canyon' && this.anyPlayerNear(this.L.jammerGateSouth.pos, 34)) this.setStage('jammer');
