@@ -1,3 +1,4 @@
+import { preloadHollow } from './hollow.js';
 // Custom character mesh support: loads a static GLB (e.g. a Meshy export), normalises its orientation and
 // scale, and auto-skins it to the procedural soldier skeleton so the existing CharacterAnimator drives it.
 // Skinning is capsule-based: every vertex takes weights from its two nearest bone segments (soft falloff
@@ -228,6 +229,7 @@ export function skinToRig(custom, bones, rootGroup) {
 export const CUSTOM = { body: {}, weapon: {}, ready: false };
 export function preloadCustomModels() {
   const jobs = [
+    preloadHollow(),
     loadCustomMesh('models/vanguard.glb', { part: 0, height: 1.88, decimate: 0.008 }).then((c) => { CUSTOM.body.vanguard = c; }),
     loadCustomMesh('models/sentinel.glb', { part: 0, height: 1.9, decimate: 0.02 }).then((c) => { CUSTOM.body.sentinel = c; c.noShadow = true; }),
     loadCustomMesh('models/sentinel.glb', { part: 2, mode: 'weapon', length: 1.08 }).then((c) => { CUSTOM.weapon.viper = c; const dark = c.material.clone(); dark.color.set('#6f6f78'); CUSTOM.weapon.legion_rifle = { ...c, material: dark }; }),

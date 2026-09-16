@@ -1,3 +1,4 @@
+import { MAPS, DEFAULT_MAP } from '../world/maps/index.js';
 // Standalone menu preview: builds a stub `api` (using the real settings/save/
 // weapon data modules) so every screen can be exercised without booting the
 // 3D game. Useful for design review of src/ui/* in isolation.
@@ -6,7 +7,7 @@ import { settings } from '../core/settings.js';
 import { save } from '../core/save.js';
 import { events } from '../core/events.js';
 import { input, keyLabel } from '../core/input.js';
-import { WEAPONS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES } from '../gameplay/weapons.js';
+import { WEAPONS, FRAME_VARIANTS, GRENADE, INJECTOR, ABILITIES, DIFFICULTIES, DROP_ZONES } from '../gameplay/weapons.js';
 import { SQUAD_COLORS, MAX_PLAYERS } from '../net/protocol.js';
 
 function noop() {}
@@ -21,8 +22,8 @@ function makeStubApi() {
   };
 
   const api = {
-    settings, save, events, WEAPONS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES, SQUAD_COLORS, MAX_PLAYERS,
-    keyLabel, input,
+    settings, save, events, WEAPONS, FRAME_VARIANTS, GRENADE, INJECTOR, ABILITIES, DIFFICULTIES, DROP_ZONES, SQUAD_COLORS, MAX_PLAYERS,
+    keyLabel, input, MAPS, DEFAULT_MAP,
     ui: {
       click: () => console.debug('[ui] click'),
       hover: () => {},
@@ -40,8 +41,7 @@ function makeStubApi() {
     preview: {
       setMode: (m) => console.debug('[preview] mode', m),
       setWeapon: (id) => console.debug('[preview] weapon', id),
-      rotate: noop,
-      setArmour: (id) => console.debug('[preview] armour', id),
+      rotate: noop, setNeon: noop,
     },
     resume: noop, restartCheckpoint: noop, abortToOrbit: () => menus.show('main'), quit: noop,
     setFullscreen: noop,

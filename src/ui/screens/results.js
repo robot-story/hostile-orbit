@@ -63,6 +63,8 @@ export function createResultsScreen(api, mgr) {
       rewardItem('req', results.requisition || 0, 'REQUISITION'),
       rewardItem('intel', results.intel || 0, 'INTEL'),
     ]));
+    for (const id of results.weaponUnlocks || []) root.appendChild(el('div', { class: 'res-unlock panel', text: `WEAPON UNLOCKED · ${api.WEAPONS[id]?.name || id}` }));
+    if (results.levelAfter > results.levelBefore) root.appendChild(el('div', { class: 'res-unlock', text: `RANK UP · LEVEL ${results.levelAfter}` }));
 
     if (!failed) {
       const starsEl = el('div', { class: 'res-stars' });
@@ -72,7 +74,9 @@ export function createResultsScreen(api, mgr) {
 
     const actions = el('div', { class: 'res-actions' });
     if (coop && !isHost) {
-      actions.appendChild(el('div', { class: 'res-waiting', text: 'WAITING FOR HOST' }));
+      actions.appendChild(actionButton(api,{label:'RETURN TO LOBBY',onClick:()=>api.abortToOrbit()}));
+    } else if (coop) {
+      actions.appendChild(actionButton(api,{label:'RETURN TO LOBBY',kind:'primary',onClick:()=>api.abortToOrbit()}));
     } else if (failed) {
       actions.appendChild(actionButton(api, { label: 'RETRY FROM CHECKPOINT', kind: 'primary', sound: 'deploy', onClick: () => api.restartCheckpoint() }));
       actions.appendChild(actionButton(api, { label: 'RETURN TO ORBIT', sound: 'back', onClick: () => api.abortToOrbit() }));

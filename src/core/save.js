@@ -1,7 +1,9 @@
 // Persistent player profile / progression / combat record.
 import { events } from './events.js';
+import { applyMissionRewards } from '../gameplay/rewards.js';
 
 const KEY = 'hostile-orbit.profile.v1';
+const profileStorage=import.meta.env.DEV&&new URLSearchParams(location.search).has('coopqa')?sessionStorage:localStorage;
 
 const DEFAULT_PROFILE = {
   createdAt: Date.now(),
@@ -10,7 +12,7 @@ const DEFAULT_PROFILE = {
   requisition: 0,
   intel: 0,
   unlockedWeapons: ['viper', 'longshot'],
-  loadout: { primary: 'viper', secondary: 'longshot', grenade: 'frag', armour: 'orbital_assault', difficulty: 'veteran', dropZone: 'main' },
+  loadout: { primary: 'viper', secondary: 'longshot', grenade: 'frag', difficulty: 'veteran', dropZone: 'main' },
   missions: {
     silent_meridian: { completed: 0, attempts: 0, bestTime: null, bestStars: 0, bestAccuracy: 0, lastResult: null },
   },
@@ -26,7 +28,7 @@ class SaveSystem {
   constructor() { this.profile = structuredClone(DEFAULT_PROFILE); this.load(); }
   load() {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = profileStorage.getItem(KEY);
       if (raw) {
         const p = JSON.parse(raw);
         this.profile = { ...structuredClone(DEFAULT_PROFILE), ...p };
@@ -40,7 +42,7 @@ class SaveSystem {
     } catch (e) { console.warn('[save] load failed', e); }
   }
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify(this.profile)); events.emit('profile:changed', this.profile); }
+    try { profileStorage.setItem(KEY, JSON.stringify(this.profile)); events.emit('profile:changed', this.profile); }
     catch (e) { console.warn('[save] save failed', e); }
   }
   unlockWeapon(id) {
@@ -61,6 +63,11 @@ class SaveSystem {
     this.save();
   }
   setCheckpoint(data) { this.profile.operationInProgress = data; this.save(); }
+  grantMissionRewards(result) {
+    const receipt = applyMissionRewards(this.profile, result);
+    this.save();
+    return { ...result, ...receipt };
+  }
   clearCheckpoint() { this.profile.operationInProgress = null; this.save(); }
   get hasOperation() { return !!this.profile.operationInProgress; }
   recordMissionResult(id, result) {

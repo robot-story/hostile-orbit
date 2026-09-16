@@ -117,9 +117,6 @@ export const FRAME_VARIANTS = {
 export const GRENADE = { id: 'frag', name: 'FRAG', damage: 160, radius: 6.5, fuse: 3.0, count: 4, maxCount: 6, throwSpeed: 16, impulse: 14 };
 export const INJECTOR = { id: 'injector', name: 'WELLNESS INJECTOR', heal: 65, duration: 1.6, count: 4, maxCount: 6, useTime: 1.4 };
 
-export const ARMOUR = {
-  orbital_assault: { id: 'orbital_assault', name: 'ORBITAL ASSAULT', health: 100, speed: 1.0, description: 'Balanced plating. Approved for most forms of dying.' },
-};
 
 export const ABILITIES = {
   kinetic: { id: 'kinetic', name: 'KINETIC STRIKE', key: 'ability1', code: ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowDown'], cooldown: 45, delay: 3.2, radius: 13, damage: 900, description: 'Tungsten rod from orbit. Ruins the afternoon of everything within thirteen metres.' },
@@ -129,10 +126,10 @@ export const ABILITIES = {
 };
 
 export const DIFFICULTIES = {
-  recruit: { id: 'recruit', name: 'RECRUIT', enemyHp: 0.8, enemyDmg: 0.6, enemyCount: 0.75, accuracy: 0.7, xp: 0.8, lives: 5, description: 'A gentle introduction to state-sanctioned violence.' },
-  veteran: { id: 'veteran', name: 'VETERAN', enemyHp: 1.0, enemyDmg: 1.0, enemyCount: 1.0, accuracy: 1.0, xp: 1.0, lives: 4, description: 'Standard operational risk. Death waiver applies.' },
-  elite: { id: 'elite', name: 'ELITE', enemyHp: 1.15, enemyDmg: 1.35, enemyCount: 1.3, accuracy: 1.2, xp: 1.4, lives: 3, description: 'For Vanguards who have exceeded expectations and wish to exceed them posthumously.' },
-  hostile: { id: 'hostile', name: 'HOSTILE', enemyHp: 1.3, enemyDmg: 1.8, enemyCount: 1.6, accuracy: 1.4, xp: 2.0, lives: 2, description: 'Management assumes no responsibility. Management never did.' },
+  recruit: { id:'recruit', name:'RECRUIT', enemyHp:.8, enemyDmg:.6, enemyCount:.7, accuracy:.7, perception:.8, reaction:1.4, reinforcements:1, xp:.8, lives:5, description:'Fewer enemies, slower reactions, forgiving incoming damage.' },
+  veteran: { id:'veteran', name:'VETERAN', enemyHp:1, enemyDmg:.9, enemyCount:.9, accuracy:.9, perception:.9, reaction:1.15, reinforcements:2, xp:1, lives:4, description:'Standard resistance with room to reposition and clear sectors.' },
+  elite: { id:'elite', name:'ELITE', enemyHp:1.1, enemyDmg:1.2, enemyCount:1.1, accuracy:1.1, perception:1, reaction:1, reinforcements:3, xp:1.4, lives:3, description:'More coordinated resistance, faster reactions and greater rewards.' },
+  hostile: { id:'hostile', name:'HOSTILE', enemyHp:1.2, enemyDmg:1.5, enemyCount:1.3, accuracy:1.2, perception:1.05, reaction:.9, reinforcements:4, xp:2, lives:2, description:'Heavy resistance and lethal fire. Cover and movement are essential.' },
 };
 
 export const DROP_ZONES = {

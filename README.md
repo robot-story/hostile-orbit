@@ -31,9 +31,9 @@ Neon military sci-fi third-person shooter in the browser. Two operations: drop o
 1. Main menu → **MULTIPLAYER** → enter a name → **HOST LOBBY**.
 2. Copy the invite link (or read out the 6-character room code) and send it to a friend.
 3. The friend opens the link, picks a name and lands in the lobby automatically. Everyone presses **READY**.
-4. Host: **BEGIN DEPLOYMENT** → **DEPLOY**. Everyone drops in their own pod.
+4. Host: **DEPLOY SQUAD**. Everyone drops in their own pod.
 
-Connections are peer-to-peer WebRTC via the public PeerJS signalling server; the host is authoritative for enemies, damage, objectives and the shared reinforcement pool. Friendly fire is on at reduced damage. Reconnecting with the same name through the same link restores the slot while the host stays in the lobby.
+Connections are peer-to-peer WebRTC via the public PeerJS signalling server; the host is authoritative for enemies, damage, objectives and the shared reinforcement pool. Friendly fire is off. One dead player returns after a six-second cooldown while a teammate survives; a full squad wipe ends the mission immediately. Reconnecting with the same name through the same link restores the slot while the host stays in the lobby.
 
 ## Development
 
@@ -48,8 +48,12 @@ node tools/generate-images.mjs [--edits]   # menu backdrops (needs OPENAI_API_KE
 
 The OpenAI key is only ever used by the `tools/` scripts at build time. Nothing in `src/` or `public/` touches it.
 
-Testing switches: god mode and all four orbital abilities are on by default (dev menu F9; F10 toggles god mode, `?mortal` disables it at start).
+Testing switches are off by default. F9 opens the developer menu.
 
 Custom characters: drop Meshy-style GLBs into `public/models/` (`vanguard.glb` for the player, `sentinel.glb` for the Legion rifleman, its rifle meshes drive the Viper and Longshot). Static character sheets are split and auto-skinned to the procedural skeleton at load; see `src/models/glbSoldier.js`.
 
-Deploy: `bash tools/deploy.sh` (builds, verifies, pushes `dist/` to `gh-pages` through a worktree).
+Deploy: build with `npm run build`, then publish the contents of `dist/` to the existing `gh-pages` branch.
+
+Local network: run **Host HOSTILE ORBIT on LAN.cmd** and keep its window open. It prints the Network URL. Internet access is required for the public signalling service. The public HTTPS game link is the easiest way for both players to use the same version. Invite links created on localhost use the public game URL.
+
+Original character restore: `node tools/restore-characters.mjs` verifies the backup; add `--apply` to restore it after saving current files.

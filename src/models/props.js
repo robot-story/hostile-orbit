@@ -5,6 +5,7 @@
 // (world.terrain.getHeight) by the caller — builders never hardcode y.
 // Geometries are cached by exact dimensions so repeated crates/containers/etc share GPU buffers.
 import * as THREE from 'three';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Mat, COLORS } from '../render/materials.js';
 import { Tex } from '../render/textures.js';
 import { rand, randInt, pick, clamp } from '../core/mathx.js';
@@ -319,19 +320,20 @@ export function antennaMast(world, position, yaw = 0, opts = {}) {
 
 // ----------------------------------------------------------------- rocks ---
 const _rockVariants = [];
-function rockVariantGeo(v) {
+export function rockVariantGeo(v) {
   if (_rockVariants[v]) return _rockVariants[v];
-  const geo = new THREE.IcosahedronGeometry(1, 2);
+  let geo = new THREE.IcosahedronGeometry(1, 2);
   const pos = geo.attributes.position;
   // the geometry is non-indexed, so displacement must be a pure function of position or faces tear apart
   const hash = (x, y, z) => { const n = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + v * 3.1) * 43758.5453; return n - Math.floor(n) - 0.5; };
   for (let i = 0; i < pos.count; i++) {
     const x = Math.round(pos.getX(i) * 1000) / 1000, y = Math.round(pos.getY(i) * 1000) / 1000, z = Math.round(pos.getZ(i) * 1000) / 1000; const len = Math.hypot(x, y, z) || 1;
     const bump = 1 + hash(x, y, z) * 0.36 + Math.sin(x * 3.1 + v) * 0.09 + Math.cos(z * 2.7 - v) * 0.09;
-    let ny = y / len * bump; if (ny < -0.35) ny = -0.35 - (ny + 0.35) * 0.15; // sits on the ground instead of balancing on a point
+    let ny = y / len * bump; if (ny < -0.35) ny = -0.35 + (ny + 0.35) * 0.15; // sits on the ground instead of balancing on a point
     pos.setXYZ(i, x / len * bump, ny, z / len * bump);
   }
-  geo.computeVertexNormals();
+  geo.deleteAttribute('normal'); geo.deleteAttribute('uv');
+  geo = mergeVertices(geo); geo.computeVertexNormals();
   _rockVariants[v] = geo; return geo;
 }
 function rockMesh(scale, matFn) {
@@ -343,7 +345,8 @@ function rockBuilder(baseR) {
   return (world, position, yaw = 0, opts = {}) => {
     const g = new THREE.Group();
     const s = baseR * rand(0.85, 1.2);
-    const matFn = Math.random() < 0.3 ? Mat.rockDust : Mat.rock;
+    const variant = Math.abs(Math.round(position.x * 13 + position.z * 7)) % 3;
+    const matFn = () => Mat.rock(variant);
     const m = rockMesh({ x: s, y: s * rand(0.7, 1.0), z: s }, matFn);
     m.position.y = s * 0.3;
     m.rotation.set(rand(-0.15, 0.15), rand(0, 6.28), rand(-0.15, 0.15));
@@ -377,22 +380,18 @@ export function rockCluster(world, position, yaw = 0, opts = {}) {
  */
 export function buildRockWallInstances(world, samples, opts = {}) {
   if (!samples.length) return null;
-  const geo = icoGeo(1, 1);
-  if (!geo.userData.jittered) {
-    const pos = geo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const rnd = () => (Math.random() - 0.5);
-      pos.setXYZ(i, pos.getX(i) * (1 + rnd() * 0.3), pos.getY(i) * (1 + rnd() * 0.3), pos.getZ(i) * (1 + rnd() * 0.3));
-    }
-    geo.computeVertexNormals();
-    geo.userData.jittered = true;
-  }
-  const mat = Mat.rock();
-  const inst = new THREE.InstancedMesh(geo, mat, samples.length);
+  // Shared positions must receive identical displacement: per-face jitter tore
+  // the previous rocks into disconnected black triangles.
+  const group = new THREE.Group();
+  for(let variant=0;variant<3;variant++) {
+  const batch=samples.filter((_,i)=>i%3===variant);if(!batch.length)continue;
+  const geo = rockVariantGeo(variant);
+  const mat = Mat.rock(variant);
+  const inst = new THREE.InstancedMesh(geo, mat, batch.length);
   inst.castShadow = true; inst.receiveShadow = true;
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), e = new THREE.Euler();
-  for (let i = 0; i < samples.length; i++) {
-    const p = samples[i];
+  for (let i = 0; i < batch.length; i++) {
+    const p = batch[i];
     const scale = p.scale || rand(0.5, 1.8);
     e.set(rand(0, 1), rand(0, 6.28), rand(0, 1));
     q.setFromEuler(e);
@@ -401,6 +400,8 @@ export function buildRockWallInstances(world, samples, opts = {}) {
     inst.setMatrixAt(i, m);
   }
   inst.instanceMatrix.needsUpdate = true;
-  world.props.add(inst);
-  return inst;
+  group.add(inst);
+  }
+  world.props.add(group);
+  return group;
 }

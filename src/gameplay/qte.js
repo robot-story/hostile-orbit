@@ -28,7 +28,7 @@ export class QTE {
       #qte .ring .ok{position:absolute;inset:14px;border-radius:50%;border:2px solid transparent;transition:border-color .1s}#qte .ring.locked .ok{border-color:var(--teal,#2ee6a6);box-shadow:0 0 22px rgba(46,230,166,.35)}
       #qte .pct{font-family:var(--font-title);font-size:34px;color:#fff;margin-top:4px}
       @keyframes qteShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}`;
-    document.head.appendChild(css);
+    this.css = css; document.head.appendChild(css);
   }
   /** Arrow sequence under fire. opts: { title, hint, steps, window, onSuccess, onFail(reason), near: () => bool } */
   start(opts) {
@@ -55,7 +55,7 @@ export class QTE {
   update(dt) {
     const A = this.active;
     if (A) {
-      if (A.near && !A.near()) { this._fail('far'); if (A.fails >= 99) return; }
+      if (A.near && !A.near()) { A.onFail?.('far', A.fails); this.cancel(); return; }
       A.t += dt; this.el.querySelector('.bar i').style.width = `${Math.max(0, 1 - A.t / A.windowT) * 100}%`;
       if (A.t >= A.windowT) { this._fail('time'); return; }
       for (const k of KEYS) { if (input._codePressed(k)) { if (k === A.seq[A.i]) { A.i++; A.t = 0; audio.play('ui_tab', { volume: 0.7, pitch: 1 + A.i * 0.06 }); this._refresh(); if (A.i >= A.seq.length) { this.active = null; this.el.style.display = 'none'; audio.play('ui_confirm', { volume: 1 }); A.onSuccess?.(); return; } } else { this._fail('wrong'); return; } } }

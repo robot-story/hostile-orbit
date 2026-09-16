@@ -51,7 +51,6 @@ export function createArmouryScreen(api, mgr) {
     Object.values(api.WEAPONS).filter((w) => w.slot === 'primary' || w.slot === 'secondary').forEach((w) => grid.appendChild(weaponCard(w)));
     grid.appendChild(extraCard(api.GRENADE.name, `Radius ${api.GRENADE.radius}m · Damage ${api.GRENADE.damage}`, 'grenade'));
     grid.appendChild(extraCard(api.INJECTOR.name, `Heals ${api.INJECTOR.heal}hp over ${api.INJECTOR.duration}s`, 'helmet'));
-    Object.values(api.ARMOUR).forEach((a) => grid.appendChild(extraCard(a.name, a.description, 'helmet')));
     root.appendChild(grid);
     root.appendChild(screenFooter([{ key: 'ESC', label: 'BACK' }]));
   }

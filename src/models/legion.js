@@ -1,3 +1,4 @@
+import { applyHollow, hollowReady } from './hollow.js';
 // Legion enemy frames: procedural rigid-part bodies on the soldier rig, built with the same kit as the OUTRIDER so the
 // enemies read as the same generation of machine (bevelled plates, inset light channels, real joints) in the Legion
 // palette: matte carbon, oxide-red plating, gunmetal, red-orange glow.
@@ -126,6 +127,7 @@ const FRAMES = {
 };
 
 export function applyLegionFrame(model, kind, opts = {}) {
+  if (kind === 'rifleman' && hollowReady() && new URLSearchParams(location.search).get('characters') !== 'legacy') return applyHollow(model);
   const build = FRAMES[kind]; if (!build) return model;
   for (const n in model.bones) model.bones[n].rotation.set(0, 0, 0);
   for (const m of model.meshes) m.visible = false;

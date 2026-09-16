@@ -55,7 +55,7 @@ function placeCover(world, info, pos, yaw) {
   if (roll < 0.2) res = crate(world, pos, yaw);
   else if (roll < 0.34) res = crateStack(world, pos, yaw);
   else if (roll < 0.52) res = barrier(world, pos, yaw);
-  else if (roll < 0.66) res = sandbagWall(world, pos, yaw, { length: rand(2.4, 3.8) });
+  else if (roll < 0.66) res = barrier(world, pos, yaw);
   else if (roll < 0.76) res = rockMedium(world, pos, yaw);
   else if (roll < 0.84) res = wreckedTruck(world, pos, yaw);
   else if (roll < 0.9) res = wreckedTransport(world, pos, yaw);

@@ -1,6 +1,7 @@
 // Shared material library. Neon everywhere: emissive strips are separate materials so bloom picks them up.
 import * as THREE from 'three';
 import { Tex } from './textures.js';
+import { generatedTextureUrl, surfaceMaterial } from './surfaces.js';
 
 export const COLORS = {
   cyan: '#00e5ff', cyanDim: '#0a7f8f', red: '#ff3b1f', orange: '#ff7a1a', redOrange: '#ff5a1f',
@@ -9,10 +10,9 @@ export const COLORS = {
 
 const _cache = new Map();
 const _loader = new THREE.TextureLoader();
-const _genBase = (import.meta.env.BASE_URL || './') + 'textures/gen/';
 /** Try to replace a material's map with a generated seamless texture (public/textures/gen/<id>.jpg). Silent fallback. */
 function useGenerated(mat, id, repeat = [1, 1], opts = {}) {
-  _loader.load(_genBase + id + '.jpg', (tex) => {
+  _loader.load(generatedTextureUrl(id), (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.repeat.set(repeat[0], repeat[1]);
     mat.map = tex; if (opts.color) mat.color.set(opts.color); if (opts.roughness != null) mat.roughness = opts.roughness; mat.needsUpdate = true;
   }, undefined, () => {});
@@ -30,8 +30,8 @@ export const Mat = {
   panel: (v = 0) => cached('panel' + v, () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.metalPanel(v), roughness: 0.65, metalness: 0.4 }), 'tex_metal_panel', [1 + (v % 2) * 0.5, 1 + (v % 3) * 0.5], { color: ['#d8d8d8', '#b0b4ba', '#c8c8c8', '#a0a4aa'][v % 4] })),
   concrete: () => cached('concrete', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.concrete(), roughness: 0.95, metalness: 0.0, color: '#7a7a78' }), 'tex_concrete', [2, 2], { color: '#8e8e8a' })),
   hazard: () => cached('hazard', () => new THREE.MeshStandardMaterial({ map: Tex.hazard(), roughness: 0.7, metalness: 0.3 })),
-  rock: () => cached('rock', () => new THREE.MeshStandardMaterial({ map: Tex.basalt(0), roughness: 0.92, metalness: 0.02, color: '#9a8f86' })),
-  rockDust: () => cached('rockDust', () => new THREE.MeshStandardMaterial({ map: Tex.basalt(1), roughness: 0.95, metalness: 0.0, color: '#b8967c' })),
+  rock: (variant=0) => surfaceMaterial(['basalt','sandstone','ironstone'][variant%3], { meters: 2.5, roughness: .94, color: '#dedbd4' }),
+  rockDust: () => surfaceMaterial('sandstone', { meters: 2.5, roughness: .96, color: '#c3b39c' }),
   // Enemies: dark biomechanical chassis with red-orange glow
   legionArmor: () => cached('legionArmor', () => useGenerated(new THREE.MeshStandardMaterial({ map: Tex.armorBlack(), roughness: 0.6, metalness: 0.3, color: '#8a8f96' }), 'tex_legion_armor', [1, 1], { color: '#a4aab2' })),
   legionFlesh: () => cached('legionFlesh', () => new THREE.MeshStandardMaterial({ color: '#3a1f24', roughness: 0.85, metalness: 0.1, emissive: '#3a0a10', emissiveIntensity: 0.25 })),

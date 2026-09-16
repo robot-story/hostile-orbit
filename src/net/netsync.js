@@ -23,7 +23,7 @@ export class NetSync {
       if (!net.isHost) this.session.combat.onDamageEvent(ev, false);
     });
     on(MSG.EV_PLAYERDOWN, (m, from) => { if (net.isHost) this.session.mission.onRemotePlayerDied(m, from); });
-    on(MSG.EV_REINFORCE, (m) => { if (m.id === net.localId && !net.isHost) { this.session.mission.lives = m.lives; events.emit('lives:changed', m.lives); this.game.launchPlayerPod(this.game.localPlayer, new THREE.Vector3(...m.p)); } else if (m.id !== net.localId) { events.emit('toast', `${this.remotes.get(m.id)?.name || 'SQUADMATE'} REINFORCED`, 'info'); } });
+    on(MSG.EV_REINFORCE, (m) => { this.session.mission.lives=m.lives;events.emit('lives:changed',m.lives);if (m.id === net.localId && !net.isHost) { this.game.localPlayer.respawnAt=null; this.game.launchPlayerPod(this.game.localPlayer, new THREE.Vector3(...m.p)); } else if (m.id !== net.localId) { events.emit('toast', `${this.remotes.get(m.id)?.name || 'SQUADMATE'} REINFORCED`, 'info'); } });
     // --- client only ---
     if (!net.isHost) {
       on(MSG.SNAP_WORLD, (s) => { this.session.director.applySnapshot(s.enemies); if (s.boss) events.emit('boss:health', this.session.director.boss); });
@@ -33,7 +33,7 @@ export class NetSync {
       on(MSG.EV_BREAK, (m) => { const b = this.game.world?.breakableByKey?.get(m.key); if (b) breakIt(this.game.world, b, this.session.fx, new THREE.Vector3(...(m.dir || [0, 1, 0]))); });
       on(MSG.EV_EXPLOSION, (m) => { this.session.fx.explosion(new THREE.Vector3(...m.p), m.r, m.kind); audio.play(m.r > 10 ? 'explosion_huge' : m.r > 6 ? 'explosion_large' : 'explosion_medium', { pos: new THREE.Vector3(...m.p), volume: 1, maxDistance: 400, refDistance: 12 }); });
       on(MSG.EV_GRENADE, (m) => { if (m.owner === net.localId) return; this.session.projectiles.spawn('grenade', new THREE.Vector3(...m.p), new THREE.Vector3(...m.v), { fuse: m.fuse, enemy: m.enemy, owner: m.owner, id: m.id, noExplode: true }); setTimeout(() => { const p = this.session.projectiles.list.find(x => x.id === m.id); if (p) p.dead = true; }, m.fuse * 1000); });
-      on(MSG.EV_MISSION, (m) => { this.session.mission.active = false; this.session.mission.result = m.stats; events.emit('mission:end', m.stats); });
+      on(MSG.EV_MISSION, (m) => { this.session.mission.active = false; this.session.mission.result = {...m.stats,isHost:false}; events.emit('mission:end', this.session.mission.result); });
       on(MSG.EV_DEATH, () => {});
     }
     // roster changes
@@ -54,7 +54,7 @@ export class NetSync {
       this.playerSnapT = 0;
       const p = this.game.localPlayer; if (p) {
         const a = p.lastAnimState || {};
-        net.send(MSG.SNAP_PLAYER, { id: net.localId, p: v3(p.position), yaw: +p.yaw.toFixed(3), pitch: +p.cam.pitch.toFixed(2), hp: Math.round(p.health), dead: p.dead, state: p.state, w: p.weapon.def.id, kills: this.game.combat?.stats.kills || 0, deaths: this.game.combat?.stats.deaths || 0, roll: !!p.model?.sprintBall, anim: { speed: +(a.speed || 0).toFixed(2), strafe: +(a.strafe || 0).toFixed(2), forward: a.forward, sprint: a.sprint, crouch: a.crouch, aim: a.aim, cover: a.cover ? { high: a.cover.high, peek: +(a.cover.peek || 0).toFixed(2), over: a.cover.over, blind: a.cover.blind } : null, roll: a.roll, vault: a.vault, reload: a.reload } }, { reliable: false });
+        net.send(MSG.SNAP_PLAYER, { id: net.localId, p: v3(p.position), yaw: +p.yaw.toFixed(3), pitch: +p.cam.pitch.toFixed(2), hp: Math.round(p.health), dead: p.dead, state: p.state, w: p.weapon.def.id, kills: this.game.combat?.stats.kills || 0, deaths: this.game.combat?.stats.deaths || 0, roll: !!p.model?.sprintBall, anim: { speed: +(a.speed || 0).toFixed(2), strafe: +(a.strafe || 0).toFixed(2), forward: a.forward, sprint: a.sprint, crouch: a.crouch, aim: a.aim, cover: a.cover ? { high: a.cover.high, peek: +(a.cover.peek || 0).toFixed(2), over: a.cover.over, blind: a.cover.blind } : null, roll: a.roll, vault: a.vault, reload: a.reload, transform: a.transform, jet: a.jet, interact: a.interact } }, { reliable: false });
       }
     }
     if (net.isHost) {

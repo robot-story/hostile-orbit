@@ -98,8 +98,6 @@ button { font-family: inherit; }
 /* The menu root must not block the canvas when no screen is open */
 #ui > .menu-root { pointer-events: none; }
 #ui > .menu-root > .screen.visible { pointer-events: auto; }
-#lockhint { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font-size: 14px; letter-spacing: .35em; color: var(--yellow); text-transform: uppercase; background: rgba(12,14,16,.7); border: 1px solid var(--border); padding: 10px 22px; pointer-events: none; animation: pulse 1.4s ease-in-out infinite; display: none; }
-#lockhint.on { display: block; }
 
 /* side operation markers on the war table: khaki, dashed */
 .marker.side .diamond { border-color: var(--khaki) !important; box-shadow: none !important; border-style: dashed !important; }

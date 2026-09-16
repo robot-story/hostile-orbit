@@ -1,3 +1,4 @@
+import { buildMk3 } from './mk3/rig.js';
 // Player robot frames: three procedural designs that ride on the standard soldier rig (bones drive rigid parts, so the
 // animator, IK, weapon sockets and gore fallbacks are untouched). Each frame has its own locomotion flavour handled by
 // `model.motion` (called every frame with the ground velocity):
@@ -434,14 +435,15 @@ export function compactRigid(root) {
 /** Modelling kit shared with the Legion enemy frames (src/models/legion.js). */
 export const KIT = { armour, neon, neonOwn, glowOwn, dark, add, box, cyl, sphere, torus, capsule, plate, strip, channel, bevelBox, hexPlate, lathe, tube, decal };
 
-export const ROBOTS = { a: { id: 'a', name: 'OUTRIDER', build: buildOutrider, blurb: 'Monowheel frame. Fast, banks into turns, counterweight arms.' }, b: { id: 'b', name: 'HALO', build: buildHalo, blurb: 'Hover frame. Six-pod thruster skirt, tilts into motion.' }, c: { id: 'c', name: 'BULWARK', build: buildBulwark, blurb: 'Heavy walker. Servo stride, amber load rings.' } };
+export const ROBOTS = { a: { id: 'a', name: 'OUTRIDER', build: buildMk3, blurb: 'Monowheel frame. Fast, banks into turns, counterweight arms.' }, b: { id: 'b', name: 'HALO', build: buildHalo, blurb: 'Hover frame. Six-pod thruster skirt, tilts into motion.' }, c: { id: 'c', name: 'BULWARK', build: buildBulwark, blurb: 'Heavy walker. Servo stride, amber load rings.' } };
 
 /** Decorate a freshly built procedural soldier model (zero pose) with one of the robot frames. */
 export function applyRobot(model, kind, opts = {}) {
   const def = ROBOTS[kind]; if (!def || model.custom) return model;
   for (const n in model.bones) model.bones[n].rotation.set(0, 0, 0);
   for (const m of model.meshes) m.visible = false;
-  def.build(model, opts);
+  const legacy = kind === 'a' && new URLSearchParams(location.search).get('characters') === 'legacy';
+  (legacy ? buildOutrider : def.build)(model, opts);
   model.root.scale.multiplyScalar(kind === 'a' ? 1.0 : 1.18); // OUTRIDER stays near player height so the camera and capsule fit
   compactRigid(model.root);
   // player code toggles `model.custom.visible` for the scope; collect every rigid part so that still works

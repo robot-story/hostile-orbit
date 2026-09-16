@@ -33,6 +33,12 @@ export class CoverSystem {
     this.grid.clear();
     for (const p of this.points) { const k = this._key(Math.floor(p.pos.x / this.cell), Math.floor(p.pos.z / this.cell)); if (!this.grid.has(k)) this.grid.set(k, []); this.grid.get(k).push(p); }
   }
+  addForCollider(c) {
+    if(!c.cover||!c.enabled)return;
+    const first=this.points.length;
+    if(c.type==='box')this._boxPoints(c);else this._cylPoints(c);
+    for(let i=first;i<this.points.length;i++){const p=this.points[i],k=this._key(Math.floor(p.pos.x/this.cell),Math.floor(p.pos.z/this.cell));if(!this.grid.has(k))this.grid.set(k,[]);this.grid.get(k).push(p);}
+  }
   _boxPoints(c) {
     const h = c.maxY - c.minY;
     const groundAt = (x, z) => this.world.terrain.getHeight(x, z);

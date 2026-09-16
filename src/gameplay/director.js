@@ -28,11 +28,11 @@ export class Director {
     this.lastAlertLevel = 0;
     this.killCount = 0;
     this.grid = new Map();
-    this.breachT = 40; // first breach can come 40 s into a loud fight
+    this.reinforcementsLeft = game.difficulty?.reinforcements ?? 2;
   }
   get scaling() { return scaleForPlayers(this.game.players?.length || 1); }
   get diffCount() { return this.game.difficulty?.enemyCount ?? 1; }
-  budget() { return Math.round(this.maxActive * Math.min(1.5, this.scaling.enemies * 0.7 + 0.3)); }
+  budget() { return Math.round(this.maxActive * this.diffCount * Math.min(1.5, this.scaling.enemies * 0.7 + 0.3)); }
   spawn(typeId, pos, opts = {}) {
     if (!net.isHost) return null;
     const p = this.world.nav.nearestWalkable(pos.x, pos.z, 12) || { x: pos.x, z: pos.z };
@@ -46,6 +46,7 @@ export class Director {
   /** Client-side spawn from replication. */
   spawnRemote(msg) {
     if (net.isHost) return;
+    if (this.world.entities.has(msg.id)) return this.world.entities.get(msg.id);
     const at = new THREE.Vector3(...msg.p);
     const e = msg.type === 'drone' ? new Drone(this.game, at, { id: msg.id }) : msg.type === 'warden' ? new Warden(this.game, at, { id: msg.id, yaw: msg.yaw }) : msg.type === 'ravager' ? new Ravager(this.game, at, { id: msg.id, yaw: msg.yaw }) : new Enemy(this.game, msg.type, at, msg.yaw, { id: msg.id });
     if (msg.type === 'warden') this.boss = e;
@@ -55,8 +56,11 @@ export class Director {
     if (!net.isHost) return null;
     const types = Array.isArray(template) ? template : SQUADS[template];
     const sq = new Squad(this.nextSquad++); this.squads.push(sq);
-    const extra = Math.round((types.length) * (this.scaling.enemies * this.diffCount - 1));
-    const list = [...types]; for (let i = 0; i < extra; i++) list.push(pick(['rifleman', 'rifleman', 'breacher', 'grenadier']));
+    // Carry fractional members across squads so small squads also reflect difficulty.
+    const scaled = types.length * this.scaling.enemies * this.diffCount + (this.squadRemainder || 0);
+    const count = Math.max(1, Math.floor(scaled + 1e-9)); this.squadRemainder = scaled - count;
+    const list = types.slice(0, count);
+    while (list.length < count) list.push(pick(['rifleman', 'rifleman', 'breacher', 'grenadier']));
     if (this.scaling.elites && opts.allowElite) for (let i = 0; i < this.scaling.elites; i++) list.push('suppressor');
     list.forEach((t, i) => {
       const a = (i / list.length) * 6.28, r = 1.5 + i * 0.8;
@@ -79,11 +83,12 @@ export class Director {
   grenadeWarning(pos) { for (const e of this.enemies) e.reactToGrenade?.(pos); }
   /** Drone / alert-triggered reinforcements from the nearest spawn point. */
   callReinforcements(targetPos, caller) {
-    if (!net.isHost || this.reinforceCooldown > 0) return;
-    if (this.activeCount() > this.budget()) return;
-    this.reinforceCooldown = 20;
-    const sp = this.nearestSpawnPoint(targetPos, 40, 110);
+    if (!net.isHost || this.reinforceCooldown > 0 || this.reinforcementsLeft <= 0 || caller?.dead) return;
+    if (this.activeCount() >= this.budget() - 4) return;
+    const sp = this.nearestSpawnPoint(targetPos, 55, 120);
     if (!sp) return;
+    this.reinforceCooldown = 75;
+    this.reinforcementsLeft--;
     const tmpl = pick(['patrol', 'assault', 'fire_team']);
     const target = this.game.players?.find(p => !p.dead) || null;
     this.spawnSquad(tmpl, sp, { alert: true, target, allowElite: true });
@@ -94,7 +99,7 @@ export class Director {
   nearestSpawnPoint(pos, minD = 30, maxD = 120) {
     const all = []; const sp = this.world.level?.spawnPoints || {}; for (const k in sp) all.push(...sp[k]);
     const cands = all.filter(p => { const d = p.distanceTo(pos); return d > minD && d < maxD; });
-    if (!cands.length) return all.length ? all.reduce((a, b) => (a.distanceTo(pos) < b.distanceTo(pos) ? a : b)) : null;
+    if (!cands.length) return null;
     cands.sort((a, b) => a.distanceTo(pos) - b.distanceTo(pos));
     return cands[Math.min(cands.length - 1, randInt(0, 2))];
   }
@@ -123,12 +128,8 @@ export class Director {
     for (const e of this.enemies) { e.update(dt, this.game.camera); if (!e.dead && e.alert) alert++; }
     this.enemies = this.enemies.filter(e => !e.removed);
     for (const s of this.squads) s.update(dt); this.squads = this.squads.filter(s => s.members.length);
-    // Legion breach events: a sustained fight (alert 2+) draws a pod-borne squad every 45-75 s, landed 24-38 m from the squad
-    this.breachT -= dt;
-    if (this.alertLevel >= 2 && this.breachT <= 0 && this.activeCount() < this.budget() - 2) {
-      this.breachT = rand(45, 75); const p = players.find((q) => !q.dead);
-      if (p) { for (let k = 0; k < 8; k++) { const a = rand(0, 6.28), r = rand(24, 38); const c = this.world.nav.randomWalkableNear(p.position.x + Math.cos(a) * r, p.position.z + Math.sin(a) * r, 5); if (!c) continue; const pos = new THREE.Vector3(c.x, 0, c.z); if (pos.distanceTo(p.position) < 18) continue; this.game.session?.abilities?.breach(pos, pick(['assault', 'fire_team', 'patrol_heavy'])); break; } }
-    } else if (this.alertLevel < 1) this.breachT = Math.max(this.breachT, 20);
+    // Cleared garrisons stay cleared. Only finite caller reinforcements and
+    // explicitly authored objective waves can introduce additional enemies.
     // alert level for HUD/music
     this.alertLevel = alert === 0 ? Math.max(0, this.alertLevel - dt * 0.25) : Math.min(3, Math.max(this.alertLevel, alert >= 8 ? 3 : alert >= 3 ? 2 : 1));
     const lvl = Math.round(this.alertLevel);

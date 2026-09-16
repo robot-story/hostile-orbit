@@ -23,7 +23,7 @@ export class Player {
   constructor(game, camera, fx, loadout = { primary: 'viper', secondary: 'sidearm' }) {
     const world = game.world;
     this.game = game; this.world = world; this.fx = fx;
-    this.model = buildSoldier('vanguard', { neon: loadout.neon || SQUAD_COLORS[net.slot ?? 0] || SQUAD_COLORS[0] });
+    this.model = buildSoldier('vanguard', { robot:'a', neon: loadout.neon || SQUAD_COLORS[net.slot ?? 0] || SQUAD_COLORS[0] });
     this.anim = new CharacterAnimator(this.model);
     this.cam = new ThirdPersonCamera(camera, world);
     this.position = new THREE.Vector3();
@@ -53,7 +53,7 @@ export class Player {
     this.anim.onFootstep = () => { audio.play(this.onMetal ? 'footstep_metal' : 'footstep_dirt', { pos: this.position, volume: 0.6, pitchVar: 0.08 }); audio.play('armor_rustle', { pos: this.position, volume: 0.35, pitchVar: 0.15 }); if (this.fx?.dust && !this.onMetal) this.fx.dust(this.position.clone(), this.sprinting ? 1.2 : 0.5); };
     this.spawnT = 0;
   }
-  makeWeapon(id) { const d = WEAPONS[id]; return { def: d, ammo: d.mag, reserve: d.reserve, model: WEAPON_BUILDERS[id]() }; }
+  makeWeapon(id) { const d = WEAPONS[id]; return { def: d, ammo: d.mag, reserve: d.reserve, model: WEAPON_BUILDERS[id](this.model.neonColor) }; }
   get weapon() { return this.weapons[this.slot]; }
   equip(slot) { this.slot = slot; while (this.weaponGroup.children.length) this.weaponGroup.remove(this.weaponGroup.children[0]); this.weaponGroup.add(this.weapon.model); this.reloadT = -1; audio.play('weapon_swap', { volume: 0.6 }); events.emit('player:weapon', this.weapon); }
   spawnAt(p, yaw = 0) { this.position.copy(p); this.yaw = yaw; this.cam.yaw = yaw; this.velocity.set(0, 0, 0); this.model.root.position.copy(p); }
@@ -128,7 +128,7 @@ export class Player {
       cover: this.state === 'cover' ? { high: this.cover.height === 'high', peek: this.peek, over: this.cover.height === 'low', blind: this.blindFiring } : null,
       roll: this.state === 'roll' ? this.stateT / 0.62 : null, transform: (this.state === 'cover' && this.stateT < 0.42) ? this.stateT / 0.42 : (this.transformT > 0 ? 1 - this.transformT / 0.42 : null), vault: this.state === 'vault' ? this.stateT / 0.7 : null,
       dead: this.dead, aimPitch: clamp(-this.cam.pitch / 1.1, -1, 1) * -1, weaponLow, reload: this.reloadT >= 0 ? this.reloadT / this.weapon.def.reloadTime : null,
-      interact: !!this.interacting, jet: this.jet ? 1 : (!this.grounded && this.state === 'normal' ? 0.5 : 0), robotic: true,
+      interact: !!this.interacting, grind: this.state === 'grind', jet: this.jet ? 1 : (!this.grounded && this.state === 'normal' ? 0.5 : 0), robotic: true,
     };
     events.emit('hud:fuel', this.fuel, this.jet);
     // sprint ram: the ball is a weapon. Rolling into a hostile at speed hits it (through the normal req:hit path).
@@ -172,7 +172,7 @@ export class Player {
     this.aiming = aimNow && this.reloadT < 0;
     if (this.model?.robot) {
       if (input.pressed('sprint')) { this.rollMode = !this.rollMode; audio.play(this.rollMode ? 'armor_rustle' : 'kinetic_charge', { pos: this.position, volume: 0.6, pitch: this.rollMode ? 0.8 : 1.5 }); if (this.rollMode) input.clearSprintToggle(); }
-      if (this.rollMode && (input.aimPressed || input.firePressed || this.crouching)) this.rollMode = false; // aim or fire pops you straight out
+      if (this.rollMode && this.crouching) this.rollMode = false; // crouch unfolds; aiming and firing remain available while rolled
       this.sprinting = this.rollMode && ax.active && !this.aiming;
     } else this.sprinting = input.sprint() && ax.z > 0.1 && !this.aiming && !this.crouching;
     if (this.grounded && !this.jet) this._ballAir = false;
@@ -190,7 +190,7 @@ export class Player {
     if (this.heroLight) { this.heroLight.intensity = 1.2 + this.speedFx * 1.4 + (this.fireT > 0 ? 1.2 : 0); this.heroLight.position.y = this.model?.sprintBall ? 0.7 : 1.25; }
     // Facing: sprint turns the body into the run direction; every other movement strafes (body faces the camera);
     // standing still only turns in place once the camera has swung far enough (no constant spinning).
-    if (this.sprinting && ax.active) { this.turning = false; this.yaw = angleDamp(this.yaw, Math.atan2(-wish.x, -wish.z), 11, dt); }
+    if (this.sprinting && ax.active && !input.fire) { this.turning = false; this.yaw = angleDamp(this.yaw, Math.atan2(-wish.x, -wish.z), 11, dt); }
     else if (this.aiming || this.trigger || ax.active) { this.turning = false; this.faceCamera(dt, ax.active ? 13 : 16); }
     else { const d = Math.abs(angleDiff(this.yaw, this.cam.yaw)); if (d > 1.05) this.turning = true; if (this.turning) { this.yaw = angleDamp(this.yaw, this.cam.yaw, 7, dt); if (d < 0.06) this.turning = false; } }
     if (input.pressed('roll') && ax.active) { this.state = 'roll'; this.stateT = 0; this.rollDir = wish.clone().normalize(); this.yaw = Math.atan2(-this.rollDir.x, -this.rollDir.z); this.aiming = false; audio.play('roll', { pos: this.position }); }
@@ -395,7 +395,7 @@ export class Player {
   updateWeapon(dt) {
     const w = this.weapon, d = w.def;
     this.fireT -= dt; this.bloom = Math.max(0, this.bloom - dt * 0.12);
-    this.trigger = input.fire && !this.dead && this.state !== 'roll' && this.state !== 'vault' && this.reloadT < 0 && !(this.state === 'cover' && !this.aiming && !this.blindOk()) && !(this.model?.sprintBall && (this.model?.fold || 0) > 0.4 && this.state !== 'grind');
+    this.trigger = input.fire && !this.dead && (this.state !== 'roll' || this.model?.mk3) && this.state !== 'vault' && this.reloadT < 0 && !(this.state === 'cover' && !this.aiming && !this.blindOk());
     // reload
     if (this.reloadT >= 0) {
       this.reloadT += dt;

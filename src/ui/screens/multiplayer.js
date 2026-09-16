@@ -2,21 +2,18 @@
 // Everything lives on one screen so nobody has to hunt for the code or wonder who is still loading.
 import { el, actionButton, screenHeader, screenFooter } from '../components.js';
 
-const FRAMES = [
-  { id: 'a', name: 'OUTRIDER', blurb: 'Monowheel. Fast, banks, rolls into cover.' },
-  { id: 'b', name: 'HALO', blurb: 'Hover ring. Smooth, tilts into motion.' },
-  { id: 'c', name: 'BULWARK', blurb: 'Heavy walker. Servo stride, load rings.' },
-];
+
 
 export function createMultiplayerScreen(api, mgr) {
+  const FRAMES=Object.entries(api.FRAME_VARIANTS).map(([id,f])=>({id,name:f.name,blurb:f.blurb}));
   const root = el('div', { class: 'screen mp-screen' });
-  let saidHello = false, poll = null, unsub = null, busy = false;
+  let saidHello = false, unsub = null, busy = false;
 
   const initials = (name) => (name || '?').trim().slice(0, 2).toUpperCase();
-  const frameOf = (loadout) => FRAMES.find((f) => f.id === (loadout?.robot || localFrame())) || FRAMES[0];
-  const localFrame = () => { try { return localStorage.getItem('hostile-orbit.robot') || 'a'; } catch { return 'a'; } };
-  const setLocalFrame = (id) => { try { localStorage.setItem('hostile-orbit.robot', id); } catch { /* ignore */ } api.save.setLoadout({ ...api.save.profile.loadout, robot: id }); api.mp.setLoadout(api.save.profile.loadout); };
-  function copy(text, what) { try { navigator.clipboard.writeText(text); mgr.toast(`${what} COPIED`, 'info'); } catch { mgr.toast('COPY FAILED', 'warn'); } }
+  const frameOf = (loadout) => FRAMES.find((f) => f.id === (loadout?.neon || '#00e5ff')) || FRAMES[0];
+  const localFrame = () => api.save.profile.loadout.neon || '#00e5ff';
+  const setLocalFrame = id => { api.save.setLoadout({neon:id,robot:'a'}); api.mp.setLoadout(api.save.profile.loadout); };
+  async function copy(text, what) { try { if (!navigator.clipboard) throw Error('Clipboard unavailable'); await navigator.clipboard.writeText(text); mgr.toast(`${what} COPIED`, 'info'); } catch { mgr.toast('SELECT THE LINK OR ROOM CODE AND COPY IT MANUALLY', 'warn'); } }
 
   // ---------- pieces
   function slotCard(state, i) {
@@ -46,12 +43,10 @@ export function createMultiplayerScreen(api, mgr) {
     const row = (label, options, current, onPick) => el('div', { class: 'mp-set-row' }, [el('div', { class: 'mp-set-label', text: label }), el('div', { class: 'mp-set-opts' }, options.map((o) => { const b = el('button', { class: 'mp-opt' + (o.id === current ? ' on' : '') + (host ? '' : ' locked'), text: o.name }); if (host) b.addEventListener('click', () => { api.audio?.play?.('ui_tab', { volume: 0.5 }); onPick(o.id); render(); }); return b; }))]);
     const maps = Object.keys(api.MAPS).map((id) => ({ id, name: api.MAPS[id].name || id.toUpperCase() }));
     const diffs = Object.values(api.DIFFICULTIES).map((d) => ({ id: d.id, name: d.name }));
-    const zones = Object.keys(api.DROP_ZONES).map((id) => ({ id, name: (api.DROP_ZONES[id].name || id).toUpperCase() }));
     return el('div', { class: 'mp-settings panel' }, [
       el('div', { class: 'mp-invite-title', text: host ? 'OPERATION  (you set these)' : 'OPERATION  (host sets these)' }),
       row('MAP', maps, s.map || api.DEFAULT_MAP, (id) => api.mp.setSettings({ map: id })),
       row('DIFFICULTY', diffs, s.difficulty || 'veteran', (id) => api.mp.setSettings({ difficulty: id })),
-      row('DROP ZONE', zones, s.dropZone || zones[0]?.id, (id) => api.mp.setSettings({ dropZone: id })),
     ]);
   }
   function loadoutPanel(state) {
@@ -59,7 +54,7 @@ export function createMultiplayerScreen(api, mgr) {
     const frames = el('div', { class: 'mp-frames' }, FRAMES.map((f) => { const b = el('button', { class: 'mp-frame' + (f.id === cur ? ' on' : '') }, [el('div', { class: 'mp-frame-name', text: f.name }), el('div', { class: 'mp-frame-blurb', text: f.blurb })]); b.addEventListener('click', () => { setLocalFrame(f.id); api.audio?.play?.('ui_confirm', { volume: 0.5 }); render(); }); return b; }));
     return el('div', { class: 'mp-loadout panel' }, [
       el('div', { class: 'mp-invite-title', text: 'YOUR FRAME' }), frames,
-      el('div', { class: 'mp-set-row' }, [el('div', { class: 'mp-set-label', text: 'WEAPONS' }), el('div', { class: 'mp-weapons', text: `${api.WEAPONS[lo.primary]?.name || '—'}  /  ${api.WEAPONS[lo.secondary]?.name || '—'}` }), actionButton(api, { label: 'CHANGE IN ARMOURY', onClick: () => mgr.show('armoury') })]),
+      el('div', { class: 'mp-set-row' }, [el('div', { class: 'mp-set-label', text: 'WEAPONS' }), el('div', { class: 'mp-weapons', text: `${api.WEAPONS[lo.primary]?.name || '—'}  /  ${api.WEAPONS[lo.secondary]?.name || '—'}` }), actionButton(api, { label: 'EDIT LOADOUT', onClick: () => mgr.show('loadout') })]),
     ]);
   }
 
@@ -99,7 +94,7 @@ export function createMultiplayerScreen(api, mgr) {
       el('div', { class: 'mp-columns' }, [el('div', { class: 'mp-col' }, [invitePanel(state), settingsPanel(state)]), el('div', { class: 'mp-col' }, [loadoutPanel(state)])]),
       el('div', { class: 'mp-actions' }, [
         actionButton(api, { label: local && local.ready ? 'CANCEL READY' : 'READY UP', kind: local && local.ready ? '' : 'primary', onClick: () => { api.mp.setReady(!(local && local.ready)); render(); } }),
-        state.isHost ? actionButton(api, { label: allReady ? 'DEPLOY SQUAD' : 'DEPLOY (WAITING FOR READY-UPS)', kind: allReady ? 'primary' : '', sound: 'deploy', onClick: () => api.mp.start() }) : null,
+        state.isHost ? actionButton(api, { label: allReady ? 'DEPLOY SQUAD' : 'DEPLOY (WAITING FOR READY-UPS)', kind: allReady ? 'primary' : '', disabled: !allReady, sound: 'deploy', onClick: () => api.mp.start() }) : null,
         actionButton(api, { label: 'LEAVE', kind: 'danger', sound: 'back', onClick: () => { api.mp.leave(); render(); } }),
       ]),
       state.error ? el('div', { class: 'mp-error', text: state.error }) : null,
@@ -108,7 +103,7 @@ export function createMultiplayerScreen(api, mgr) {
 
   return {
     el: root,
-    onShow() { render(); clearInterval(poll); poll = setInterval(render, 2000); unsub && unsub(); unsub = api.events.on('lobby:update', render); },
-    onHide() { clearInterval(poll); unsub && unsub(); unsub = null; },
+    onShow() { render(); unsub && unsub(); unsub = api.events.on('lobby:update', render); },
+    onHide() { unsub && unsub(); unsub = null; },
   };
 }

@@ -24,9 +24,9 @@ function robotShowcase(game, world, params, base) {
   const LW = { rifleman: 'legion_rifle', breacher: 'legion_shotgun', suppressor: 'legion_heavy', grenadier: 'legion_rifle' };
   const spacing = 7; const demos = [];
   const MAXV = 6.2;
-  const PHASES = [{ n: 'idle', d: 2.2 }, { n: 'walk', d: 3.2, sp: 0.4 }, { n: 'sprint', d: 3.2, sp: 1, sprint: 1 }, { n: 'strafe', d: 3, sp: 0.5, strafe: 1 }, { n: 'crouch', d: 2.4, sp: 0.25, crouch: 1 }, { n: 'aim', d: 2.6, aim: 1, fire: 1 }, { n: 'jump', d: 1.5 }, { n: 'turn', d: 2, turn: 1 }, { n: 'cover', d: 3, cover: 1 }, { n: 'coverfire', d: 2, cover: 1, aim: 1, fire: 1 }];
+  const PHASES = [{ n: 'idle', d: 2.2 }, { n: 'walk', d: 3.2, sp: 0.4 }, { n: 'sprint', d: 3.2, sp: 1, sprint: 1 }, { n: 'strafe', d: 3, sp: 0.5, strafe: 1 }, { n: 'crouch', d: 2.4, sp: 0.25, crouch: 1 }, { n: 'aim', d: 2.6, aim: 1, fire: 1 }, { n: 'jump', d: 1.5 }, { n: 'turn', d: 2, turn: 1 }, { n: 'cover', d: 3, cover: 1 }, { n: 'coverfire', d: 2, cover: 1, aim: 1, fire: 1 }, { n: 'reload', d: 3 }, { n: 'ball', d: 3.5, sp: 0.7 }, { n: 'grind', d: 3, sp: 0.7, aim: 1, fire: 1 }, { n: 'vault', d: 1.2 }, { n: 'interact', d: 2 }, { n: 'hit', d: 1.5 }, { n: 'dead', d: 2 }];
   kinds.forEach((k, i) => {
-    const m = legion ? buildSoldier(k === 'suppressor' ? 'legionHeavy' : 'legion', { legion: k, custom: null }) : buildSoldier('vanguard', { robot: k, neon: FACES ? FACES[i] : undefined }); const a = new CharacterAnimator(m); a.weaponSocket.add(WEAPON_BUILDERS[legion ? LW[k] : 'viper']());
+    const m = legion ? buildSoldier(k === 'suppressor' ? 'legionHeavy' : 'legion', { legion: k, custom: null }) : buildSoldier('vanguard', { robot: k, neon: FACES ? FACES[i] : undefined }); const a = new CharacterAnimator(m); a.weaponSocket.add((WEAPON_BUILDERS[params.get('weapon')] || WEAPON_BUILDERS[legion ? LW[k] : 'viper'])(m.neonColor));
     const home = new THREE.Vector3(base.x + (i - (kinds.length - 1) / 2) * spacing, 0, base.z + 4); home.y = world.groundHeight(home.x, home.z);
     m.root.position.copy(home); world.actors.add(m.root);
     // name plate
@@ -45,7 +45,9 @@ function robotShowcase(game, world, params, base) {
     t += dt;
     for (const d of demos) {
       const ph = PHASES[d.idx]; d.t += dt; if (d.t >= ph.d) { d.t = 0; d.idx = (d.idx + 1) % PHASES.length; d.jumpT = 0; }
-      const P = PHASES[d.idx];
+      const P = PHASES.find(p => p.n === params.get('pose')) || PHASES[d.idx];
+      d.m.sprintBall = P.n === 'ball';
+      if (P.n === 'hit' && d.t < dt * 2) d.a.hitReact(0.7);
       // steering: circle the home spot; strafe keeps the facing and slides sideways; turn phase spins in place
       const toHome = Math.atan2(d.home.x - d.pos.x, d.home.z - d.pos.z); const far = d.pos.distanceTo(d.home) > 3.2;
       if (P.turn) d.yaw += dt * 2.2; else if (P.sp) { const target = far ? toHome : d.yaw + 0.5; let dy = target - d.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); d.yaw += Math.sign(dy) * Math.min(Math.abs(dy), dt * 1.4); }
@@ -56,15 +58,16 @@ function robotShowcase(game, world, params, base) {
       d.vel.x = THREE.MathUtils.damp(d.vel.x, vx, 6, dt); d.vel.z = THREE.MathUtils.damp(d.vel.z, vz, 6, dt);
       d.pos.x += d.vel.x * dt; d.pos.z += d.vel.z * dt;
       let y = world.groundHeight(d.pos.x, d.pos.z);
-      if (d.idx === 6) { d.jumpT += dt; const u = d.jumpT / 1.5; const arc = Math.max(0, Math.sin(Math.min(1, u) * Math.PI)) * 1.1; y += arc; d.land = u > 0.92 ? 1 : 0; } else d.land = Math.max(0, d.land - dt * 2.5);
+      if (P.n === 'jump') { d.jumpT += dt; const u = d.jumpT / 1.5; const arc = Math.max(0, Math.sin(Math.min(1, u) * Math.PI)) * 1.1; y += arc; d.land = u > 0.92 ? 1 : 0; } else d.land = Math.max(0, d.land - dt * 2.5);
       d.m.root.position.set(d.pos.x, y, d.pos.z); d.m.root.rotation.y = d.yaw; d.sprite.position.set(d.pos.x, y + 2.6, d.pos.z);
       const gs = Math.hypot(d.vel.x, d.vel.z); const speedN = Math.min(1, gs / 9.4);
       const accel = (gs - d.prevSpeed) / Math.max(dt, 1e-3); d.prevSpeed = gs; const turn = (d.yaw - d.prevYaw) / Math.max(dt, 1e-3); d.prevYaw = d.yaw;
       if (P.fire) { d.fireT -= dt; if (d.fireT <= 0) { d.fireT = 0.11; d.a.kick(0.5); } }
       const llen = Math.hypot(dx, dz) || 1;
-      d.a.update(dt, { speed: speedN, sprint: P.sprint ? 1 : 0, crouch: P.crouch ? 1 : 0, aim: P.aim ? 1 : 0, cover: P.cover ? { high: true, peek: 0, over: false, blind: false } : null, strafe: dx, forward: dz >= -0.3 ? 1 : -1, moveDir: { x: gs > 0.3 ? dx / llen : 0, z: gs > 0.3 ? dz / llen : 1 }, velocity: d.idx === 6 ? 0 : gs, groundAt: (ox, oz) => world.groundHeight(d.pos.x + ox, d.pos.z + oz), accel: THREE.MathUtils.clamp(accel / 12, -1, 1), turn: THREE.MathUtils.clamp(turn / 4, -1, 1), land: d.land, turning: !!P.turn, jet: d.idx === 6 && d.jumpT < 0.7 ? 1 : 0, robotic: true });
+      d.a.update(dt, { speed: speedN, sprint: P.sprint ? 1 : 0, crouch: P.crouch ? 1 : 0, aim: P.aim ? 1 : 0, cover: P.cover ? { high: true, peek: 0, over: false, blind: false } : null, strafe: dx, forward: dz >= -0.3 ? 1 : -1, moveDir: { x: gs > 0.3 ? dx / llen : 0, z: gs > 0.3 ? dz / llen : 1 }, velocity: P.n === 'jump' ? 0 : gs, groundAt: (ox, oz) => world.groundHeight(d.pos.x + ox, d.pos.z + oz), accel: THREE.MathUtils.clamp(accel / 12, -1, 1), turn: THREE.MathUtils.clamp(turn / 4, -1, 1), land: d.land, turning: !!P.turn, jet: P.n === 'jump' && d.jumpT < 0.7 ? 1 : 0, robotic: true, grind: P.n === 'grind', reload: P.n === 'reload' ? Math.min(1, d.t / P.d) : null, vault: P.n === 'vault' ? Math.min(1, d.t / P.d) : null, interact: P.n === 'interact', dead: P.n === 'dead' });
       rollBall(d.m, d.vel.x, d.vel.z, dt, d.land, d.yaw, P.crouch ? 1 : 0);
     }
+    if (demos.length === 1) focus.set(demos[0].pos.x, demos[0].m.root.position.y + 1.1, demos[0].pos.z);
     const ang = fixed != null ? +fixed : t * 0.1;
     game.camera.position.set(focus.x + Math.sin(ang) * camR, focus.y + camH, focus.z + Math.cos(ang) * camR); game.camera.lookAt(focus); game.camera.userData.focus = focus;
     world.update(dt, game.camera);

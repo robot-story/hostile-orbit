@@ -1,3 +1,4 @@
+import { MK3_WEAPON_BUILDERS, buildMk3Prop } from './mk3/armoury.js';
 // Procedural weapon models. Each returns a Group oriented with the barrel pointing +z, grip at origin, and a `muzzle` Object3D.
 import * as THREE from 'three';
 import { Mat, COLORS } from '../render/materials.js';
@@ -141,7 +142,7 @@ export function buildLongshot(neon = COLORS.cyan) {
 
 import { CUSTOM, buildCustomWeapon } from './glbSoldier.js';
 const withCustom = (id, fn) => (neon) => (CUSTOM.weapon[id] ? buildCustomWeapon(CUSTOM.weapon[id], id, neon) : fn(neon));
-export const WEAPON_BUILDERS = { reaper: buildReaper, breaker: buildBreaker, javelin: buildJavelin, lancer: buildLancer, arc: buildArc, viper: withCustom('viper', buildViper), hammer: buildHammer, atlas: buildAtlas, sidearm: buildSidearm, longshot: withCustom('longshot', buildLongshot), legion_rifle: withCustom('legion_rifle', buildLegionRifle), legion_shotgun: buildLegionShotgun, legion_heavy: buildLegionHeavy };
+export const WEAPON_BUILDERS = { reaper: buildReaper, breaker: buildBreaker, javelin: buildJavelin, lancer: buildLancer, arc: buildArc, viper: withCustom('viper', buildViper), hammer: buildHammer, atlas: buildAtlas, sidearm: buildSidearm, longshot: withCustom('longshot', buildLongshot), legion_rifle: withCustom('legion_rifle', buildLegionRifle), legion_shotgun: buildLegionShotgun, legion_heavy: buildLegionHeavy, ...(new URLSearchParams(location.search).get('characters') === 'legacy' ? {} : MK3_WEAPON_BUILDERS) };
 
 /** Frag grenade model */
 /** REAPER SMG: stubby receiver, side-fed magazine, ventilated shroud, folding stock. */
@@ -218,6 +219,7 @@ export function buildArc(neon = COLORS.cyan) {
 }
 
 export function buildGrenade() {
+  if (new URLSearchParams(location.search).get('characters') !== 'legacy') return buildMk3Prop('grenade');
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 10), Mat.gunWhite()); body.scale.y = 1.25; body.castShadow = true; g.add(body);
   const band = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.01, 6, 16), Mat.neon(COLORS.amber, 2)); band.rotation.x = Math.PI / 2; g.add(band);
@@ -226,6 +228,7 @@ export function buildGrenade() {
 }
 /** Wellness injector */
 export function buildInjector() {
+  if (new URLSearchParams(location.search).get('characters') !== 'legacy') return buildMk3Prop('injector');
   const g = new THREE.Group();
   const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.16, 10), Mat.glass()); g.add(tube);
   const fluid = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.12, 8), Mat.neon(COLORS.green, 2.5)); g.add(fluid);

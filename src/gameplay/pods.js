@@ -36,7 +36,7 @@ export class DropPod {
     this.kind = opts.kind || 'reinforce'; this.owner = opts.owner ?? 0;
     this.target = target.clone(); this.target.y = this.world.groundHeight(target.x, target.z);
     this.duration = opts.duration ?? 2.8; this.t = -(opts.delay ?? 0); this.startY = 260;
-    this.model = buildPodModel(opts.color || COLORS.cyan); this.world.fxGroup.add(this.model);
+    this.model = opts.model || buildPodModel(opts.color || COLORS.cyan); this.world.fxGroup.add(this.model);
     this.position = new THREE.Vector3(target.x, this.target.y + this.startY, target.z);
     this.model.position.copy(this.position);
     this.landed = false; this.opened = false; this.done = false; this.onLand = opts.onLand; this.onOpen = opts.onOpen;
@@ -78,7 +78,7 @@ export class DropPod {
     if (net.isHost) this.game.combat.explode(this.target.clone(), 4.2, 420, { kind: 'pod', attackerId: this.owner, impulse: 20, selfMult: 0, friendly: true });
     // becomes solid cover
     this.collider = this.world.addCyl(new THREE.Vector3(this.target.x, this.target.y + 1.7, this.target.z), 1.15, 3.4, { material: 'metal', cover: true, tag: 'pod' });
-    this.world.cover.build();
+    this.world.cover.addForCollider(this.collider);
     this.world.nav?.rebuildRegion(this.target.x, this.target.z, 6);
     this.onLand?.(this);
   }

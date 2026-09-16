@@ -1,3 +1,4 @@
+import { generatedTextureUrl, surfaceTexture } from '../render/surfaces.js';
 // Heightfield terrain carved from the Blacksite Meridian tactical map layout.
 // Map coords: (mx, my) in [0,400]^2, my up = north. World: x = mx - 200, z = 200 - my (north = -z).
 import * as THREE from 'three';
@@ -136,7 +137,8 @@ export class Terrain {
     const i = Math.floor(fx), j = Math.floor(fy), u = fx - i, v = fy - j;
     const n = this.n, H = this.heights;
     const h00 = H[j * n + i], h10 = H[j * n + i + 1], h01 = H[(j + 1) * n + i], h11 = H[(j + 1) * n + i + 1];
-    return lerp(lerp(h00, h10, u), lerp(h01, h11, u), v);
+    // Match PlaneGeometry's actual triangles rather than a bilinear patch.
+    return u >= v ? h00+(h10-h00)*u+(h11-h10)*v : h00+(h11-h01)*u+(h01-h00)*v;
   }
   getNormal(x, z, out = new THREE.Vector3()) {
     const e = 0.6;
@@ -210,26 +212,31 @@ export class Terrain {
     geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({ map: Tex.terrain(), vertexColors: true, roughness: T.roughness ?? 0.96, metalness: T.metalness ?? 0.0, envMapIntensity: T.envIntensity ?? 1.0, emissive: '#ffffff', emissiveMap: Tex.veins(), emissiveIntensity: T.veinIntensity ?? 1.0 });
     const texId = T.texture || 'tex_terrain', rep = T.repeat || 60;
-    new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/' + texId + '.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.repeat.set(rep, rep); mat.map = tex; if (T.tint) mat.color.set(T.tint); mat.needsUpdate = true; }, undefined, () => {});
+    new THREE.TextureLoader().load(generatedTextureUrl(texId), (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; tex.repeat.set(rep, rep); mat.map = tex; if (T.tint) mat.color.set(T.tint); mat.needsUpdate = true; }, undefined, () => {});
     // steep faces get their own facade/rock texture projected along the wall (triplanar), the floor keeps the ground tile
     const wallTex = new THREE.Texture(); wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-    new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/' + (T.wallTexture || (this.map?.terrain?.style === 'city' ? 'tex_city_wall' : 'tex_rock_strata')) + '.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; mat.userData.pendingWall = tex; if (mat.userData.shader) { mat.userData.shader.uniforms.uWallMap.value = tex; mat.userData.shader.uniforms.uWallOn.value = 1; } }, undefined, () => {});
+    new THREE.TextureLoader().load(generatedTextureUrl(T.wallTexture || (this.map?.terrain?.style === 'city' ? 'tex_city_wall' : 'tex_rock_strata')), (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; mat.userData.pendingWall = tex; if (mat.userData.shader) { mat.userData.shader.uniforms.uWallMap.value = tex; mat.userData.shader.uniforms.uWallOn.value = 1; } }, undefined, () => {});
     const slopeTex = new THREE.Texture(); slopeTex.wrapS = slopeTex.wrapT = THREE.RepeatWrapping;
-    new THREE.TextureLoader().load((import.meta.env.BASE_URL || './') + 'textures/gen/' + (T.slopeTexture || (this.map?.terrain?.style === 'city' ? 'tex_concrete' : 'tex_rock')) + '.jpg', (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; mat.userData.pendingSlope = tex; if (mat.userData.shader) { mat.userData.shader.uniforms.uSlopeMap.value = tex; mat.userData.shader.uniforms.uSlopeOn.value = 1; } }, undefined, () => {});
+    new THREE.TextureLoader().load(generatedTextureUrl(T.slopeTexture || (this.map?.terrain?.style === 'city' ? 'tex_concrete' : 'tex_rock')), (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8; mat.userData.pendingSlope = tex; if (mat.userData.shader) { mat.userData.shader.uniforms.uSlopeMap.value = tex; mat.userData.shader.uniforms.uSlopeOn.value = 1; } }, undefined, () => {});
     const wallScale = T.wallScale || (this.map?.terrain?.style === 'city' ? 1 / 6 : 1 / 5);
     const wallTint = new THREE.Color(T.wallTint || (this.map?.terrain?.style === 'city' ? '#9aa0ae' : '#d9a06c'));
     mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uCity={value:this.map?.terrain?.style==='city'?1:0};
+      shader.uniforms.uPaving={value:surfaceTexture('paving')};
       shader.uniforms.uTime = { value: 0 };
       shader.uniforms.uWallMap = { value: mat.userData.pendingWall || wallTex }; shader.uniforms.uWallOn = { value: mat.userData.pendingWall ? 1 : 0 }; shader.uniforms.uWallScale = { value: wallScale }; shader.uniforms.uWallTint = { value: wallTint }; shader.uniforms.uSlopeMap = { value: mat.userData.pendingSlope || slopeTex }; shader.uniforms.uSlopeOn = { value: mat.userData.pendingSlope ? 1 : 0 };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float aVein; varying float vVein; varying vec3 vWPos; varying vec3 vWNrm;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVein = aVein; vWPos = (modelMatrix * vec4(position,1.0)).xyz; vWNrm = normalize(mat3(modelMatrix) * normal);');
-      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVein; varying vec3 vWPos; varying vec3 vWNrm; uniform float uTime; uniform sampler2D uWallMap; uniform float uWallOn; uniform float uWallScale; uniform vec3 uWallTint; uniform sampler2D uSlopeMap; uniform float uSlopeOn;')
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVein; varying vec3 vWPos; varying vec3 vWNrm; uniform float uTime; uniform sampler2D uWallMap; uniform float uWallOn; uniform float uWallScale; uniform vec3 uWallTint; uniform sampler2D uSlopeMap; uniform float uSlopeOn; uniform float uCity; uniform sampler2D uPaving;')
         .replace('#include <map_fragment>', `
           #ifdef USE_MAP
             vec4 floorC = texture2D(map, vMapUv);
             // detail pass: a second sample of the floor tile at 5.3x so the ground never reads as a smooth sheet up close
             vec4 detailC = texture2D(map, vMapUv * 5.3 + vec2(0.37, 0.61));
-            floorC.rgb *= mix(vec3(1.0), detailC.rgb * 1.9, 0.35);
+            floorC.rgb *= mix(vec3(1.0), detailC.rgb * 1.9, 0.08);
+            float avenue=uCity*step(-82.,vWPos.z)*step(vWPos.z,128.);
+            float sidewalk=avenue*smoothstep(8.5,8.65,abs(vWPos.x))*(1.-smoothstep(13.05,13.2,abs(vWPos.x)));
+            floorC=mix(floorC,texture2D(uPaving,vWPos.xz*.5),sidewalk);
             vec3 an = abs(normalize(vWNrm));
             float steep = 1.0 - an.y;
             float slopeW = uSlopeOn * smoothstep(0.16, 0.42, steep);   // revetment / rock on mid slopes

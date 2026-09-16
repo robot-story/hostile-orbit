@@ -13,6 +13,7 @@ import {
 import { rand, pick, clamp } from '../core/mathx.js';
 import { buildLanternStory } from './encampments.js';
 import { dressLantern } from './dressing.js';
+import { dressStreetLife } from './streetLife.js';
 
 const SLOGANS = [
   ['OBEY THE GLOW', 'NULL LEGION CIVIC NOTICE'], ['CURFEW IS KINDNESS', 'REPORT UNLIT WINDOWS'], ['YOUR THOUGHTS ARE LOUD', 'PLEASE LOWER THEM'],
@@ -64,16 +65,18 @@ function dressStreet(world, info, corridor) {
   const samples = sampleCorridorWorld(corridor.pts, 11, 18);
   const halfW = corridor.w / 2;
   for (const s of samples) {
+    if (s.pos.distanceTo(M(200,42)) < 39) continue;
     const perp = new THREE.Vector3(-s.dir.z, 0, s.dir.x);
     const sides = Math.random() < 0.6 ? [randSign()] : [-1, 1];
     for (const side of sides) {
-      const off = rand(halfW * 0.3, halfW * 0.8) * side;
+      const off = rand(halfW * 0.64, halfW * 0.77) * side;
       const px = s.pos.x + perp.x * off, pz = s.pos.z + perp.z * off;
       if (!world.terrain.isFloor(px, pz, -0.7)) continue;
-      placeStreetCover(world, info, new THREE.Vector3(px, world.terrain.getHeight(px, pz), pz), rand(0, Math.PI * 2));
+      placeStreetCover(world, info, new THREE.Vector3(px, world.terrain.getHeight(px, pz), pz), Math.atan2(s.dir.x,s.dir.z) + rand(-0.12,0.12));
     }
   }
   for (const s of samples) {
+    if (s.pos.distanceTo(M(200,42)) < 39) continue;
     if (Math.random() > 0.12) continue;
     const perp = new THREE.Vector3(-s.dir.z, 0, s.dir.x);
     const off = rand(-halfW * 0.3, halfW * 0.3);
@@ -89,6 +92,7 @@ function dressStreetSigns(world, info, corridor, density = 1) {
   const halfW = corridor.w / 2;
   let i = 0;
   for (const s of samples) {
+    if (s.pos.distanceTo(M(200,42)) < 40) continue;
     const perp = new THREE.Vector3(-s.dir.z, 0, s.dir.x);
     const side = randSign();
     const off = (halfW + 0.9) * side;
@@ -117,6 +121,7 @@ function towersAlong(world, corridor, opts = {}) {
       const px = s.pos.x + perp.x * off, pz = s.pos.z + perp.z * off;
       const fd = world.terrain.floorDistance(px, pz);
       if (fd < 5) continue; // must sit clearly inside the block, not on the street
+      if (Math.hypot(px-26,pz+5)<29 || Math.hypot(px+33,pz+50)<25) continue; // authored rail landmarks
       const py = world.terrain.getHeight(px, pz);
       buildTower(world, new THREE.Vector3(px, py, pz), rand(-0.2, 0.2) + (side > 0 ? 0 : Math.PI), { height: rand(opts.minH ?? 16, opts.maxH ?? 38), width: rand(7, 12), color: pick(NEON), antenna: Math.random() < 0.3 });
       if (++n > (opts.max ?? 60)) return;
@@ -138,6 +143,7 @@ function dressRoad(world, corridor) {
 }
 
 export function buildLantern(world) {
+  world.railClearZones=[{x:26,z:-5,r:30},{x:-33,z:-50,r:28}];
   const map = world.map;
   const FL = map.floor, L = map.locations;
   const info = { locations: L, patrolRoutes: map.patrolRoutes, spawnPoints: map.spawnPoints, jammer: null, terminal: null, cells: null, extraction: null, destructibles: [], supplyCaches: [], posters: [], animated: [] };
@@ -147,7 +153,7 @@ export function buildLantern(world) {
   // --- transit plaza (drop zone) ---
   buildTransitPlaza(world, at(L.dropZone));
   transitShelter(world, M(214, 66).setY(ground(M(214, 66).x, M(214, 66).z)), Math.PI);
-  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2 + Math.PI / 8; const px = L.dropZone.pos.x + Math.cos(a) * 30, pz = L.dropZone.pos.z + Math.sin(a) * 30; if (world.terrain.floorDistance(px, pz) < 4) { if (i % 2 === 0) streetLamp(world, new THREE.Vector3(px, ground(px, pz), pz), { color: pick(NEON), light: true }); else { const [text, sub] = pick(SLOGANS); info.posters.push(holoBillboard(world, new THREE.Vector3(px, ground(px, pz), pz), -a + Math.PI / 2, { text, sub, color: pick(NEON), light: true }).poster); } } }
+  for (const dx of [-26,26]) { const p=M(200+dx,48); p.y=ground(p.x,p.z);streetLamp(world,p,{color:'#b7d9e1',light:true}); }
   transitShelter(world, M(186, 66).setY(ground(M(186, 66).x, M(186, 66).z)), Math.PI);
 
   // --- the three routes ---
@@ -155,7 +161,8 @@ export function buildLantern(world) {
   const highC = FL.corridors.find((c) => c.name === 'high');
   const trenchC = FL.corridors.find((c) => c.name === 'trench');
   for (const c of [mainC, highC, trenchC]) dressStreet(world, info, c);
-  dressStreetSigns(world, info, mainC, 2.0); dressStreetSigns(world, info, highC, 1.1); dressStreetSigns(world, info, trenchC, 0.7);
+  dressStreetSigns(world, info, mainC, 0.85); dressStreetSigns(world, info, highC, 1.1); dressStreetSigns(world, info, trenchC, 0.7);
+  dressStreetLife(world);
   // lit lamps down Meridian Avenue (within the 26-light budget; the strongest survive the cull)
   for (const smp of sampleCorridorWorld(mainC.pts, 30, 34)) { const perp = new THREE.Vector3(-smp.dir.z, 0, smp.dir.x); for (const side of [-1, 1]) { const px = smp.pos.x + perp.x * (mainC.w / 2 - 1.2) * side, pz = smp.pos.z + perp.z * (mainC.w / 2 - 1.2) * side; if (world.terrain.floorDistance(px, pz) > 2) continue; streetLamp(world, new THREE.Vector3(px, ground(px, pz), pz), { color: side > 0 ? '#00e5ff' : '#ff3fd8', light: true }); } }
   towersAlong(world, mainC, { minH: 20, maxH: 40, max: 34 });

@@ -35,7 +35,7 @@ export class Drone {
     this.id = opts.id ?? null; this.squad = opts.squad || null;
     this.position = pos.clone(); this.position.y = Math.max(this.position.y, this.world.terrain.getHeight(pos.x, pos.z) + this.type.hoverHeight);
     this.velocity = new THREE.Vector3(); this.yaw = 0;
-    this.maxHealth = this.type.health; this.health = this.maxHealth; this.dead = false;
+    this.maxHealth = Math.round(this.type.health * (game.difficulty?.enemyHp || 1)); this.health = this.maxHealth; this.dead = false;
     this.hitRadius = 1.0; this.hitCenter = this.position; this.hitboxes = true; this.armour = {};
     this.model = buildDroneModel(); this.world.actors.add(this.model); this.flashMesh = this.model.children[0];
     this.beam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.06, 1, 6, 1, true), Mat.glowAdditive(COLORS.red, 0.6)); this.beam.visible = false; this.world.fxGroup.add(this.beam);

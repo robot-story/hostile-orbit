@@ -79,6 +79,7 @@ class AudioEngine {
   }
 
   resume() { if (this.ctx && this.ctx.state !== 'running') this.ctx.resume().catch(() => {}); }
+  async preloadMission() { await this.init(); await this._bulk; }
 
   async _fetchJson(url) { try { const r = await fetch(url); if (!r.ok) return null; return await r.json(); } catch { return null; } }
 

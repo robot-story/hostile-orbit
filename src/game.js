@@ -2,6 +2,7 @@
 import { updateBreakables } from './world/breakables.js';
 import { updatePickups } from './world/pickups.js';
 import * as THREE from 'three';
+import { waitForAssets } from './core/assets.js';
 import { Renderer } from './render/renderer.js';
 import { input, keyLabel } from './core/input.js';
 import { settings } from './core/settings.js';
@@ -26,8 +27,8 @@ import { Director } from './gameplay/director.js';
 import { Projectiles } from './gameplay/projectiles.js';
 import { Abilities } from './gameplay/abilities.js';
 import { Mission } from './gameplay/mission.js';
-import { DropPod } from './gameplay/pods.js';
-import { FRAME_VARIANTS, WEAPONS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES } from './gameplay/weapons.js';
+import { DropPod, buildPodModel } from './gameplay/pods.js';
+import { FRAME_VARIANTS, WEAPONS, GRENADE, INJECTOR, ABILITIES, DIFFICULTIES, DROP_ZONES } from './gameplay/weapons.js';
 import { SQUAD_COLORS, MAX_PLAYERS } from './net/protocol.js';
 import { net, MSG } from './net/net.js';
 import { createMenus } from './ui/menus.js';
@@ -52,7 +53,7 @@ export class Game {
     this.world = null; this.session = null;
     this.fpsEl = null; this._fpsAcc = 0; this._fpsN = 0;
     this.lastConfig = null; this.lastResults = null;
-    this.god = !new URLSearchParams(location.search).has('mortal'); // TESTING default; F10 toggles
+    this.god = false; // Explicitly opt in through the developer menu.
     this.time = 0;
     events.on('settings:changed', (k, v) => { if (k === 'fov') this.camera.fov = v; if (k === 'showFps') this._fps(v); if (k === 'fullscreen') this.setFullscreen(v); if (k === 'hudScale') document.documentElement.style.setProperty('--hud-scale', v); });
     events.on('input:keydown', (code) => this.onKey(code));
@@ -208,14 +209,14 @@ export class Game {
   _buildApi() {
     const self = this;
     return {
-      settings, save, events, WEAPONS, FRAME_VARIANTS, GRENADE, INJECTOR, ARMOUR, ABILITIES, DIFFICULTIES, DROP_ZONES, SQUAD_COLORS, MAX_PLAYERS, MAPS, DEFAULT_MAP, keyLabel, input,
+      settings, save, events, WEAPONS, FRAME_VARIANTS, GRENADE, INJECTOR, ABILITIES, DIFFICULTIES, DROP_ZONES, SQUAD_COLORS, MAX_PLAYERS, MAPS, DEFAULT_MAP, keyLabel, input,
       ui: { click: () => audio.ui('ui_click'), hover: () => audio.ui('ui_hover', { volume: 0.5 }), back: () => audio.ui('ui_back'), confirm: () => audio.ui('ui_confirm'), deploy: () => audio.ui('ui_deploy'), error: () => audio.ui('ui_error'), tab: () => audio.ui('ui_tab', { volume: 0.5 }) },
       say: (id) => audio.say(id, { priority: 2 }),
       music: (state) => audio.setMusicState(state),
       hasOperation: () => save.hasOperation,
       continueOperation: () => self.continueOperation(),
       startDeployment: (cfg) => self.startDeployment(cfg),
-      preview: { setMode: (m) => { if (m === 'loadout') self.onMenuOpen('loadout'); }, setWeapon: (id) => self.menuScene?.setWeapon(id), setNeon: (c, a) => self.menuScene?.setNeon(c, a), rotate: (d) => self.menuScene?.rotate(d), setArmour: (id) => self.menuScene?.setArmour?.(id) },
+      preview: { setMode: (m) => { if (m === 'loadout') self.onMenuOpen('loadout'); }, setWeapon: (id) => self.menuScene?.setWeapon(id), setNeon: (c, a) => self.menuScene?.setNeon(c, a), rotate: (d) => self.menuScene?.rotate(d) },
       resume: () => self.resume(), devMenu: () => { self.resume(); self.dev.toggle(true); }, restartCheckpoint: () => self.restartFromCheckpoint(), abortToOrbit: () => self.abortToOrbit(), quit: () => { try { window.close(); } catch { /* ignore */ } self.abortToOrbit(); },
       setFullscreen: (v) => self.setFullscreen(v),
       mp: self.mpApi(),
@@ -236,16 +237,17 @@ export class Game {
   }
   onLobbyState() {
     if (this._lobbyBound) return; this._lobbyBound = true;
-    net.on(MSG.START, (m) => { if (!net.isHost) this.startDeployment({ difficulty: m.settings.difficulty, dropZone: m.settings.dropZone, map: m.settings.map, loadout: save.profile.loadout, seed: m.seed }); });
-    events.on('mp:disconnected', () => { if (this.mode === 'play' || this.mode === 'drop') { this.menus.toast('CONNECTION TO HOST LOST', 'warn'); } });
+    net.on(MSG.START, (m) => { if (!net.isHost) {this.transport.begun=false;this.startDeployment({ difficulty: m.settings.difficulty, dropZone: 'main', map: m.settings.map, loadout: save.profile.loadout, seed: m.seed });} });
+    net.on(MSG.RETURN,()=>{if(!net.isHost)this.abortToOrbit(true);});
+    events.on('mp:disconnected', () => { if(this._deploymentBusy){this._deploymentCancelled=true;this.transport?._loadReject?.(new Error('Host disconnected'));this.hideLoading();this.abortToOrbit(true);return;}if(this.session){this.teardownSession();this.mode='menu';input.setGameplay(false);this.showMainMenu();this.menus.toast('CONNECTION TO HOST LOST — RETURNED TO ORBIT','warn');} });
   }
   /** Host: launch the mission for the whole lobby (called from the loadout DEPLOY when all are ready). */
   hostStartMission() {
-    const t = this.transport; if (!t || !net.isHost) return;
-    const notReady = t.players.filter(p => p.connected && !p.isHost && !p.ready);
+    const t = this.transport; if (!t || !net.isHost || t.phase==='loading'||t.phase==='mission') return;
+    const notReady = t.players.filter(p => p.connected && !p.ready);
     if (notReady.length) { this.menus.toast(`WAITING FOR: ${notReady.map(p => p.name).join(', ')}`, 'warn'); return; }
     const seed = (Math.random() * 1e9) | 0;
-    t.setPhase('mission');
+    t.setPhase('loading');
     net.send(MSG.START, { seed, settings: t.settings, players: t.players }, { reliable: true });
     this.startDeployment({ difficulty: t.settings.difficulty, dropZone: t.settings.dropZone, map: t.settings.map, loadout: save.profile.loadout, seed });
   }
@@ -263,7 +265,10 @@ export class Game {
     this.teardownSession();
     const map = MAPS[config.map] || MAPS[DEFAULT_MAP]; config.map = map.id;
     this.world = new World(map);
-    const lv = buildLevel(this.world);
+    // Every peer builds the same cover, rocks and collider layout from the seed.
+    const originalRandom=Math.random;let levelSeed=(config.seed||7)>>>0;
+    Math.random=()=>{levelSeed=(levelSeed*1664525+1013904223)>>>0;return levelSeed/4294967296;};
+    let lv;try{lv=buildLevel(this.world);}finally{Math.random=originalRandom;}
     this.menus.setMapImage?.(map.mapImage);
     // protect gameplay-mutated meshes from the static merge
     const dynamic = [];
@@ -278,12 +283,13 @@ export class Game {
     s.config = config; s.difficulty = DIFFICULTIES[config.difficulty] || DIFFICULTIES.veteran;
     s.fx = new FX(this.world);
     s.combat = new Combat(this); s.projectiles = new Projectiles(this); s.director = new Director(this, 7); s.abilities = new Abilities(this);
-    s.player = new Player(this, this.camera, s.fx, config.loadout); s.player.color = SQUAD_COLORS[net.slot] || SQUAD_COLORS[0]; s.player.name = settings.data.playerName; s.player.id = net.localId;
+    s.player = new Player(this, this.camera, s.fx, config.loadout); s.player.color = SQUAD_COLORS[net.slot] || SQUAD_COLORS[0]; s.player.name = settings.data.playerName; this.world.entities.delete(s.player.id); s.player.id = net.localId;
     this.world.entities.set(s.player.id, s.player);
     s.players = [s.player];
     s.mission = new (map.Mission || Mission)(this);
     s.director.rng = (() => { let x = (config.seed || 7) >>> 0; return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; }; })();
     s.netsync = net.transport ? new NetSync(this) : null;
+    if(s.netsync)for(const member of net.transport.players)if(member.connected&&member.id!==net.localId)s.netsync.ensureRemote(member.id,{});
     s.hud = new Hud(this.ui, map); s.hud.setLives(s.mission.lives, s.mission.lives); s.hud.show(false);
     this.dev?.onSession();
     s.hints = new Hints(this.ui, this);
@@ -296,7 +302,7 @@ export class Game {
   teardownSession() {
     if (!this.session) return;
     const s = this.session;
-    s.netsync?.dispose(); s.mission?.dispose(); s.hud?.dispose(); s.hints?.dispose(); s.fx?.clear?.(); s.director?.clear?.(); s.abilities?.clear?.(); s.projectiles?.clear?.();
+    s.qte?.cancel(); s.qte?.el?.remove(); s.qte?.css?.remove(); s.netsync?.dispose(); s.mission?.dispose(); s.hud?.dispose(); s.hints?.dispose(); s.fx?.clear?.(); s.director?.clear?.(); s.abilities?.clear?.(); s.projectiles?.clear?.();
     this.session = null; this.world = null;
     audio.stopVoice(); audio.setMuffle(0);
   }
@@ -305,36 +311,66 @@ export class Game {
     const p = M(dz.mapX, dz.mapY, 0); const slot = net.slot || 0; p.x += (slot === 1 ? -3.5 : slot === 2 ? 3.5 : 0); p.z += slot ? 2.5 : 0; const w = this.world.nav.nearestWalkable(p.x, p.z, 20) || p; p.set(w.x, 0, w.z); p.y = this.world.groundHeight(p.x, p.z); return p;
   }
   async startDeployment(config) {
+    if (this._deploymentBusy) return;
+    input.requestLock(); // Keep the Deploy gesture valid before asynchronous loading.
+    this._deploymentBusy = true; this._deploymentCancelled = false;
+    try { await this.prepareDeployment(config); }
+    catch (error) { this.loadingFailed(error); }
+    finally { this._deploymentBusy = false; }
+  }
+  loadingFailed(error) {
+    console.error('[deployment] failed', error);
+    this.hideLoading();this.abortToOrbit();
+    this.menus.toast('DEPLOYMENT COULD NOT LOAD. PLEASE RETRY.', 'warn');
+  }
+  async prepareDeployment(config) {
+    config.dropZone = 'main';
     config.map = config.map || save.profile.loadout.map || DEFAULT_MAP;
     this.lastConfig = config;
     save.setLoadout({ ...config.loadout, difficulty: config.difficulty, dropZone: config.dropZone, map: config.map || save.profile.loadout.map || DEFAULT_MAP });
     this.menus.hide(); this.setBackground('title_moon'); // same backdrop as the title card: the menu dissolves into the loading screen
     this.mode = 'loading';
     await this.showLoading('PREPARING DEPLOYMENT');
+    await preloadCustomModels();
+    if(this._deploymentCancelled)throw new Error('Deployment cancelled');
     this.setLoadProgress(0.08, 'BUILDING BATTLESPACE'); await new Promise((r) => setTimeout(r, 0));
     this.buildSession(config);
+    this.session.player.spawnAt(this.dropPositionFor(config));
+    this.session.mission.prepare();
     this.setLoadProgress(0.45, 'COMPILING MATERIALS'); await new Promise((r) => setTimeout(r, 0));
+    const preparingSession=this.session;
     await this.prewarm();
+    if(this._deploymentCancelled||this.session!==preparingSession)throw new Error('Deployment cancelled');
+    if(this.transport?.connected){this.setLoadProgress(.98,'WAITING FOR SQUAD TO LOAD');await this.transport.waitForSquad();}
     this.setLoadProgress(1, 'DROP POD ARMED'); await new Promise((r) => setTimeout(r, 60));
-    this.hideLoading();
     audio.say('ship_deploy', { priority: 3 });
     audio.say(this.world.map?.briefingLine || 'voss_briefing', { priority: 3, delay: 2 });
     const target = this.dropPositionFor(config);
-    await this.introFlyover(target, () => this.dropSequence(target, () => { this.session.mission.start(); }));
+    const intro=this.introFlyover(target, () => this.dropSequence(target, () => { this.session.mission.start(); }));
+    this.updateIntro(0); this.world.update(0,this.camera); this.renderer.render(0);
+    this.hideLoading(); await intro;
   }
   async continueOperation() {
+    if (this._deploymentBusy) return;
+    input.requestLock();
+    this._deploymentBusy = true; this._deploymentCancelled = false;
+    try { await this.prepareContinuedOperation(); }
+    catch (error) { this.loadingFailed(error); }
+    finally { this._deploymentBusy = false; }
+  }
+  async prepareContinuedOperation() {
     const cp = save.profile.operationInProgress; if (!cp) return;
     const config = { difficulty: cp.difficulty || save.profile.loadout.difficulty, dropZone: save.profile.loadout.dropZone, map: cp.map || save.profile.loadout.map, loadout: cp.loadout || save.profile.loadout };
     this.lastConfig = config;
     this.menus.hide(); this.setBackground('title_moon'); this.mode = 'loading';
     await this.showLoading('RESTORING OPERATION');
+    await preloadCustomModels();
     this.buildSession(config);
-    this.hideLoading();
     const p = cp.position ? new THREE.Vector3(...cp.position) : this.dropPositionFor(config);
     p.y = this.world.groundHeight(p.x, p.z);
-    this.session.mission.active = true;
-    this.session.mission.setupInteractables(); this.session.mission.setupGarrisons(); this.session.mission.setupSideMissions();
-    this.dropSequence(p, () => { this.session.mission.restore(cp); this.session.hud.setLives(this.session.mission.lives, this.session.difficulty.lives); audio.say('ship_welcome', { priority: 2 }); });
+    this.session.player.spawnAt(p);this.session.mission.prepare();await this.prewarm();
+    this.dropSequence(p, () => { this.session.mission.active=true;this.session.mission.restore(cp); this.session.hud.setLives(this.session.mission.lives, this.session.difficulty.lives); audio.say('ship_welcome', { priority: 2 }); });
+    this.updateDrop(0);this.renderer.render(0);this.hideLoading();
   }
   /** Loading screen in the title-card language: dark moon key art, kicker, the HOSTILE ORBIT title block, a status line
    *  that ticks through deployment steps and a progress bar. Shared by PREPARING DEPLOYMENT and RESTORING OPERATION. */
@@ -352,9 +388,9 @@ export class Game {
           <div class="corner tl"></div><div class="corner br"></div><div class="tip"></div>`;
         this.ui.appendChild(el);
         const css = document.createElement('style'); css.textContent = `
-          #loading{position:absolute;inset:0;z-index:60;background:transparent;overflow:hidden;font-family:var(--font);display:none;opacity:0;transition:opacity .5s ease}
+          #loading{position:fixed;inset:0;z-index:1000;background:#050a12;overflow:hidden;font-family:var(--font);display:none;opacity:0;transition:opacity .5s ease}
           #loading.vis{opacity:1}
-          #loading .bg{display:none}
+          #loading .bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.45}
           #loading .haze{position:absolute;inset:0;background:radial-gradient(ellipse at 30% 55%,rgba(0,0,0,.78),rgba(0,0,0,.2) 55%,rgba(0,0,0,.65))}
           #loading .scan{position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px);pointer-events:none}
           #loading .wrap{position:absolute;left:8vw;top:50%;transform:translateY(-52%)}
@@ -374,7 +410,7 @@ export class Game {
           @keyframes lslide{from{margin-left:0}to{margin-left:62%}}`;
         document.head.appendChild(css);
       }
-      el.style.display = 'block'; el.classList.remove('vis'); setTimeout(() => el.classList.add('vis'), 20); el.querySelector('.ltxt').textContent = text;
+      el.style.display = 'block'; el.classList.add('vis');el.style.transition='none';el.querySelector('.ltxt').textContent = text;this.setLoadProgress(0,'PREPARING ASSETS');
       const TIPS = ['Hold SPACE to jet. Fuel returns on the ground.', 'Sprint into Legion troopers to ram them. Momentum is a weapon.', 'F to snap to cover. R rolls out of it.', 'M opens the tactical map. Pins are live.', 'Reinforcements are finite. Extraction is not guaranteed.', 'Charge points around the jammer must be held, not touched.', 'Orbital abilities are on cooldown from the moment you land. Plan.', 'Your sacrifice has been pre-approved.'];
       const fv = FRAME_VARIANTS[save.profile.loadout.neon] || FRAME_VARIANTS['#00e5ff']; el.querySelector('.tip').textContent = `FRAME  ${fv.name}  //  ${fv.role}  —  ${fv.blurb}   ·   ` + TIPS[Math.floor(Math.random() * TIPS.length)];
       const steps = text.startsWith('RESTORING') ? ['REACQUIRING TELEMETRY', 'REBUILDING BATTLESPACE', 'RESTORING SQUAD STATE', 'ARMING REINFORCEMENT POD'] : ['AUTHENTICATING DEPLOYMENT ORDER', 'BUILDING BATTLESPACE', 'COMPILING MATERIALS', 'WARMING RECON FEED', 'ARMING DROP POD'];
@@ -385,39 +421,54 @@ export class Game {
   }
   setLoadProgress(frac, label) { const el = document.getElementById('loading'); if (!el) return; const bar = el.querySelector('.lbar i'); if (bar) { bar.style.animation = 'none'; bar.style.marginLeft = '0'; bar.style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`; } if (label) { clearInterval(this._loadStepTimer); const st = el.querySelector('.lstep'); if (st) st.textContent = label; } }
   hideLoading() {
-    clearInterval(this._loadStepTimer); const el = document.getElementById('loading'); if (el) { el.classList.remove('vis'); setTimeout(() => { if (!el.classList.contains('vis')) el.style.display = 'none'; }, 520); }
+    clearInterval(this._loadStepTimer); const el = document.getElementById('loading'); if (el) { el.style.transition='opacity .5s ease';el.classList.remove('vis'); setTimeout(() => { if (!el.classList.contains('vis')) el.style.display = 'none'; }, 520); }
     this.setBackground(null); }
   /** Cinematic pod drop that ends with the player standing at `target`. */
   /** Warm-up on the loading screen: render the level from every flyover stop so shaders compile and textures upload
    *  before the camera moves. Costs a second or two of loading, saves the hitches during the cinematic. */
   async prewarm() {
-    const W = this.world; if (!W) return;
-    const L = W.map.locations; const R = this.renderer;
-    try { R.renderer.compile(W.scene, this.camera); } catch { /* ignore */ }
-    const views = [L.extractionCenter, L.commsPlaza, L.jammerCenter, L.canyonJunction, L.dropZone]; const hs = [52, 48, 46, 34, 26];
-    const pts = views.map((v, i) => { const p = v.pos.clone(); p.y = W.groundHeight(p.x, p.z) + hs[i]; return p; });
-    const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5); const prevFov = this.camera.fov;
-    for (let i = 0; i <= 12; i++) { // the exact recon path, twelve samples, plus two low angles per stop
-      const e = i / 12; const p = curve.getPointAt(e); const a = curve.getPointAt(Math.min(1, e + 0.045)); this.camera.position.copy(p); this.camera.lookAt(a.x, a.y - 24, a.z); this.camera.fov = 78 - e * 12; this.camera.updateProjectionMatrix(); this.camera.userData.focus = a;
-      W.update(0.016, this.camera); R.render(0.016); if (i === 6) { this.setLoadProgress(0.6, 'WARMING RECON FEED'); await new Promise((r) => setTimeout(r, 0)); }
+    const W=this.world;if(!W)return;
+    const began=performance.now(),R=this.renderer,L=W.map.locations,p=this.session.player;
+    const yieldFrame=()=>new Promise(resolve=>setTimeout(resolve,0));
+    this.setLoadProgress(.46,'STAGING LANDING ENCOUNTERS');await yieldFrame();
+    const D=this.session.director;
+    for(const g of D.garrisons){
+      if(g.spawned||p.position.distanceTo(g.center)>g.radius+18)continue;
+      g.spawned=true;
+      for(const t of g.templates){D.spawnSquad(t.template||t,g.center,{route:t.route,state:t.route?'patrol':'idle',alert:!!g.alert,target:g.alert?p:null});await yieldFrame();}
     }
-    for (const v of views) { const p = v.pos; const g = W.groundHeight(p.x, p.z); this.camera.position.set(p.x - 6, g + 2, p.z + 8); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016); this.camera.position.set(p.x + 5, g + 1.6, p.z - 6); this.camera.lookAt(p.x, g + 1, p.z); R.render(0.016); }
-    this.setLoadProgress(0.78, 'STAGING LEGION FRAMES'); await new Promise((r) => setTimeout(r, 0));
-    this.camera.fov = prevFov; this.camera.updateProjectionMatrix();
-    // every weapon model, each Legion frame and the war-beast: build once, render once, throw away
-    try {
-      const { WEAPON_BUILDERS } = await import('./models/weapons.js'); const { buildSoldier } = await import('./models/soldier.js'); const { Ravager } = await import('./entities/ravager.js');
-      const stage = new THREE.Group(); const c = L.dropZone.pos; const gy = W.groundHeight(c.x, c.z); stage.position.set(c.x, gy, c.z + 6); W.scene.add(stage);
-      let k = 0; for (const id in WEAPON_BUILDERS) { try { const m = WEAPON_BUILDERS[id](); m.position.set((k++ % 6) * 0.8 - 2, 1.2, 0); stage.add(m); } catch { /* ignore */ } }
-      for (const kind of ['rifleman', 'breacher', 'suppressor', 'grenadier']) { try { const m = buildSoldier(kind === 'suppressor' ? 'legionHeavy' : 'legion', { legion: kind, custom: null }); m.root.position.set((k++ % 6) * 1.2 - 3, 0, 2); stage.add(m.root); } catch { /* ignore */ } }
-      let beast = null; try { beast = new Ravager(this, new THREE.Vector3(c.x, gy, c.z + 12)); } catch { /* ignore */ }
-      this.camera.position.set(c.x, gy + 3, c.z - 4); this.camera.lookAt(c.x, gy + 1, c.z + 8); R.render(0.016);
-      W.scene.remove(stage); stage.traverse((o) => { if (o.isMesh) o.geometry?.dispose?.(); });
-      if (beast) { beast.dead = true; W.unregister(beast); beast.removeModel(); }
-    } catch (e) { console.warn('[prewarm] entity pass skipped', e); }
-    this.setLoadProgress(0.92, 'ARMING DROP POD');
-    // FX materials: spawn one of each cheap effect off-screen so their shaders are compiled too
-    try { const fx = this.session?.fx; const off = new THREE.Vector3(0, -50, 0); fx?.sparksBurst?.(off, new THREE.Vector3(0, 1, 0), 2); fx?.dust?.(off, 0.1); fx?.muzzleFlash?.(off, new THREE.Vector3(0, 0, 1), '#8ff0ff', 0.1); fx?.blood?.(off, new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), 0.1); R.render(0.016); } catch { /* ignore */ }
+    const {WEAPON_BUILDERS}=await import('./models/weapons.js');
+    const {buildSoldier}=await import('./models/soldier.js');
+    const stage=new THREE.Group();stage.position.copy(p.position);W.scene.add(stage);
+    const models=[];let k=0;
+    for(const id in WEAPON_BUILDERS){const m=WEAPON_BUILDERS[id]();m.position.set((k++%6)*1.1-3,1.2,2);stage.add(m);await yieldFrame();}
+    for(const kind of ['rifleman','breacher','suppressor','grenadier']){const m=buildSoldier(kind==='suppressor'?'legionHeavy':'legion',{legion:kind,custom:null});m.root.position.set((k++%6)*1.2-3,0,4);stage.add(m.root);models.push(m);await yieldFrame();}
+    this._preparedPodModel=buildPodModel();this._preparedPodModel.position.set(0,0,7);stage.add(this._preparedPodModel);
+    this.setLoadProgress(.57,'LOADING SURFACES AND EQUIPMENT');
+    await waitForAssets(n=>this.setLoadProgress(.57,n?'LOADING '+n+' MATERIAL ASSETS':'UPLOADING MATERIALS'));
+    this.setLoadProgress(.63,'DECODING MISSION AUDIO');await audio.preloadMission();
+    const fx=this.session.fx,at=p.position.clone().add(new THREE.Vector3(0,1,2));
+    fx.explosion(at,1,'pod');fx.dust(at,1);fx.muzzleFlash(at,new THREE.Vector3(0,0,1));fx.podTrail(at);
+    fx.update(.016,this.camera);
+    this.setLoadProgress(.68,'COMPILING WORLD AND CHARACTER SHADERS');await yieldFrame();
+    W.scene.updateMatrixWorld(true);
+    if(R.renderer.compileAsync)await R.renderer.compileAsync(W.scene,this.camera);else R.renderer.compile(W.scene,this.camera);
+    // Render while the opaque loading card owns the screen. Keep warmed shared geometry alive.
+    const views=[L.extractionCenter,L.commsPlaza,L.jammerCenter,L.canyonJunction,L.dropZone];
+    for(let i=0;i<views.length;i++){
+      const q=views[i].pos,gy=W.groundHeight(q.x,q.z);
+      for(const [dx,dy,dz] of [[-12,40,15],[6,2,8],[-5,1.6,-6]]){this.camera.position.set(q.x+dx,gy+dy,q.z+dz);this.camera.lookAt(q.x,gy+1,q.z);W.update(.016,this.camera);R.render(.016);await yieldFrame();}
+      this.setLoadProgress(.72+i*.04,'WARMING SECTOR '+(i+1)+' / '+views.length);
+    }
+    this.camera.position.copy(p.position).add(new THREE.Vector3(0,3,-5));this.camera.lookAt(at);R.render(.016);await yieldFrame();
+    stage.remove(this._preparedPodModel);W.scene.remove(stage);
+    // Source geometries/materials are cached and shared by live characters; disposing
+    // the staging hierarchy would invalidate their GPU buffers immediately before landing.
+    fx.clear();this.renderer.fx.flash=0;
+    await waitForAssets();
+    this.loadingMetrics={milliseconds:Math.round(performance.now()-began),enemies:D.enemies.length,programs:R.renderer.info.programs.length,ready:true};
+    console.info('[deployment] Ready before cinematic',this.loadingMetrics);
+    this.setLoadProgress(.98,'LANDING ENCOUNTER READY');
   }
   /** Recon flyover: a letterboxed cinematic sweep over the objectives with telemetry, holographic markers and the
    *  briefing, ending in a 5-to-1 drop countdown over the pad. Doubles as the warm-up pass: every material is rendered
@@ -502,7 +553,7 @@ export class Game {
     // countdown to impact over the pad
     const n = Math.ceil(remain);
     if (remain <= I.countFrom + 0.999 && n >= 1 && n <= I.countFrom) { I.count.classList.add('on'); I.cap.classList.remove('on'); if (n !== I.lastCount) { I.lastCount = n; I.cn.textContent = String(n); I.cn.classList.remove('pop'); void I.cn.offsetWidth; I.cn.classList.add('pop'); audio.play('countdown_tick', { volume: 0.9, pitch: 1 + (I.countFrom - n) * 0.06 }); events.emit('fx:shake', 0.12); } }
-    if (this.mode === 'intro') this.session.director.update(dt); // enemies idle-animate so their skins warm up too
+    // Mission actors are already staged; AI remains frozen until deployment completes.
     if (u >= 1 && (!this.dropPod || this.dropPod.landed)) { I.resolve(); } // hold the recon view until the pod is down: no cut to a pod close-up
   }
   dropSequence(target, onDone) {
@@ -512,7 +563,8 @@ export class Game {
     const overlay = null; // the recon flyover carries the countdown; no separate black screen
     audio.setMusicState('deploy'); audio.playStinger('stinger_drop', 0.9);
     audio.setAmbience({ ambience_wind: 0.2 });
-    const pod = new DropPod(this, target, { kind: 'player', owner: p.id, duration: 4.2, delay: 0.8, onLand: () => { this.renderer.whiteFlash(0.6); }, onOpen: () => { p.model.root.visible = true; p.respawn(target, p.yaw); p.position.copy(target).add(new THREE.Vector3(Math.sin(p.yaw) * -3.4, 0, Math.cos(p.yaw) * -3.4)); p.position.y = this.world.groundHeight(p.position.x, p.position.z); overlay?.remove(); this.beginPlay(); onDone?.(); } });
+    const pod = new DropPod(this, target, { model:this._preparedPodModel, kind: 'player', owner: p.id, duration: 4.2, delay: 0.8, onLand: () => { this.renderer.whiteFlash(0.6); }, onOpen: () => { p.model.root.visible = true; p.respawn(target, p.yaw); p.position.copy(target).add(new THREE.Vector3(Math.sin(p.yaw) * -3.4, 0, Math.cos(p.yaw) * -3.4)); p.position.y = this.world.groundHeight(p.position.x, p.position.z); overlay?.remove(); this.beginPlay(); onDone?.(); } });
+    this._preparedPodModel=null;
     this.dropPod = pod; this.dropT = 0; this.dropOverlay = overlay;
     s.hud.show(false);
   }
@@ -639,15 +691,12 @@ export class Game {
   toggleTacticalMap(force) {
     if (this.mode !== 'play') return;
     this.mapOpen = force != null ? force : !this.mapOpen;
+    input.wantLock = !this.mapOpen;
     if (this.mapOpen) { this.menus.setTacticalMapTitle(this.world?.map?.name || ''); input.releaseLock(); }
-    else this.menus.hideTacticalMap();
+    else { this.menus.hideTacticalMap(); input.requestLock(); }
   }
-  updateLockHint() {
-    if (!this.lockHint) { this.lockHint = document.createElement('div'); this.lockHint.id = 'lockhint'; this.lockHint.textContent = 'CLICK TO ENGAGE CONTROLS'; this.ui.appendChild(this.lockHint); }
-    const need = this.mode === 'play' && !input.locked && !input.lockUnavailable && !this.mapOpen && !this.dev?.open && !this.localPlayer?.dead;
+  updateGameplayCursor() {
     this.cursorEl?.classList.toggle('hidden', ((this.mode === 'play' && !this.mapOpen && !this.dev?.open) || this.mode === 'drop' || input.locked));
-    if (!need && this.lockHint.classList.contains('on')) this.lockHint.classList.remove('on');
-    this.lockHint.classList.toggle('on', need);
   }
   // ---------------- pause / end ----------------
   onKey(code) {
@@ -658,7 +707,7 @@ export class Game {
   }
   pause() {
     if (this.mode !== 'play') return;
-    this.mode = 'pause'; this.paused = true; input.setGameplay(false); this.lockHint?.classList.remove('on');
+    this.mode = 'pause'; this.paused = true; input.setGameplay(false);
     audio.setMuffle(0.7);
     const m = this.session.mission;
     const roster = net.transport?.players || []; const squad = roster.map((pl) => { const isMe = pl.id === net.localId; const rp = this.session?.netsync?.remotes?.get?.(pl.id); return { name: pl.name || 'VANGUARD', color: pl.loadout?.neon || SQUAD_COLORS[pl.slot] || '#888', frame: (FRAME_VARIANTS[pl.loadout?.neon]?.name) || 'OUTRIDER', kills: isMe ? (this.combat?.stats.kills || 0) : (rp?.kills || 0), ready: true }; });
@@ -670,8 +719,12 @@ export class Game {
     this.mode = 'play'; this.paused = false; input.setGameplay(true);
     audio.setMuffle(0);
   }
-  abortToOrbit() {
+  abortToOrbit(fromHost=false) {
+    this._deploymentCancelled = true; this._resultTransition = null; this.renderer.fx.fade = 0;
     this.menus.closePause?.();
+    this.transport?._loadReject?.(new Error('Deployment cancelled'));
+    if(this.transport?.connected&&net.isHost&&!fromHost)net.send(MSG.RETURN,{});
+    if(this.transport?.connected&&!net.isHost&&!fromHost&&this.transport.phase!=='results'&&this.transport.phase!=='lobby')this.transport.close();
     this.teardownSession();
     if (this.transport?.connected) { this.transport.setPhase('lobby'); this.mode = 'menu'; input.setGameplay(false); this.menus.show('multiplayer'); return; }
     this.mode = 'menu'; input.setGameplay(false);
@@ -685,16 +738,26 @@ export class Game {
     return this.continueOperation();
   }
   endMission(result) {
-    this.lastResults = result;
+    this.menus.closePause?.();
+    if (!result.rewardId) result.rewardId = (crypto.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, '0')).join(''));
     if (net.isHost && net.transport?.peerCount) { net.send(MSG.EV_MISSION, { result: result.success ? 'complete' : 'failed', stats: result }, { reliable: true }); this.transport?.setPhase('results'); }
-    input.setGameplay(false); this.mode = 'results'; this.lockHint?.classList.remove('on');
+    if (!net.isHost && !save.profile.rewardReceipts?.[result.rewardId]) {
+      save.recordMissionResult(this.mission?.script.id || result.map, result);
+      save.addRecord(result.success ? { missionsCompleted: 1, coopMissions: 1 } : { missionsFailed: 1 });
+      save.clearCheckpoint();
+    }
+    result = save.grantMissionRewards(result);
+    this.lastResults = result;
+    input.setGameplay(false); this.mode = 'results';
     this.session?.hud.show(false);
     this.menus.hideInteract?.();
     const succeeded = result.success;
     // keep the world rendering behind a fade, then switch to the results backdrop (timer-driven; the world is torn down at the end)
     this.renderer.fx.fade = 0;
     const t0 = performance.now();
+    const transition = this._resultTransition = {};
     const step = () => {
+      if(this._resultTransition !== transition)return;
       const k = Math.min(1, (performance.now() - t0) / 1500);
       this.renderer.fx.fade = k;
       if (k < 1) { setTimeout(step, 40); return; }
@@ -727,25 +790,26 @@ export class Game {
     this._lastTick = performance.now();
     if (this.cursorEl) this.cursorEl.classList.toggle('hidden', (this.mode === 'play' && !this.mapOpen) || this.mode === 'drop' || (input.locked && this.mode === 'play'));
     const dt = (this._fixedDt != null ? this._fixedDt : Math.min(0.05, this.clock.getDelta())) * (this.dev?.state.timeScale ?? 1);
+    if(this.mode==='loading'){input.endFrame();return;} // only prewarm owns rendering during loading
     if (this.fpsEl) { this._fpsAcc += dt; this._fpsN++; if (this._fpsAcc > 0.5) { this.fpsEl.textContent = `${Math.round(this._fpsN / this._fpsAcc)} FPS`; this._fpsAcc = 0; this._fpsN = 0; } }
     const s = this.session;
     if (s && this.world) {
-      if (this.mode === 'play') {
+      if (this.mode === 'play' || this.mode === 'pause' && net.isMultiplayer) {
         this.time += dt;
-        s.player.update(dt); s.qte?.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard(); this._lazyReticle(dt); updateBreakables(this.world, dt); updatePickups(this.world, dt, this.players);
+        s.player.update(dt); if(this.mode==='play')s.qte?.update(dt); this._speedLines(s.player.speedFx || 0); this._squadBoard(); this._lazyReticle(dt); updateBreakables(this.world, dt); updatePickups(this.world, dt, this.players);
         this.world.nav.update();
         if (!this.dev?.state.freezeEnemies) s.director.update(dt);
         s.projectiles.update(dt); s.abilities.update(dt); s.mission.update(dt); s.netsync?.update(dt);
         this.dev?.tick(s);
         s.hud.update(s.player, this, dt);
-        this.updateLockHint();
+        this.updateGameplayCursor();
         this.renderer.fx.lowHealth = s.player.health < 30 && !s.player.dead ? 1 - s.player.health / 30 : 0;
         if (this.mapOpen) this.menus.showTacticalMap(this.tacticalMapState(s));
       } else if (this.mode === 'intro') {
         this._speedLines(0);
         this.updateIntro(dt);
       } else if (this.mode === 'drop') {
-        this.time += dt; this.updateDrop(dt); s.director.update(dt); s.projectiles.update(dt); s.mission.update(dt); s.abilities.update(dt); s.netsync?.update(dt);
+        this.time += dt; this.updateDrop(dt); if(s.mission.active)s.director.update(dt); s.projectiles.update(dt); s.mission.update(dt); s.abilities.update(dt); s.netsync?.update(dt);
       } else if (this.mode === 'pause' || this.mode === 'results') {
         // frozen world; still animate materials
       }

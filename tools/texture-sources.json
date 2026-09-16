@@ -1,0 +1,80 @@
+{
+  "mode": "Built-in image_gen",
+  "textures": [
+    {
+      "id": "asphalt",
+      "source": "exec-3afc4f51-cd68-4a17-b6e5-0737d666cc3f.png",
+      "prompt": "Seamless orthographic worn colony-city asphalt albedo with charcoal aggregate, tar repairs, fissures and grime. Flat diffuse lighting; no markings, text or objects."
+    },
+    {
+      "id": "paving",
+      "source": "exec-8b8dbdfb-ba7b-4cc9-acac-7704d85ac4a2.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless repeatable 3D game albedo material texture. Create a square flat orthographic surface scan filling the entire image. Worn rectangular light warm-gray concrete sidewalk paving slabs, regular offset running-bond joints, fine pores and aggregate, charcoal grime settled only at joints, some chipped corners and faint shoe scuffs. High quality tactile physical material with detail on several scales. All four edges must tile seamlessly. Flat diffuse neutral illumination, no baked shadows, no highlights, no perspective, no borders, no labels, no text, no objects, no neon. Moderate brightness, realistic material colors, suitable for a gritty science fiction colony."
+    },
+    {
+      "id": "concrete",
+      "source": "exec-2d8f281b-cf8d-47c3-a6ef-95657072d0db.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless repeatable 3D game albedo material texture. Create a square flat orthographic surface scan filling the entire image. Weathered poured reinforced concrete wall, broad subtle formwork panel seams, occasional tiny tie holes, fine pores, gray mineral staining and a little ochre rust streaking. High quality tactile physical material with detail on several scales. All four edges must tile seamlessly. Flat diffuse neutral illumination, no baked shadows, no highlights, no perspective, no borders, no labels, no text, no objects, no neon. Moderate brightness, realistic material colors, suitable for a gritty science fiction colony."
+    },
+    {
+      "id": "metal",
+      "source": "exec-68ebc1be-875e-441d-b264-24ff636e07e8.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless repeatable 3D game albedo material texture. Create a square flat orthographic surface scan filling the entire image. Industrial brushed dark steel floor plates with repeating small raised diamond grips, abrasion along raised edges, subtle oil grime, cool gray steel with no bright chrome. High quality tactile physical material with detail on several scales. All four edges must tile seamlessly. Flat diffuse neutral illumination, no baked shadows, no highlights, no perspective, no borders, no labels, no text, no objects, no neon. Moderate brightness, realistic material colors, suitable for a gritty science fiction colony."
+    },
+    {
+      "id": "regolith",
+      "source": "exec-6603bae2-a571-4980-9767-61ad50086bad.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless repeatable 3D game albedo material texture. Create a square flat orthographic surface scan filling the entire image. Alien ochre and rusty terracotta compacted dust and gravel ground, fine granular mineral detail, scattered small shale chips, shallow wind erosion ripples, subtle dry fissures, rich warm reddish brown variation. High quality tactile physical material with detail on several scales. All four edges must tile seamlessly. Flat diffuse neutral illumination, no baked shadows, no highlights, no perspective, no borders, no labels, no text, no objects, no neon. Moderate brightness, realistic material colors, suitable for a gritty science fiction colony."
+    },
+    {
+      "id": "basalt",
+      "source": "exec-842c83f2-d519-4396-a999-d4ada4e2eab4.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless repeatable 3D game albedo material texture. Create a square flat orthographic surface scan filling the entire image. Fractured dark basalt rock surface, angular layered slate strata, blue charcoal rock with pale mineral seams and tiny rusty inclusions, rugged cracks, believable geological detail. High quality tactile physical material with detail on several scales. All four edges must tile seamlessly. Flat diffuse neutral illumination, no baked shadows, no highlights, no perspective, no borders, no labels, no text, no objects, no neon. Moderate brightness, realistic material colors, suitable for a gritty science fiction colony."
+    },
+    {
+      "id": "facade",
+      "source": "exec-c90e83ff-dbfc-4781-b2dd-4709a235990a.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless repeatable 3D game albedo material texture. Create a square flat orthographic surface scan filling the entire image. Weathered utilitarian futuristic building cladding, alternating large gray ceramic-composite panels and dark narrow recessed vertical steel joints, subtle vents and fasteners, chipped paint and rain streaks, no windows. High quality tactile physical material with detail on several scales. All four edges must tile seamlessly. Flat diffuse neutral illumination, no baked shadows, no highlights, no perspective, no borders, no labels, no text, no objects, no neon. Moderate brightness, realistic material colors, suitable for a gritty science fiction colony."
+    },
+    {
+      "id": "painted",
+      "source": "exec-1fd7a049-e7eb-413d-b33a-1614376230d0.png",
+      "prompt": "Use case: stylized-concept. Asset: seamless square repeating 3D game albedo surface texture. Worn desaturated teal painted metal surface, fine paint crackle, small edge-free patches of exposed gray steel, scratches, muted rust flecks and broad grime variation. Entire image is a flat orthographic surface scan with realistic tactile details at several scales. Edges tile seamlessly. Flat diffuse neutral light, no baked highlights or shadows, no text, no labels, no objects, no border, no perspective. Suitable for gritty science fiction colony streets and infrastructure."
+    },
+    {
+      "id": "rust",
+      "source": "exec-d1680ef7-b0bc-48c1-8c3d-5364a6956381.png",
+      "prompt": "Use case: stylized-concept. Asset: seamless square repeating 3D game albedo surface texture. Weathered galvanized sheet steel with flaky iron oxide rust, gray remaining zinc, fine scratches and vertical rain stains, subtle material variation. Entire image is a flat orthographic surface scan with realistic tactile details at several scales. Edges tile seamlessly. Flat diffuse neutral light, no baked highlights or shadows, no text, no labels, no objects, no border, no perspective. Suitable for gritty science fiction colony streets and infrastructure."
+    },
+    {
+      "id": "ceramic",
+      "source": "exec-38ec3719-0463-4fc0-8f33-0175e7f0c0d6.png",
+      "prompt": "Use case: stylized-concept. Asset: seamless square repeating 3D game albedo surface texture. Small utilitarian square pale sage and off-white glazed ceramic service tiles, dark grout, occasional chips, greasy grime accumulating around joints, subtle scratches, colony subway / service passage floor. Entire image is a flat orthographic surface scan with realistic tactile details at several scales. Edges tile seamlessly. Flat diffuse neutral light, no baked highlights or shadows, no text, no labels, no objects, no border, no perspective. Suitable for gritty science fiction colony streets and infrastructure."
+    },
+    {
+      "id": "sandstone",
+      "source": "exec-c3b438f8-bcbb-42bc-90ed-0413104eef9c.png",
+      "prompt": "Use case: stylized-concept. Asset: seamless square 3D game rock albedo texture. Entire image is a close orthographic surface scan of warm gray ochre sandstone, thin sedimentary strata, softly eroded pits, fine sandy grains, restrained brown weathering and narrow fissures. Realistic tactile natural stone. Flat diffuse neutral illumination; NO baked shadows, no black cracks, no boulder silhouettes, no objects, no perspective, no text or borders. All edges must tile seamlessly. Low to moderate contrast to shade well on actual 3D boulders."
+    },
+    {
+      "id": "ironstone",
+      "source": "exec-8ff615ed-b54b-44f0-a451-b93a11d5b30f.png",
+      "prompt": "Use case: stylized-concept. Asset: seamless square 3D game rock albedo texture. Entire image is a close orthographic surface scan of cool gray volcanic stone with subtle iron oxide orange-brown staining, mineral speckles and broad weathered fractures, fine pores. Realistic tactile natural rock distinct from sandstone. Flat diffuse neutral illumination; NO baked shadows, no black cracks, no boulder silhouettes, no objects, no perspective, no text or borders. All edges must tile seamlessly. Low to moderate contrast to shade well on actual 3D boulders."
+    },
+    {
+      "id": "shop-noodles",
+      "source": "exec-c056d511-470f-40e9-bd9d-d5e012939d00.png",
+      "prompt": "Use case: stylized-concept. Asset: wide 3:2 game shop window interior backdrop. View from the pavement straight into a tiny lived-in futuristic colony noodle shop at night. Warm amber pendant lights, stainless counter, stacked bowls, hanging utensils, two stools, tiled back wall, little kitchen recess with subtle steam. No people. Grounded believable practical retrofuturism, detailed high-quality game art. Camera level looking straight ahead, room recedes to a vanishing point centered in image. Room fills frame edge-to-edge; no exterior, no window frame, no glass reflections, no lettering, no logos. Warm luminous interior with readable shadows, not neon overload."
+    },
+    {
+      "id": "shop-repair",
+      "source": "exec-cc3c4039-378f-494e-abd8-ceddee658291.png",
+      "prompt": "Use case: stylized-concept. Asset: wide 3:2 game shop window interior backdrop. View from pavement straight into a small lived-in futuristic colony electronics and robot repair shop at night. Workbench, organized tools on pegboard, robot spare parts, cable coils, shelves of small components, a dim cyan diagnostic monitor and warm task lamp. No people. Grounded believable practical retrofuturism, detailed high-quality game art. Camera level looking straight ahead, room recedes to a vanishing point centered in image. Room fills frame edge-to-edge; no exterior, no window frame, no glass reflections, no lettering, no logos. Balanced blue-gray room and warm task lighting, restrained glow."
+    },
+    {
+      "id": "shop-market",
+      "source": "exec-5fb93837-42c4-45e6-8b1e-3912f6c6d786.png",
+      "prompt": "Use case: stylized-concept. Asset: wide 3:2 game shop window interior backdrop. View from pavement straight into a compact lived-in futuristic colony corner market at night. Narrow aisle between shelves of varied plain food packets, storage crates, a small checkout counter, refrigerator cabinets and overhead warm white strip lights, some worn sage ceramic tiles. No people. Grounded believable practical retrofuturism, detailed high-quality game art. Camera level looking straight ahead, room recedes to a vanishing point centered in image. Room fills frame edge-to-edge; no exterior, no window frame, no glass reflections, no readable text, no logos. Inviting amber and sage tones, readable details and natural shadows."
+    }
+  ]
+}

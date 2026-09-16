@@ -260,10 +260,10 @@ export class CharacterAnimator {
       B.thighL.rotation.x -= kL * 0.5; B.shinL.rotation.x += kL; B.footL.rotation.x -= kL * 0.5;
       B.thighR.rotation.x -= kR * 0.5; B.shinR.rotation.x += kR; B.footR.rotation.x -= kR * 0.5;
     } else { this.plantY = damp(this.plantY ?? 0, 0, 12, dt); this.plantL = damp(this.plantL ?? 0, 0, 12, dt); this.plantR = damp(this.plantR ?? 0, 0, 12, dt); }
-    const hover = this.model?.ballRadius ? 0.13 + Math.sin(this.breath * 2.3) * 0.015 + Math.sin(this.breath * 3.7) * 0.006 : 0;
+    const hover = this.model?.mk3 ? 0 : this.model?.ballRadius ? 0.13 + Math.sin(this.breath * 2.3) * 0.015 + Math.sin(this.breath * 3.7) * 0.006 : 0;
     B.root.position.y = (this.model?.ballRadius ? this.model.ballRootY + hover : 0.98) + this.rootY + bob + (this.model?.ballRadius ? 0 : (this.plantY || 0));
     if (this.model?.ballCollar) this.model.ballCollar.position.y = this.model.ballRadius + hover + this.rootY * 0.6;
-    if (this.model?.ball) { const cr = s.crouch > 0.5 ? 1 : 0; this.ballSquash = damp(this.ballSquash ?? 0, cr * 0.22 + (this.land || 0) * 0.14, 10, dt); const sq = this.ballSquash; this.model.ball.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5); if (this.model.ballRig) this.model.ballRig.position.y = -sq * this.model.ballRadius * 0.95; }
+    if (this.model?.ball && !this.model.mk3) { const cr = s.crouch > 0.5 ? 1 : 0; this.ballSquash = damp(this.ballSquash ?? 0, cr * 0.22 + (this.land || 0) * 0.14, 10, dt); const sq = this.ballSquash; this.model.ball.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5); if (this.model.ballRig) this.model.ballRig.position.y = -sq * this.model.ballRadius * 0.95; }
     if (s.roll != null) { const k = Math.min(1, s.roll); B.root.rotation.set(-k * Math.PI * 2, 0, 0); B.root.scale.setScalar(1); }
     else if (s.transform != null && !this.model?.robot) {
       // transformer tuck: the frame folds into a compact block, spins once, and unfolds
@@ -296,11 +296,13 @@ export class CharacterAnimator {
     // grip sockets may live on the weapon group itself or on a wrapper child; search the held object
     let grips = null; const held = ws.children[0];
     if (held) { if (held.userData?.gripR) grips = held.userData; else held.traverse((o) => { if (!grips && o.userData?.gripR) grips = o.userData; }); }
+    grips?.animate?.(dt, s);
     const armsFree = s.dead || s.roll != null || s.transform != null || s.vault != null || s.interact || s.cover?.blind;
     if (grips && !armsFree) {
       this.bones.root.updateMatrixWorld(true);
-      this._ikArm('R', grips.gripR, s.reload != null ? 0 : 1);
+      this._ikArm('R', grips.gripR, 1);
       this._ikArm('L', grips.gripL, s.reload != null ? 1 - Math.sin(Math.min(1, s.reload) * Math.PI) : 1);
+      if (s.reload != null && grips.reloadGrip) this._ikArm('L', grips.reloadGrip, Math.sin(Math.min(1, s.reload) * Math.PI));
     }
   }
   /** Two-bone analytic IK in the upper-arm parent frame. blend 0..1 mixes with the posed arm. */
@@ -329,6 +331,6 @@ export class CharacterAnimator {
     fo.quaternion.copy(_ikQb.slerp(_ikQ, blend));
     if (side === 'L') ha.rotation.set(0.7, 0.55, -1.35); else ha.rotation.set(0.3, -0.1, 0.45); // wrap the foregrip / pistol grip
   }
-  kick(amount = 1) { this.recoil = Math.min(1.5, this.recoil + amount); }
+  kick(amount = 1) { this.recoil = Math.min(1.5, this.recoil + amount); this.weaponSocket.traverse(o => o.userData?.fire?.(amount)); }
   hitReact(dir = 0, amount = 1) { this.hit = Math.min(1.2, this.hit + amount); this.hitDir = dir; }
 }

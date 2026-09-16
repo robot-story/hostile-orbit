@@ -23,12 +23,12 @@ export function questFor(stage, M) {
   switch (stage) {
     case 'canyon': return { title: 'APPROACH', steps: [{ text: S.canyon?.sub || 'Move up to the first objective', done: false }], hint: 'Roll (SHIFT) to cover ground; ramps launch you, rails carry you.' };
     case 'jammer': return { title: (S.canyon?.marker || 'JAMMER OUTPOST'), steps: [{ text: `Plant charge A`, done: !!M.charge0 }, { text: `Plant charge B`, done: !!M.charge1 }, { text: 'Overload the core', done: false }], hint: 'Hold E at each charge point. Expect a garrison.' };
-    case 'jammer_overload': return { title: 'OVERLOAD', steps: [{ text: 'Charges planted', done: true }, { text: 'Reach the core console (marker)', done: false }, { text: 'Enter the overload sequence (arrow keys) under fire', done: false }], hint: 'Wrong key or too slow resets the sequence and calls another patrol. Squad: keep them off the operator.' };
+    case 'jammer_overload': return { title: 'OVERLOAD', steps: [{ text: 'Charges planted', done: true }, { text: 'Reach the core console (marker)', done: false }, { text: 'Enter the overload sequence (arrow keys) under fire', done: false }], hint: 'Wrong key or too slow resets the sequence. Squad: keep them off the operator.' };
     case 'jammer_armed': return { title: 'DETONATION', steps: [{ text: 'Get clear of the jammer', done: false }], hint: 'Ten seconds. Roll.' };
     case 'orbital': return { title: (S.orbital?.marker || 'COMMS BASE'), steps: [{ text: S.orbital?.sub || 'First objective destroyed', done: true }, { text: S.orbital?.text || 'Assault the communications base', done: false }], hint: 'Orbital abilities are online (1-4). The gate is defended; the platforms inside give height.' };
     case 'comms': return { title: 'COMMAND TERMINAL', steps: [{ text: 'Reach the command terminal', done: false }, { text: `Free captured operatives (${f.rescued}/${(M.level.cells || []).length})`, done: f.rescued >= (M.level.cells || []).length }], hint: 'Optional: the detention block on the east side holds operatives. Cells open with E.' };
     case 'uplink': return { title: 'UPLINK', steps: [{ text: 'Stand beside the terminal', done: false }, { text: 'Track the drifting beacon with your aim until the dish charges', done: false }], hint: 'Losing the lock drains the charge. Moving away aborts.' };
-    case 'download': return { title: 'DOWNLOAD', steps: [{ text: `Hold the command room (${Math.floor(clamp(M.downloadT / 60, 0, 1) * 100)}%)`, done: false }], hint: 'Reinforcements arrive every sixteen seconds. Use the pit and the platforms.' };
+    case 'download': return { title: 'DOWNLOAD', steps: [{ text: `Hold the command room (${Math.floor(clamp(M.downloadT / 60, 0, 1) * 100)}%)`, done: false }], hint: 'Three reinforcement waves contest the download. Use the pit and the platforms.' };
     case 'extract_move': return { title: 'EXTRACTION', steps: [{ text: 'Data secured', done: true }, { text: 'Reach the extraction platform', done: false }], hint: 'The trench route is fastest. A war-beast is loose.' };
     case 'extract_hold': return { title: 'HOLD THE PLATFORM', steps: [{ text: `Survive (${Math.max(0, Math.ceil(M.holdTimer))}s)`, done: false }, { text: 'Board when the dropship lands', done: false }], hint: 'Something big arrives at forty-five seconds.' };
     case 'warden': return { title: 'WARDEN', steps: [{ text: 'Break the armour plates', done: false }, { text: 'Destroy the exposed core', done: false }], hint: 'Knees stagger it. The chest core takes double.' };
@@ -82,7 +82,7 @@ export class Mission {
     picks.forEach((c, i) => {
       const pos = c.p.clone(); pos.y = this.world.groundHeight(pos.x, pos.z);
       this.side.propaganda.positions.push(pos);
-      this.addInteractable({ id: 'prop' + i, position: pos, radius: 3.2, label: this.script.labels.poster, holdTime: 1.6, marker: '#ffb020', condition: () => !c.done, onComplete: () => { c.done = true; this.sideProgress('propaganda', pos); try { c.m.material = Mat.poster('Messaging Corrected. Thank You For Your Compliance.', 'APPROVED BY ORBITAL COMMAND', '#00e5ff', 42 + i); } catch { /* ignore */ } } });
+      this.addInteractable({ id: 'prop' + i, position: pos, radius: 3.2, label: this.script.labels.poster, holdTime: 1.6, marker: '#ffb020', condition: () => !c.done, onComplete: () => this.requestInteract('prop' + i), applyComplete: () => { c.done = true; this.sideProgress('propaganda', pos); try { c.m.material = Mat.poster('Messaging Corrected. Thank You For Your Compliance.', 'APPROVED BY ORBITAL COMMAND', '#00e5ff', 42 + i); } catch { /* ignore */ } } });
     });
     // supply caches: reuse level caches
     const caches = (lv.supplyCaches || []).slice(0, 3); this.side.caches.total = caches.length;
@@ -92,9 +92,15 @@ export class Mission {
     events.emit('objective:side', this.side);
   }
   sideProgress(key, pos) {
+    if (!net.isHost) return;
     const so = this.side[key]; if (!so || so.done >= so.total) return;
     so.done++;
     if (pos) so.positions = so.positions.filter(p => p.distanceTo(pos) > 0.5);
+    net.send(MSG.EV_OBJECTIVE, { id: 'side', data: { key, done: so.done, positions: so.positions.map(v3) } }, { reliable: true });
+    this.sideFeedback(key);
+  }
+  sideFeedback(key) {
+    const so = this.side[key];
     audio.play('objective_new', { volume: 0.7 });
     events.emit('toast', `${so.name} ${so.done}/${so.total}`, so.done >= so.total ? 'unlock' : 'info');
     if (so.done >= so.total) { events.emit('objective:banner', { title: 'SIDE OPERATION COMPLETE', sub: so.name }); save.addRewards({ xp: 150, requisition: 60 }); this.game.combat.stats.sideOps = (this.game.combat.stats.sideOps || 0) + 1; if (key === 'propaganda') audio.say('ship_violence_target', { priority: 1 }); }
@@ -109,17 +115,20 @@ export class Mission {
       events.on('enemy:alert', () => { if (!this.firstContact) { this.firstContact = true; audio.say('voss_first_contact', { priority: 2, delay: 0.8 }); } }),
     ];
     this.killsSinceLine = 0;
-    net.on(MSG.REQ_INTERACT, (m, from) => { if (net.isHost) this.onInteractRequest(m, from); });
-    net.on(MSG.EV_OBJECTIVE, (m) => { if (!net.isHost) this.applyObjectiveEvent(m); });
+    this._offs.push(net.on(MSG.REQ_INTERACT, (m, from) => { if (net.isHost) this.onInteractRequest(m, from); }));
+    this._offs.push(net.on(MSG.EV_OBJECTIVE, (m) => { if (!net.isHost) this.applyObjectiveEvent(m); }));
+    this.pendingRespawns=new Map();this._timers=new Set();
   }
-  dispose() { for (const o of this._offs) o(); this.clearMarkers(); this.dropship?.remove(); }
+  dispose() { this.active=false;for(const timer of this._timers)clearTimeout(timer);this._timers.clear();this.pendingRespawns.clear();for (const o of this._offs) o(); this.clearMarkers(); this.dropship?.remove(); }
+  later(fn,ms){const timer=setTimeout(()=>{this._timers.delete(timer);fn();},ms);this._timers.add(timer);return timer;}
   // ---------- objectives ----------
   setObjective(text, banner = null) { this.objectiveText = text; events.emit('objective:update', text); if (banner) events.emit('objective:banner', banner); }
   clearMarkers() { for (const m of this.markers) m.remove?.(); this.markers.length = 0; events.emit('objective:marker', null); }
   mark(pos, color = '#00e5ff', label = '') { const m = this.fx.marker(pos.clone().setY(pos.y + 2.5), color); this.markers.push(m); events.emit('objective:marker', { pos, color, label }); return m; }
   setStage(stage, silent = false) {
     if (this.stage === stage) return;
-    this.stage = stage; this.stageT = 0;
+    this.stage = stage; this.stageT = 0; this.stageWaves = 0;
+    if(stage!=='uplink'&&stage!=='jammer_overload')this.game.session?.qte?.cancel();
     if (net.isHost) net.send(MSG.EV_OBJECTIVE, { id: 'stage', state: stage, data: this.flags }, { reliable: true });
     this.clearMarkers();
     const L = this.L, S = { ...STAGE_DEFAULTS, ...this.script };
@@ -133,7 +142,7 @@ export class Mission {
         this.setObjective(S.uplink.text, S.uplink);
         this.mark(this.level.terminal.position, '#ffd23f', 'UPLINK');
         this.waveT = 10;
-        this.game.session?.qte?.startAlign({ hold: 4.5, near: () => this.anyPlayerNear(this.level.terminal.position, 9), onSuccess: () => this.setStage('download') });
+        if((this.flags.operator??net.localId)===net.localId)this.game.session?.qte?.startAlign({ hold: 4.5, near: () => !this.game.localPlayer.dead&&this.game.localPlayer.position.distanceTo(this.level.terminal.position)<9, onSuccess: () => this.requestInteract('terminal_done') });
         break;
       case 'canyon':
         this.setObjective(S.canyon.text, S.canyon);
@@ -212,14 +221,40 @@ export class Mission {
         break;
     }
   }
-  applyObjectiveEvent(m) { if (m.id === 'stage') { Object.assign(this.flags, m.data || {}); this.setStage(m.state); } else if (m.id === 'progress') { this.downloadT = m.data.download ?? this.downloadT; this.holdTimer = m.data.hold ?? this.holdTimer; this.jammerCountdown = m.data.jammer ?? this.jammerCountdown; this.lives = m.data.lives ?? this.lives; } else if (m.id === 'rescued') { this.onRescued(m.data.index, true); } else if (m.id === 'charge') { this.onChargePlanted(m.data.index, true); } }
+  applyObjectiveEvent(m) {
+    if (m.id === 'stage') { Object.assign(this.flags, m.data || {}); this.setStage(m.state); }
+    else if (m.id === 'console') {
+      this.flags.operator = m.data.operator;
+      this.game.session?.qte?.cancel();
+      if (this.flags.operator === net.localId && this.stage === 'jammer_overload') this.startOverload();
+    } else if (m.id === 'prop') { this.interactables.get(m.data.id)?.applyComplete?.(); }
+    else if (m.id === 'side') {
+      const so = this.side[m.data.key];
+      if (so && m.data.done > so.done) { so.done = m.data.done; so.positions = m.data.positions.map(p => new THREE.Vector3(...p)); this.sideFeedback(m.data.key); }
+    } else if (m.id === 'jammer_down') { if (!this.flags.jammer) this.destroyJammer(); }
+    else if (m.id === 'progress') {
+      this.downloadT = m.data.download ?? this.downloadT;
+      this.holdTimer = m.data.hold ?? this.holdTimer;
+      this.jammerCountdown = m.data.jammer ?? this.jammerCountdown;
+      this.lives = m.data.lives ?? this.lives;
+      events.emit('lives:changed', this.lives);
+      if (this.stage === 'download') this.setObjective(this.script.download.progress(Math.floor(clamp(this.downloadT / 60, 0, 1) * 100)));
+      if (this.stage === 'extract_hold') this.setObjective(this.script.extract_hold.progress(Math.max(0, Math.ceil(this.holdTimer))));
+      if (this.stage === 'jammer_armed') this.setObjective(`GET CLEAR — DETONATION IN ${Math.max(0, Math.ceil(this.jammerCountdown))}s`);
+      this.emitQuest();
+    } else if (m.id === 'rescued') this.onRescued(m.data.index, true);
+    else if (m.id === 'charge') this.onChargePlanted(m.data.index, true);
+  }
   // ---------- start ----------
+  prepare() {
+    if(this.prepared)return;
+    this.setupInteractables();this.setupGarrisons();this.setupSideMissions();
+    this.prepared=true;
+  }
   start(dropPos) {
     this.active = true; this.time = 0;
     events.emit('mission:start');
-    this.setupInteractables();
-    this.setupGarrisons();
-    this.setupSideMissions();
+    this.prepare();
     this.setObjective('SURVEY THE LANDING ZONE');
     events.emit('objective:update', this.objectiveText);
     audio.setMusicState('explore');
@@ -255,7 +290,7 @@ export class Mission {
     this.addInteractable({ id: 'terminal', position: lv.terminal.position, radius: 2.8, label: this.script.labels.terminal, holdTime: 2, condition: () => this.stage === 'comms', onComplete: () => this.requestInteract('terminal') });
     (lv.cells || []).forEach((c, i) => this.addInteractable({ id: 'cell' + i, position: c.consolePosition, radius: 2.6, label: this.script.labels.cell, holdTime: 2.5, condition: () => !c.rescued && ['comms', 'download', 'extract_move', 'extract_hold', 'warden', 'board'].includes(this.stage), onComplete: () => this.requestInteract('cell' + i) }));
     this.addInteractable({ id: 'board', position: this.L.extractionCenter.pos, radius: 7, label: 'BOARD THE DROPSHIP', holdTime: 1.5, condition: () => this.stage === 'board' && this.dropship?.landed, onComplete: () => this.requestInteract('board') });
-    for (const cache of (lv.supplyCaches || [])) { const used = new Set(); this.addInteractable({ id: 'cache' + (cache.collider?.id || Math.random()), position: cache.position, radius: 2.2, label: 'TAKE SUPPLIES', holdTime: 0.8, condition: (p) => !used.has(p.id), onComplete: (p) => { used.add(p.id); p.resupply(0.5); audio.play('pickup', { volume: 1 }); events.emit('toast', 'SUPPLY CACHE: AMMUNITION RESTOCKED', 'unlock'); if (this._cacheSet?.has(cache.position) && p === this.game.localPlayer) { this._cacheSet.delete(cache.position); this.sideProgress('caches', cache.position); } if (cache.weapon) { if (save.unlockWeapon(cache.weapon)) events.emit('toast', `${cache.weapon.toUpperCase()} RECOVERED — AVAILABLE IN THE ARMOURY`, 'unlock'); p.pickupWeapon(cache.weapon); } } }); }
+    for (const [cacheIndex, cache] of (lv.supplyCaches || []).entries()) { const used = new Set(); this.addInteractable({ id: 'cache' + cacheIndex, position: cache.position, radius: 2.2, label: 'TAKE SUPPLIES', holdTime: 0.8, condition: (p) => !used.has(p.id), onComplete: (p) => { used.add(p.id); p.resupply(0.5); audio.play('pickup', { volume: 1 }); events.emit('toast', 'SUPPLY CACHE: AMMUNITION RESTOCKED', 'unlock'); if (this._cacheSet?.has(cache.position) && p === this.game.localPlayer) { this.requestInteract('cache' + cacheIndex + '_side'); } if (cache.weapon) { if (save.unlockWeapon(cache.weapon)) events.emit('toast', `${cache.weapon.toUpperCase()} RECOVERED — AVAILABLE IN THE ARMOURY`, 'unlock'); p.pickupWeapon(cache.weapon); } } }); }
     // field weapon pickups: Hammer at the jammer outpost, Atlas at the comms base
     this.addInteractable({ id: 'pickup_hammer', position: this.L.jammerCenter.pos.clone().add(new THREE.Vector3(6, 0, 4)), radius: 2.2, label: 'TAKE HAMMER SHOTGUN', holdTime: 1, condition: (p) => !p.pickedHammer, onComplete: (p) => { p.pickedHammer = true; p.pickupWeapon('hammer'); if (save.unlockWeapon('hammer')) events.emit('toast', 'HAMMER SHOTGUN RECOVERED — UNLOCKED IN ARMOURY', 'unlock'); else events.emit('toast', 'HAMMER SHOTGUN EQUIPPED', 'info'); audio.play('weapon_pickup', { volume: 1 }); }, marker: '#ffb020' });
     this.addInteractable({ id: 'pickup_atlas', position: this.L.commsPlaza.pos.clone().add(new THREE.Vector3(-5, 0, 3)), radius: 2.2, label: 'TAKE ATLAS LMG', holdTime: 1, condition: (p) => !p.pickedAtlas, onComplete: (p) => { p.pickedAtlas = true; p.pickupWeapon('atlas'); if (save.unlockWeapon('atlas')) events.emit('toast', 'ATLAS LMG RECOVERED — UNLOCKED IN ARMOURY', 'unlock'); else events.emit('toast', 'ATLAS LMG EQUIPPED', 'info'); audio.play('weapon_pickup', { volume: 1 }); }, marker: '#ffb020' });
@@ -267,18 +302,24 @@ export class Mission {
   requestInteract(id) { if (net.isHost) this.onInteractRequest({ target: id, phase: 'done' }, net.localId); else net.send(MSG.REQ_INTERACT, { target: id, phase: 'done' }, { reliable: true }); }
   onInteractRequest(m, from) {
     const id = m.target;
-    if (id.startsWith('charge')) this.onChargePlanted(+id.slice(6));
-    else if (id === 'terminal' && this.stage === 'comms') this.setStage('uplink');
-    else if (id === 'overload' && this.stage === 'jammer_overload') this.startOverload();
-    else if (id.startsWith('cell')) this.onRescued(+id.slice(4));
-    else if (id === 'board' && this.stage === 'board') this.complete();
+    if(!this.active||typeof id!=='string')return;
+    const operator=this.game.players.find(p=>p.id===from),it=this.interactables.get(id.replace(/_(done|side)$/, ''));
+    if(!operator||operator.dead||!it||operator.position.distanceTo(it.position)>Math.max(it.radius+2,9))return;
+    if (id.startsWith('prop') && it.condition(operator)) { it.applyComplete(); net.send(MSG.EV_OBJECTIVE, { id: 'prop', data: { id } }, { reliable: true }); return; }
+    if (id.startsWith('cache') && id.endsWith('_side')) { if(this._cacheSet.delete(it.position)) this.sideProgress('caches', it.position); return; }
+    if(id.endsWith('_done')){if(this.flags.operator!==from)return;if(id==='terminal_done'&&this.stage==='uplink')this.setStage('download');else if(id==='overload_done'&&this.stage==='jammer_overload')this.setStage('jammer_armed');return;}
+    if (id.startsWith('charge')&&this.stage==='jammer'&&[0,1].includes(+id.slice(6))) this.onChargePlanted(+id.slice(6));
+    else if (id === 'terminal' && this.stage === 'comms') {this.flags.operator=from;this.setStage('uplink');}
+    else if (id === 'overload' && this.stage === 'jammer_overload') {this.flags.operator=from;net.send(MSG.EV_OBJECTIVE,{id:'console',data:{operator:from}},{reliable:true});if(from===net.localId)this.startOverload();}
+    else if (id.startsWith('cell')&&it.condition(operator)) this.onRescued(+id.slice(4));
+    else if (id === 'board' && this.stage === 'board'&&this.dropship?.landed) this.complete();
   }
   startOverload() {
     const q = this.game.session?.qte; if (!q || q.busy) return;
     const core = this.overloadConsole || this.L.jammerCenter.pos; const D = this.game.director;
-    q.start({ title: 'OVERLOAD SEQUENCE', steps: 6, window: 1.5, near: () => this.anyPlayerNear(core, 6.5),
-      onSuccess: () => { events.emit('toast', 'CORE OVERLOADED', 'good'); this.setStage('jammer_armed'); },
-      onFail: (reason, n) => { if (n % 2 === 0) { const pts = this.level.spawnPoints?.jammer || [this.L.jammerGateSouth.pos]; D.wave(['patrol'], pts, { alert: true }); events.emit('toast', 'ALARM  //  LEGION PATROL INBOUND', 'warn'); } } });
+    q.start({ title: 'OVERLOAD SEQUENCE', steps: 6, window: 1.5, near: () => !this.game.localPlayer.dead&&this.game.localPlayer.position.distanceTo(core)<6.5,
+      onSuccess: () => { events.emit('toast', 'CORE OVERLOADED', 'good'); this.requestInteract('overload_done'); },
+      onFail: () => events.emit('toast','CONSOLE SEQUENCE RESET','warn') });
   }
   onChargePlanted(i, remote = false) {
     if (this['charge' + i]) return; this['charge' + i] = true; this.flags.chargesPlanted++;
@@ -300,6 +341,7 @@ export class Mission {
     if (this.flags.rescued >= 2) events.emit('objective:banner', { title: 'SECONDARY OBJECTIVE COMPLETE', sub: 'Both operatives recovered' });
   }
   destroyJammer() {
+    if(net.isHost)net.send(MSG.EV_OBJECTIVE,{id:'jammer_down'},{reliable:true});
     const j = this.level.jammer; const p = j.position.clone();
     for (const c of (this._chargeVisuals || [])) { this.world.removeUpdatable(c.anim); c.m.parent?.remove(c.m); } this._chargeVisuals = [];
     this.fx.explosion(p.clone().setY(p.y + 4), 14, 'jammer');
@@ -321,25 +363,36 @@ export class Mission {
   onPlayerDied(p) {
     if (!this.active) return;
     if (p !== this.game.localPlayer) return;
+    if(net.isHost && this.checkSquadWipe())return;
     this.game.combat.stats.deaths = (this.game.combat.stats.deaths || 0) + 1;
     audio.say('voss_death', { priority: 2, delay: 1.5 });
     audio.setMuffle?.(0.6);
-    if (net.isHost) setTimeout(() => this.reinforce(p), 3800);
+    p.respawnAt=performance.now()+6000;
+    if (net.isHost) {if(this.pendingRespawns.has(p.id))return;this.pendingRespawns.set(p.id,true);this.later(() => {this.pendingRespawns.delete(p.id);this.reinforce(p);}, 6000);}
     else net.send(MSG.EV_PLAYERDOWN, { p: v3(p.position) }, { reliable: true });
   }
   /** Host: a squadmate died; spend a shared reinforcement and send them a pod. */
   onRemotePlayerDied(m, from) {
-    if (!this.active) return;
-    setTimeout(() => {
-      if (!this.active) return;
+    if (!this.active || this.pendingRespawns.has(from) || !this.game.players.some(p=>p.id===from) || !Array.isArray(m.p) || m.p.length !== 3 || !m.p.every(Number.isFinite)) return;
+    const fallen=this.game.players.find(p=>p.id===from);fallen.dead=true;
+    if(this.checkSquadWipe())return;
+    this.pendingRespawns.set(from,true);
+    this.later(() => {
+      this.pendingRespawns.delete(from);
+      if (!this.active || !this.game.players.some(p=>p.id===from) || !net.peers.has(from)) return;
       if (this.lives <= 0) { this.checkSquadWipe(); return; }
       this.lives--; this.reinforcementsUsed++; events.emit('lives:changed', this.lives);
       const spot = this.pickReinforceSpot(new THREE.Vector3(...m.p));
       net.send(MSG.EV_REINFORCE, { id: from, p: v3(spot), lives: this.lives }, { reliable: true });
       events.emit('toast', 'SQUADMATE REINFORCED — SHARED POOL ' + this.lives, 'info');
-    }, 3800);
+    }, 6000);
   }
-  checkSquadWipe() { const alive = (this.game.players || []).some(p => !p.dead); if (!alive && this.lives <= 0) this.fail(); }
+  checkSquadWipe() {
+    if(!net.isHost||!this.active)return false;
+    const alive=(this.game.players||[]).some(p=>!p.dead);
+    if(!alive&&(net.isMultiplayer||this.lives<=0)){this.fail();return true;}
+    return false;
+  }
   pickReinforceSpot(base) {
     // reinforcements come down on the nearest launch pad (the drop zone plus the forward pads), not on the corpse
     const pads = this.level.respawnPads || []; if (pads.length) { let bp = null, bd = Infinity; for (const pad of pads) { const d = pad.distanceTo(base); if (d < bd) { bd = d; bp = pad; } } if (bp) { const w = this.world.nav.nearestWalkable(bp.x, bp.z, 8) || bp; const out = new THREE.Vector3(w.x, 0, w.z); out.y = this.world.groundHeight(out.x, out.z); return out; } }
@@ -348,7 +401,7 @@ export class Mission {
     best.y = this.world.groundHeight(best.x, best.z); return best;
   }
   reinforce(p) {
-    if (!this.active) return;
+    if (!this.active || !p.dead) return;
     if (this.lives <= 0) { if (net.peers.size || net.transport?.peerCount) { this.checkSquadWipe(); events.emit('toast', 'NO REINFORCEMENTS LEFT — SPECTATING', 'warn'); return; } this.fail(); return; }
     this.lives--; this.reinforcementsUsed++;
     events.emit('lives:changed', this.lives);
@@ -357,7 +410,7 @@ export class Mission {
     const best = this.pickReinforceSpot(p.position);
     if (net.transport?.peerCount) net.send(MSG.EV_REINFORCE, { id: net.localId, p: v3(best), lives: this.lives }, { reliable: true });
     audio.setMuffle?.(0);
-    this.game.launchPlayerPod(p, best);
+    p.respawnAt=null;this.game.launchPlayerPod(p, best);
   }
   fail() {
     if (!this.active) return; this.active = false; this.setStage('failed');
@@ -365,16 +418,16 @@ export class Mission {
     audio.setMusicState('failed');
     this.result = this.buildResults(false);
     save.recordMissionResult(this.script.id, this.result); save.addRecord({ missionsFailed: 1 }); save.clearCheckpoint();
-    setTimeout(() => events.emit('mission:end', this.result), 4000);
+    this.later(() => events.emit('mission:end', this.result), 4000);
   }
   complete() {
     if (!this.active) return; this.active = false; this.setStage('complete');
     audio.say(this.script.voice.complete || 'voss_complete', { priority: 3 }); audio.say('ship_results', { priority: 2, delay: 8 });
     this.dropship?.takeOff();
     this.result = this.buildResults(true);
-    save.recordMissionResult(this.script.id, this.result); save.addRecord({ missionsCompleted: 1, coopMissions: net.isMultiplayer ? 1 : 0 }); save.addRewards(this.result); save.clearCheckpoint();
+    save.recordMissionResult(this.script.id, this.result); save.addRecord({ missionsCompleted: 1, coopMissions: net.isMultiplayer ? 1 : 0 }); save.clearCheckpoint();
     events.emit('mission:extracting');
-    setTimeout(() => events.emit('mission:end', this.result), 6500);
+    this.later(() => events.emit('mission:end', this.result), 6500);
   }
   buildResults(success) {
     const s = this.game.combat.stats; const diff = this.game.difficulty;
@@ -415,16 +468,21 @@ export class Mission {
     // field intel: Voss narrates what happened here the first time a player reaches each point (local, cosmetic)
     if (p && !p.dead && this.level.story) { this._storyT = (this._storyT || 0) - dt; if (this._storyT <= 0) { this._storyT = 0.5; for (const sp of this.level.story) { if (sp.done) continue; const dx = p.position.x - sp.pos.x, dz = p.position.z - sp.pos.z; if (dx * dx + dz * dz < sp.r * sp.r) { sp.done = true; events.emit('subtitle:show', { speaker: sp.speaker, text: sp.text, duration: 5.5, id: 'story' }); events.emit('toast', sp.toast, 'info'); break; } } } }
     if (net.isHost) {
+      if(this.checkSquadWipe())return;
+      if (this.stage === 'uplink') {
+        const operator = this.game.players.find(p => p.id === this.flags.operator);
+        if (!operator || operator.dead || operator.position.distanceTo(this.level.terminal.position) >= 9) this.setStage('comms');
+      }
       // stage triggers
       if (this.stage === 'canyon' && this.anyPlayerNear(this.L.jammerGateSouth.pos, 34)) this.setStage('jammer');
       if (this.stage === 'jammer_armed') { this.jammerCountdown -= dt; const s = Math.ceil(this.jammerCountdown); if (s !== this._lastCd) { this._lastCd = s; if (s <= 5 && s > 0) audio.play('countdown_tick', { volume: 0.8 }); this.setObjective(`GET CLEAR — DETONATION IN ${Math.max(0, s)}s`); } if (this.jammerCountdown <= 0) this.destroyJammer(); }
-      if (this.stage === 'jammer_overload' || this.stage === 'uplink') { this.waveT -= dt; if (this.waveT <= 0) { this.waveT = this.stage === 'uplink' ? 13 : 15; const pts = this.stage === 'uplink' ? (this.level.spawnPoints?.comms || [this.L.commsGateSouth.pos]) : (this.level.spawnPoints?.jammer || [this.L.jammerGateSouth.pos]); D.wave([pick(['patrol', 'fire_team'])], pts, { alert: true }); events.emit('toast', 'LEGION CLOSING ON THE OPERATOR', 'warn'); } }
+      if (this.stage === 'jammer_overload' || this.stage === 'uplink') { this.waveT -= dt; if (this.waveT <= 0 && this.stageWaves < 3) { this.stageWaves++; this.waveT = this.stage === 'uplink' ? 23 : 25; const pts = this.stage === 'uplink' ? (this.level.spawnPoints?.comms || [this.L.commsGateSouth.pos]) : (this.level.spawnPoints?.jammer || [this.L.jammerGateSouth.pos]); D.wave([pick(['patrol', 'fire_team'])], pts, { alert: true }); events.emit('toast', 'LEGION CLOSING ON THE OPERATOR', 'warn'); } }
       if (this.stage === 'orbital' && this.anyPlayerNear(this.L.commsGateSouth.pos, 40)) this.setStage('comms');
       if (this.stage === 'download') {
         this.downloadT += dt; const pct = clamp(this.downloadT / 60, 0, 1);
         if (Math.floor(pct * 100) !== this._lastPct) { this._lastPct = Math.floor(pct * 100); this.setObjective(this.script.download.progress(this._lastPct)); if (this._lastPct % 5 === 0) this.emitQuest(); if (this._lastPct % 10 === 0) audio.play('download_beep', { volume: 0.5 }); }
         this.waveT -= dt;
-        if (this.waveT <= 0) { this.waveT = 16; const pts = this.level.spawnPoints?.comms || [this.L.commsGateSouth.pos]; D.wave([pick(['assault', 'fire_team']), pick(['patrol', 'heavy'])], pts, { allowElite: true }); events.emit('toast', 'NULL LEGION REINFORCEMENTS INBOUND', 'warn'); }
+        if (this.waveT <= 0 && this.stageWaves < 3) { this.stageWaves++; this.waveT = 26; const pts = this.level.spawnPoints?.comms || [this.L.commsGateSouth.pos]; D.wave([pick(['assault', 'fire_team']), pick(['patrol', 'heavy'])], pts, { allowElite: true }); events.emit('toast', 'NULL LEGION REINFORCEMENTS INBOUND', 'warn'); }
         if (pct >= 1) this.setStage('extract_move');
       }
       if (this.stage === 'extract_move' && this.anyPlayerNear(this.L.extractionCenter.pos, 18)) this.setStage('extract_hold');
@@ -432,11 +490,11 @@ export class Mission {
         this.holdTimer -= dt; const s = Math.ceil(this.holdTimer);
         if (s !== this._lastHold) { this._lastHold = s; this.setObjective(this.script.extract_hold.progress(Math.max(0, s))); if (s % 5 === 0) this.emitQuest(); if (s <= 10 && s > 0) audio.play('countdown_tick', { volume: 0.7 }); if (s === 45) audio.say('ship_extraction_request', { priority: 1 }); }
         this.waveT -= dt;
-        if (this.waveT <= 0) { this.waveT = 14; this._extWave = (this._extWave || 0) + 1; const pts = this.level.spawnPoints?.extraction || [this.L.extractionApproach.pos]; const shuffled = [...pts].sort(() => Math.random() - 0.5); if (this._extWave === 3) D.wave(['beast'], shuffled.slice(0, 1), { delay: 2 }); D.wave([pick(['assault', 'fire_team', 'patrol_heavy']), pick(['patrol', 'heavy', 'assault'])], shuffled, { allowElite: true }); if (Math.random() < 0.5) D.wave(['recon'], shuffled, { delay: 3 }); }
+        if (this.waveT <= 0 && this.stageWaves < 3) { this.stageWaves++; this.waveT = 28; this._extWave = (this._extWave || 0) + 1; const pts = this.level.spawnPoints?.extraction || [this.L.extractionApproach.pos]; const shuffled = [...pts].sort(() => Math.random() - 0.5); if (this._extWave === 3) D.wave(['beast'], shuffled.slice(0, 1), { delay: 2 }); D.wave([pick(['assault', 'fire_team', 'patrol_heavy']), pick(['patrol', 'heavy', 'assault'])], shuffled, { allowElite: true }); if (Math.random() < 0.5) D.wave(['recon'], shuffled, { delay: 3 }); }
         if (this.holdTimer <= 45 && !this.wardenSpawned) { this.wardenSpawned = true; const sp = this.L.extractionApproach.pos; D.spawn('warden', sp, { yaw: 0 }); audio.play('warden_roar', { pos: sp, volume: 1, maxDistance: 400 }); events.emit('toast', 'WARDEN SIGNATURE DETECTED', 'warn'); }
         if (this.holdTimer <= 0) { if (this.flags.wardenDead || !D.boss || D.boss.dead) this.setStage('board'); else this.setStage('warden'); }
       }
-      if (this.stage === 'warden') { this.waveT -= dt; if (this.waveT <= 0) { this.waveT = 22; const pts = this.level.spawnPoints?.extraction || [this.L.extractionApproach.pos]; D.wave([pick(['patrol', 'assault'])], pts); } }
+      if (this.stage === 'warden') { this.waveT -= dt; if (this.waveT <= 0 && this.stageWaves < 3) { this.stageWaves++; this.waveT = 32; const pts = this.level.spawnPoints?.extraction || [this.L.extractionApproach.pos]; D.wave([pick(['patrol', 'assault'])], pts); } }
       // periodic progress sync for clients
       this.syncT = (this.syncT || 0) - dt; if (this.syncT <= 0 && net.peers.size) { this.syncT = 1; net.send(MSG.EV_OBJECTIVE, { id: 'progress', data: { download: this.downloadT, hold: this.holdTimer, jammer: this.jammerCountdown, lives: this.lives } }, { reliable: false }); }
     }

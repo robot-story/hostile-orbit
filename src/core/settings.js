@@ -72,7 +72,8 @@ class Settings {
   }
   load() {
     try {
-      const raw = localStorage.getItem(KEY);
+      const store=import.meta.env?.DEV&&new URLSearchParams(location.search).has('coopqa')?sessionStorage:localStorage;
+      const raw = store.getItem(KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         this.data = { ...structuredClone(DEFAULTS), ...parsed, binds: { ...DEFAULT_BINDS, ...(parsed.binds || {}) } };
@@ -80,7 +81,7 @@ class Settings {
     } catch (e) { console.warn('[settings] load failed', e); }
   }
   save() {
-    try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch (e) { console.warn('[settings] save failed', e); }
+    try { const store=import.meta.env?.DEV&&new URLSearchParams(location.search).has('coopqa')?sessionStorage:localStorage;store.setItem(KEY, JSON.stringify(this.data)); } catch (e) { console.warn('[settings] save failed', e); }
   }
   get(k) { return this.data[k]; }
   set(k, v) {

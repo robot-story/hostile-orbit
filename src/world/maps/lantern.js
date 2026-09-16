@@ -114,7 +114,7 @@ export const LANTERN = {
       { type: 'mound', mx: 322, my: 318, r: 30, h: -1.2 }, { type: 'mound', mx: 322, my: 318, r: 44, h: 1.4 },
       { type: 'mound', mx: 90, my: 262, r: 12, h: 1.6 }, { type: 'crater', mx: 56, my: 236, r: 9, h: 1.0 },
     ], roughness: 0.5, metalness: 0.06, envIntensity: 1.0, veinIntensity: 1.6,
-    palette: { floor: [0.22, 0.23, 0.28], floorNoise: [0.04, 0.04, 0.05], rock: [0.07, 0.075, 0.10], rockNoise: [0.03, 0.03, 0.04], ridge: [0.10, 0.10, 0.14], veinScale: 0.5 },
+    palette: { floor: [0.65, 0.67, 0.70], floorNoise: [0.04, 0.04, 0.05], rock: [0.35, 0.38, 0.42], rockNoise: [0.03, 0.03, 0.04], ridge: [0.10, 0.10, 0.14], veinScale: 0 },
   },
   lighting: {
     background: '#06050e', fog: '#150c24', fogDensity: 0.0030,

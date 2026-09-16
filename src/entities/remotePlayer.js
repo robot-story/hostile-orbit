@@ -22,8 +22,9 @@ export class RemotePlayer {
     this.position = new THREE.Vector3(); this.velocity = new THREE.Vector3(); this.yaw = 0; this.pitch = 0;
     this.health = 100; this.maxHealth = 100; this.dead = false; this.downed = false; this.crouching = false; this.aiming = false; this.sprinting = false; this.state = 'normal';
     this.hitboxes = true; this.hitRadius = 1.3; this.hitCenter = new THREE.Vector3(); this.radius = 0.38;
-    this.model = buildSoldier('vanguard', { neon: info?.loadout?.neon || this.color, robot: info?.loadout?.robot || 'a' }); // each squad member drives the frame they picked in the lobby this.anim = new CharacterAnimator(this.model);
-    this.weaponId = 'viper'; this.weaponModel = WEAPON_BUILDERS.viper(); this.anim.weaponSocket.add(this.weaponModel);
+    this.model = buildSoldier('vanguard', { neon: info?.loadout?.neon || this.color, robot: 'a' }); // each squad member drives the variant they picked in the lobby
+    this.anim = new CharacterAnimator(this.model);
+    this.weaponId = 'viper'; this.weaponModel = WEAPON_BUILDERS.viper(this.model.neonColor); this.anim.weaponSocket.add(this.weaponModel);
     this.world.actors.add(this.model.root);
     this.target = { p: new THREE.Vector3(), yaw: 0, pitch: 0, anim: { speed: 0, crouch: 0, aim: 0, sprint: 0, cover: null }, t: 0 };
     this.lastSnapT = 0; this.flashMesh = this.model.meshes[0];
@@ -35,7 +36,7 @@ export class RemotePlayer {
     this.target.p.set(s.p[0], s.p[1], s.p[2]); this.target.yaw = s.yaw; this.target.pitch = s.pitch || 0;
     this.target.anim = s.anim || this.target.anim; this.health = s.hp; this.dead = !!s.dead; this.state = s.state || 'normal';
     this.crouching = !!s.anim?.crouch; this.aiming = !!s.anim?.aim; this.sprinting = !!s.anim?.sprint; this.kills = s.kills || 0; this.deaths = s.deaths || 0; if (this.model) this.model.sprintBall = !!s.roll;
-    if (s.w && s.w !== this.weaponId) { this.weaponId = s.w; this.anim.weaponSocket.remove(this.weaponModel); this.weaponModel = (WEAPON_BUILDERS[s.w] || WEAPON_BUILDERS.viper)(); this.anim.weaponSocket.add(this.weaponModel); }
+    if (s.w && s.w !== this.weaponId) { this.weaponId = s.w; this.anim.weaponSocket.remove(this.weaponModel); this.weaponModel = (WEAPON_BUILDERS[s.w] || WEAPON_BUILDERS.viper)(this.model.neonColor); this.anim.weaponSocket.add(this.weaponModel); }
     if (this.lastSnapT === 0) { this.position.copy(this.target.p); this.yaw = this.target.yaw; }
     this.lastSnapT = performance.now();
   }
@@ -76,7 +77,7 @@ export class RemotePlayer {
     this._pp = this._pp || this.position.clone(); const vx = (this.position.x - this._pp.x) / Math.max(dt, 1e-3), vz = (this.position.z - this._pp.z) / Math.max(dt, 1e-3); this._pp.copy(this.position);
     this._vel = this._vel || { x: 0, z: 0 }; this._vel.x += (vx - this._vel.x) * Math.min(1, dt * 12); this._vel.z += (vz - this._vel.z) * Math.min(1, dt * 12);
     const ry = this.model.root.rotation.y - Math.PI; const lx = this._vel.x * Math.cos(-ry) + this._vel.z * Math.sin(-ry), lz = -this._vel.x * Math.sin(-ry) + this._vel.z * Math.cos(-ry); const ll = Math.hypot(lx, lz) || 1;
-    this.anim.update(dt, { speed: a.speed || 0, strafe: a.strafe || 0, forward: a.forward ?? 1, moveDir: { x: ll > 0.3 ? lx / ll : 0, z: ll > 0.3 ? lz / ll : -1 }, velocity: Math.min(ll, 10), groundAt: (ox, oz) => this.game.world.groundHeight(this.position.x + ox, this.position.z + oz, this.position.y), sprint: a.sprint || 0, crouch: a.crouch || 0, aim: a.aim || 0, cover: a.cover || null, dead: this.dead, weaponLow: 0, roll: a.roll ?? null, vault: a.vault ?? null, reload: a.reload ?? null });
+    this.anim.update(dt, { speed: a.speed || 0, strafe: a.strafe || 0, forward: a.forward ?? 1, moveDir: { x: ll > 0.3 ? lx / ll : 0, z: ll > 0.3 ? lz / ll : -1 }, velocity: Math.min(ll, 10), groundAt: (ox, oz) => this.game.world.groundHeight(this.position.x + ox, this.position.z + oz, this.position.y), sprint: a.sprint || 0, crouch: a.crouch || 0, aim: a.aim || 0, cover: a.cover || null, dead: this.dead, weaponLow: 0, roll: a.roll ?? null, vault: a.vault ?? null, reload: a.reload ?? null, transform: a.transform ?? null, grind: this.state === 'grind', jet: a.jet || 0, interact: !!a.interact, robotic: true });
     rollBall(this.model, this._vel.x, this._vel.z, dt, this.anim.land || 0, this.model.root.rotation.y);
     this.model.root.position.copy(this.position); this.model.root.rotation.y = this.yaw + Math.PI;
     this.model.root.visible = !stale && !(this.dead && this.state === 'dead' && performance.now() - this.lastSnapT > 6000);

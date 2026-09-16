@@ -231,6 +231,9 @@ export class Hud {
     this.el.classList.toggle('reloading', player.reloadT >= 0);
     this.el.classList.toggle('lowammo', w.ammo <= Math.ceil(w.def.mag * 0.2) && player.reloadT < 0);
     this.el.classList.toggle('dead', !!player.dead);
+    if(!this.respawnNotice){this.respawnNotice=document.createElement('div');this.respawnNotice.style.cssText='position:absolute;left:50%;top:38%;transform:translateX(-50%);padding:20px 30px;background:#101821ed;border:1px solid #73d2dd;color:#eef7fa;text-align:center;font:16px sans-serif;white-space:pre-line';this.el.appendChild(this.respawnNotice);}
+    this.respawnNotice.hidden=!player.dead;
+    if(player.dead){const seconds=Math.max(0,Math.ceil(((player.respawnAt||0)-performance.now())/1000));this.respawnNotice.textContent=!game?.mission?.active?'SQUAD ELIMINATED':game.mission.lives<=0?'NO REINFORCEMENTS REMAIN\nWaiting for surviving squadmates':seconds>0?`REINFORCEMENT IN ${seconds}s\nA squadmate must stay alive`:'REINFORCEMENT INBOUND';}
     this.el.classList.toggle('god', !!game?.god);
     this.el.classList.toggle('scoped', !!player.scoped);
     const spread = (player.aiming ? 4 : 8) + player.bloom * 400 + Math.min(14, player.velocity.length() * 2.5) + (player.state === 'cover' && !player.aiming ? 12 : 0);

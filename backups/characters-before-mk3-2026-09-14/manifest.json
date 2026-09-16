@@ -1,0 +1,81 @@
+{
+  "created": "2026-09-14",
+  "files": [
+    {
+      "file": "src/entities/animator.js",
+      "sha256": "d93babcdc3778d62d94e373edee16752f8f08e4a29fecb57395b49ce5f839728"
+    },
+    {
+      "file": "src/entities/player.js",
+      "sha256": "8cc6e1a283eb3e3dc40fd0c44ce51c21ee220aff5cf1c143f12735a3c50c2f0e"
+    },
+    {
+      "file": "src/entities/remotePlayer.js",
+      "sha256": "1ed1e01f71ea7bb822f417ea5113cfadd287d538f93945116b441654acca2929"
+    },
+    {
+      "file": "src/main.js",
+      "sha256": "24eebbffec9460d295ddbccb443f3e1df0a4afc56a0f26f81cfce5d67adbf3b2"
+    },
+    {
+      "file": "src/models/robots.js",
+      "sha256": "6ceaebc4e9efbd98255b3625854904bc4d4f8c3d267dfbebc208ccd590f86512"
+    },
+    {
+      "file": "src/models/soldier.js",
+      "sha256": "95cabd46f3e26d1d7507bda4c550c633bf1c8ebd6c9ec9adfacc00a64ab216c3"
+    },
+    {
+      "file": "src/models/weapons.js",
+      "sha256": "8882f8fcacc976224e49eda160a3c289599d0f32a6fb0bc9de75b2ac281f6ed3"
+    },
+    {
+      "file": "src/net/netsync.js",
+      "sha256": "812e4567866e948017e214c26389dedd3df3f2e387a81746cf47e955026c99db"
+    },
+    {
+      "file": "src/render/menuScene.js",
+      "sha256": "bc3d0eb2f1c0fba2987a72c0ad0f509039c8668621dc6d8c602b6bfe4e6f85a0"
+    },
+    {
+      "file": "src/debug/showcase.js",
+      "sha256": "77b12e1101af46656f81832d677df17de7a419f5d5360c129605757394ea01fc"
+    },
+    {
+      "file": "vite.config.js",
+      "sha256": "2757e0f5147744589d376bce5b31c2c4e60564da13dcf7a26e925629cf9dac7d"
+    },
+    {
+      "file": "public/models/sentinel.glb",
+      "sha256": "bc037758cf7bbab59537d1385dbbc6ee0031f7c5c94b059c63209161dee0e862"
+    },
+    {
+      "file": "public/models/vanguard.glb",
+      "sha256": "d67d77070cc6dab42fc2886f66976678f86b920e28492f22a3c98216770e5adb"
+    },
+    {
+      "file": "public/textures/gen/tex_robot_carbon.jpg",
+      "sha256": "1584432a1b4a93ffc30a385edabf4215f902e3863a8d74511e92e74cafb41e45"
+    },
+    {
+      "file": "public/textures/gen/tex_robot_ceramic.jpg",
+      "sha256": "6d68d6f184a64a23e23b288aa64bfc1873f27e898c51805f72409152e6271a61"
+    },
+    {
+      "file": "public/textures/gen/tex_robot_gunmetal.jpg",
+      "sha256": "dfb9de5add55e674639c70a95284fec92fa266ff667da02a2207c82d5507030e"
+    },
+    {
+      "file": "src/entities/enemy.js",
+      "sha256": "5df5493a56c3f00fad9539b9fa3cbd0719d02ac8e3f914fe2316fcdb8a777d5e"
+    },
+    {
+      "file": "src/models/legion.js",
+      "sha256": "7039336db8ffab2f9fca0bd900ee0c227a6b37328ae1b2d77c8fa70936d5bde4"
+    },
+    {
+      "file": "src/models/glbSoldier.js",
+      "sha256": "9399552e47348af80a5dbe989ca692c1369893e14ee5fa1983d3c6b9c8ce6c79"
+    }
+  ]
+}

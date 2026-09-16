@@ -1,4 +1,5 @@
 import { el, icon, actionButton, screenHeader } from '../components.js';
+import { rewardPreview } from '../../gameplay/rewards.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -12,13 +13,11 @@ function holo(tag, title, desc) {
 
 export function createOperationScreen(api, mgr) {
   const root = el('div', { class: 'screen op-screen' });
-  const mapUrl = (import.meta.env.BASE_URL || '/') + 'textures/menus/map_clean.jpg';
   const mapFallback = (import.meta.env.BASE_URL || '/') + 'textures/blacksite-meridian-map.png';
 
   let difficulty = api.save.profile.loadout.difficulty || 'veteran';
   let dropZone = api.save.profile.loadout.dropZone || 'main';
   let mapId = api.save.profile.loadout.map || api.DEFAULT_MAP;
-  let pickingZone = false;
   const MAP_IDS = Object.keys(api.MAPS);
   function currentMap() { const st = api.mp.state(); if (st.connected && st.settings?.map && api.MAPS[st.settings.map]) mapId = st.settings.map; return api.MAPS[mapId] || api.MAPS[api.DEFAULT_MAP]; }
   function setMap(id) {
@@ -26,7 +25,6 @@ export function createOperationScreen(api, mgr) {
     mapId = id; dropZone = 'main';
     api.save.setLoadout({ map: id, dropZone });
     if (inLobby()) api.mp.setSettings({ map: id, dropZone });
-    pickingZone = false;
     render();
   }
 
@@ -43,20 +41,9 @@ export function createOperationScreen(api, mgr) {
     if (inLobby()) api.mp.setSettings({ difficulty, dropZone, map: mapId });
     render();
   }
-  function setDropZone(id) {
-    if (!isHost()) return;
-    dropZone = id;
-    api.save.setLoadout({ dropZone: id });
-    if (inLobby()) api.mp.setSettings({ difficulty, dropZone, map: mapId });
-    pickingZone = false;
-    render();
-  }
-
   function buildHeader() {
     return screenHeader(api, {
       title: 'ORBITAL COMMAND',
-      tabs: [{ id: 'summary', label: 'SUMMARY' }, { id: 'briefing', label: 'BRIEFING' }, { id: 'deploy', label: 'DEPLOY' }],
-      activeTab: 'deploy',
     });
   }
 
@@ -76,26 +63,6 @@ export function createOperationScreen(api, mgr) {
     return el('div', { class: 'marker enemy', style: { left: x + '%', top: y + '%' } }, [el('div', { class: 'diamond' }), holo('HOSTILE ACTIVITY', 'LEGION PATROL', 'Recon reports Null Legion movement in this sector.')]);
   }
 
-  function buildDzMarker(zone) {
-    const x = (zone.mapX / 400) * 100, y = (1 - zone.mapY / 400) * 100;
-    const selected = zone.id === dropZone;
-    const canPick = pickingZone && isHost();
-    const node = el('div', {
-      class: `marker dz ${canPick ? 'selectable' : ''} ${selected ? 'selected' : ''}`,
-      style: { left: x + '%', top: y + '%' },
-    }, [
-      el('div', { class: 'diamond' }),
-      selected ? el('div', { class: 'reticle' }) : null,
-      el('div', { class: 'mk-label', text: zone.name.split('//')[0].trim() }),
-      holo(selected ? 'SELECTED DROP ZONE' : 'DROP ZONE', zone.name.split('//')[0].trim(), zone.desc || zone.description || (canPick ? 'Click to select this insertion point.' : 'Insertion point. Use the drop zone button to change it.')),
-    ]);
-    if (canPick) {
-      node.addEventListener('mouseenter', () => api.ui.hover());
-      node.addEventListener('click', () => { api.ui.click(); setDropZone(zone.id); });
-    }
-    return node;
-  }
-
   function buildWarTable() {
     const map = currentMap();
     const inner = el('div', { class: 'war-table' }, [
@@ -107,7 +74,7 @@ export function createOperationScreen(api, mgr) {
     ]);
     (map.markers || []).forEach((m) => inner.appendChild(buildMarker(m)));
     (map.enemyMarkers || []).forEach((m) => inner.appendChild(buildEnemyMarker(m)));
-    Object.values(map.dropZones || api.DROP_ZONES).forEach((z) => inner.appendChild(buildDzMarker(z)));
+    inner.appendChild(buildMarker({ x: (map.dropZones || api.DROP_ZONES).main.mapX, y: (map.dropZones || api.DROP_ZONES).main.mapY, kind: 'dz', label: 'INSERTION', tag: 'MISSION START', desc: 'Designated insertion point.' }));
     const wrap = el('div', { class: 'war-table-wrap' }, [inner]);
     // pan (drag) + zoom (wheel); markers counter-scale via --inv so they stay legible
     let scale = 1, tx = 0, ty = 0, drag = null, moved = false;
@@ -124,12 +91,9 @@ export function createOperationScreen(api, mgr) {
   }
 
   function buildBriefing() {
-    const rewards = [
-      { name: 'xp', label: 'EXPERIENCE' },
-      { name: 'req', label: 'REQUISITION' },
-      { name: 'intel', label: 'INTEL' },
-    ];
     const map = currentMap(); const host = isHost();
+    const payout = rewardPreview(map.id, api.DIFFICULTIES[difficulty], api.save.profile.unlockedWeapons);
+    const rewards = [{ name: 'xp', label: `${payout.xp.toLocaleString()} XP` }, { name: 'req', label: `${payout.requisition.toLocaleString()} REQUISITION` }];
     const selector = el('div', { class: 'op-select' }, MAP_IDS.map((id) => {
       const m = api.MAPS[id];
       const b = el('button', { class: `op-card ${id === map.id ? 'active' : ''} ${!host ? 'readonly' : ''}`, type: 'button' }, [
@@ -142,27 +106,26 @@ export function createOperationScreen(api, mgr) {
     return el('div', { class: 'briefing-panel panel' }, [
       el('div', { class: 'bp-kicker' }, [el('span', { html: icon('chevronBig') }), el('span', { text: 'SELECT OPERATION' })]),
       selector,
-      el('div', { class: 'bp-kicker', style: { marginTop: '14px' } }, [el('span', { html: icon('chevronBig') }), el('span', { text: 'OPERATION BRIEFING' })]),
-      el('h2', { text: map.opName }),
+      el('div', { class: 'bp-kicker', style: { marginTop: '20px' }, text: 'MISSION PLAN' }),
       el('div', { class: 'bp-loc', text: map.location }),
       el('div', { class: 'bp-objective' }, [
         el('span', { html: icon('target') }),
-        el('div', {}, [el('div', { class: 'bp-o-label', text: 'PRIMARY OBJECTIVE' }), el('div', { class: 'bp-o-text', text: map.briefing.primary })]),
+        el('div', {}, [el('div', { class: 'bp-o-label', text: '01 / DISABLE DEFENCES' }), el('div', { class: 'bp-o-text', text: map.briefing.primary })]),
       ]),
+      el('div', { class: 'bp-objective' }, [el('span', { html: icon('intel') }), el('div', {}, [el('div', { class: 'bp-o-label', text: map.id === 'lantern' ? '02 / BROADCAST' : '02 / RECOVER INTEL' }), el('div', { class: 'bp-o-text', text: map.id === 'lantern' ? 'Upload the counter-broadcast' : 'Secure the communications base data' })])]),
+      el('div', { class: 'bp-objective' }, [el('span', { html: icon('deploy') }), el('div', {}, [el('div', { class: 'bp-o-label', text: '03 / EXTRACT' }), el('div', { class: 'bp-o-text', text: 'Hold the landing zone and board the dropship' })])]),
       el('div', { class: 'bp-objective secondary' }, [
         el('span', { html: '&#9733;' }),
-        el('div', {}, [el('div', { class: 'bp-o-label', text: 'SECONDARY OBJECTIVE' }), el('div', { class: 'bp-o-text', text: map.briefing.secondary })]),
-      ]),
-      el('div', { class: 'bp-intel' }, [
-        el('span', { html: icon('intel') }),
-        el('span', { text: map.briefing.intel }),
+        el('div', {}, [el('div', { class: 'bp-o-label', text: 'OPTIONAL / RESCUE' }), el('div', { class: 'bp-o-text', text: map.briefing.secondary })]),
       ]),
       el('div', { class: 'bp-rewards' }, [
-        el('div', { class: 'bp-r-title', text: 'MISSION REWARDS' }),
+        el('div', { class: 'bp-r-title', text: 'COMPLETION REWARDS' }),
         el('div', { class: 'bp-r-row' }, rewards.map((r) => el('div', { class: 'bp-r-item' }, [
           (() => { const d = el('div', { class: 'hex-icon' }, [el('div', { class: 'hex-shape' }), el('div', { class: 'hex-glyph', html: icon(r.name) })]); return d; })(),
           el('span', { text: r.label }),
         ]))),
+        payout.weapon ? el('div', { class: 'bp-weapon-reward' }, [el('span', { html: icon('rifle') }), el('div', {}, [el('div', { class: 'bp-o-label', text: 'NEXT WEAPON UNLOCK' }), el('strong', { text: api.WEAPONS[payout.weapon].name })])]) : el('div', { class: 'bp-reward-note', text: 'All operation weapons unlocked' }),
+        el('div', { class: 'bp-reward-note', text: 'Combat and optional objectives award additional XP, requisition and intel.' }),
       ]),
     ]);
   }
@@ -180,20 +143,11 @@ export function createOperationScreen(api, mgr) {
         return chip;
       }),
     ]);
-    const zoneBtn = el('button', { class: `chip ${pickingZone ? 'active' : ''} ${!host ? 'readonly' : ''}`, type: 'button' }, [
-      el('span', { html: icon('drop') }),
-      el('span', { text: (currentMap().dropZones || api.DROP_ZONES)[dropZone] ? (currentMap().dropZones || api.DROP_ZONES)[dropZone].name : 'SELECT DROP ZONE' }),
-    ]);
-    if (host) {
-      zoneBtn.addEventListener('mouseenter', () => api.ui.hover());
-      zoneBtn.addEventListener('click', () => { api.ui.click(); pickingZone = !pickingZone; render(); });
-    }
     const bar = el('div', { class: 'op-bottombar' }, [
       diffGroup,
-      el('div', { class: 'ob-group' }, [zoneBtn]),
       el('div', { class: 'spacer' }),
       actionButton(api, {
-        label: host ? 'BEGIN DEPLOYMENT' : 'WAITING FOR HOST',
+        label: host ? 'REVIEW LOADOUT' : 'WAITING FOR HOST',
         kind: 'primary begin-btn',
         icon: 'deploy',
         disabled: !host,
@@ -216,9 +170,10 @@ export function createOperationScreen(api, mgr) {
     el: root,
     onShow() {
       difficulty = api.save.profile.loadout.difficulty || 'veteran';
-      dropZone = api.save.profile.loadout.dropZone || 'main';
+      dropZone = 'main';
+      api.save.setLoadout({ dropZone });
+      if (inLobby() && isHost()) api.mp.setSettings({ dropZone });
       mapId = api.save.profile.loadout.map || api.DEFAULT_MAP;
-      pickingZone = false;
       render();
       if (!this._lobbyOff) this._lobbyOff = api.events.on('lobby:update', () => { if (root.classList.contains('visible') && !isHost()) render(); });
     },

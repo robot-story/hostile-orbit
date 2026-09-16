@@ -11,7 +11,7 @@ export function el(tag, attrs = {}, children = []) {
     else if (k === 'html') node.innerHTML = v;
     else if (k === 'text') node.textContent = v;
     else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
-    else if (k === 'style' && typeof v === 'object') Object.assign(node.style, v);
+    else if (k === 'style' && typeof v === 'object') { for (const [prop, value] of Object.entries(v)) { if (prop.startsWith('--')) node.style.setProperty(prop, value); else node.style[prop] = value; } }
     else node.setAttribute(k, v);
   }
   for (const c of [].concat(children)) {
@@ -64,7 +64,7 @@ export function hexIcon(name, cls = '') {
 /* ---------------------------------------------------------------- buttons */
 
 export function menuButton(api, { label, tag = '', disabled = false, onClick } = {}) {
-  const btn = el('button', { class: 'menu-btn' + (disabled ? ' disabled' : ''), type: 'button' }, [
+  const btn = el('button', { class: 'menu-btn' + (disabled ? ' disabled' : ''), type: 'button', disabled }, [
     el('span', { class: 'chev' }),
     el('span', { class: 'lbl', text: label }),
     tag ? el('span', { class: 'tag', text: tag }) : null,
@@ -77,7 +77,7 @@ export function menuButton(api, { label, tag = '', disabled = false, onClick } =
 }
 
 export function actionButton(api, { label, kind = '', icon: iconName = null, disabled = false, sound = 'click', onClick } = {}) {
-  const btn = el('button', { class: `btn ${kind}` + (disabled ? ' disabled' : ''), type: 'button' }, [
+  const btn = el('button', { class: `btn ${kind}` + (disabled ? ' disabled' : ''), type: 'button', disabled }, [
     iconName ? el('span', { class: 'btn-icon', html: icon(iconName) }) : null,
     el('span', { text: label }),
   ]);

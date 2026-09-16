@@ -76,7 +76,7 @@ class Input {
     catch (e) { fail(e); }
   }
   /** True when gameplay mouse look is active (real pointer lock, or fallback mode). */
-  get lookActive() { return this.locked || (this.lockUnavailable && this.enabled); }
+  get lookActive() { return this.enabled && this.wantLock; }
   releaseLock() { if (this.locked) document.exitPointerLock(); }
   setGameplay(on) {
     this.enabled = on; this.wantLock = on;

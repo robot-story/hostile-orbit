@@ -5,6 +5,7 @@
 // cannot walk through them. Geometries/materials are cached by exact params so the static merge
 // pass (src/world/merge.js) can batch dozens of towers/props sharing a material into few draw calls.
 import * as THREE from 'three';
+import { surfaceMaterial } from '../render/surfaces.js';
 import { HOLO_ART } from './props.js';
 let _holoArtIdx = 0;
 import { Mat, COLORS } from '../render/materials.js';
@@ -50,12 +51,13 @@ function citySlogan() { return CITY_SLOGANS[_cityPosterIdx % CITY_SLOGANS.length
 // ------------------------------------------------------------------- tower ---
 /** Neon skyscraper block: 1-2 stacked dark boxes, corner neon strips, shared emissive windows. */
 export function buildTower(world, pos, yaw = 0, opts = {}) {
+  if (!opts.railLandmark && world.railClearZones?.some(c=>Math.hypot(pos.x-c.x,pos.z-c.z)<c.r)) return {group:new THREE.Group(),colliders:[]};
   const g = new THREE.Group();
   const height = opts.height ?? rand(14, 40);
   const width = opts.width ?? rand(6, 11);
   const depth = opts.depth ?? width * rand(0.75, 1);
   const color = opts.color || pick(NEON_COLORS);
-  const mat = Mat.panel(randInt(0, 3));
+  const mat = surfaceMaterial('facade',{meters:6,color:['#bec6cc','#aab6be','#ccd1d1'][Math.floor(Math.random()*3)],roughness:.76,metalness:.18});
   const y0 = world.terrain.getHeight(pos.x, pos.z);
   const colliders = [];
 
@@ -340,6 +342,7 @@ export function buildTransitPlaza(world, center) {
   // low walls / benches ring
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + 0.3;
+    if (Math.sin(a)<-0.3) continue; // open the north-facing arrival route
     const px = center.x + Math.cos(a) * 18, pz = center.z + Math.sin(a) * 18;
     const p = new THREE.Vector3(px, world.terrain.getHeight(px, pz), pz);
     trafficBarrier(world, p, a + Math.PI / 2);

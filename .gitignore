@@ -6,3 +6,5 @@ api.md
 *.log
 screenshot/auto/
 release/
+
+.deploy-pages/

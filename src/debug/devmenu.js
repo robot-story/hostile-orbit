@@ -7,10 +7,10 @@ import { WEAPONS } from '../gameplay/weapons.js';
 import { STAGES } from '../gameplay/mission.js';
 import { input } from '../core/input.js';
 
-const KEY = 'hostile-orbit.dev.v1';
+const KEY = 'hostile-orbit.dev.v2';
 export const DEV_DEFAULTS = {
-  god: true,            // no damage to the local player
-  abilities: true,      // all four orbital abilities unlocked from the drop
+  god: false,           // opt-in testing only
+  abilities: false,     // unlocked by the mission normally
   infiniteAmmo: false,  // magazines, reserve, grenades and injectors stay full
   freezeEnemies: false, // director + AI stop ticking
   noFog: false,

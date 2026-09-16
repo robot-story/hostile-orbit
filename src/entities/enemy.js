@@ -51,7 +51,7 @@ export class Enemy {
     this.model = buildSoldier(this.type.style || 'legion', { legion: ['rifleman', 'breacher', 'suppressor', 'grenadier'].includes(this.type.id) ? this.type.id : undefined, custom: null });
     this.anim = new CharacterAnimator(this.model);
     this.weaponDef = this.type.weapon ? WEAPONS[this.type.weapon] : null;
-    if (this.weaponDef) { this.weaponModel = WEAPON_BUILDERS[this.type.weapon](); this.anim.weaponSocket.add(this.weaponModel); }
+    if (this.weaponDef) { this.weaponModel = this.model.integratedWeapon || WEAPON_BUILDERS[this.type.weapon](); if (!this.model.integratedWeapon) this.anim.weaponSocket.add(this.weaponModel); }
     this.model.root.position.copy(pos); this.model.root.rotation.y = yaw + Math.PI;
     this.world.actors.add(this.model.root);
     this.flashMesh = this.model.meshes[0];
@@ -86,13 +86,15 @@ export class Enemy {
     test(rayCapsule(o, d, this._bonePos('spine', _v), this._bonePos('neck', _v2), 0.27 * s, best), 'chest');
     test(raySphere(o, d, this._bonePos('root', _v), 0.26 * s, best), 'pelvis');
     for (const [limb, bones] of Object.entries(LIMBS)) {
+      if (this.model.tripodLegs && limb.startsWith('leg')) continue;
       if (limb === 'head' || this.lostLimbs.has(limb)) continue;
       const a = this._bonePos(bones[0], _v), b = this._bonePos(bones[2], _v2);
       test(rayCapsule(o, d, a, b, (limb.startsWith('arm') ? 0.11 : 0.14) * s, best), limb);
     }
+    if (this.model.tripodLegs) for (const leg of this.model.tripodLegs) test(rayCapsule(o, d, leg.upper.getWorldPosition(_v), leg.foot.getWorldPosition(_v2), 0.13 * s, best), leg.index === 1 ? 'legL' : 'legR');
     if (!zone) return null;
     _n.copy(d).negate();
-    return { t: best, zone, normal: _n, material: this.mechanical ? 'metal' : 'flesh' };
+    return { t: best, zone, normal: _n, material: this.mechanical || this.model.hollow ? 'metal' : 'flesh' };
   }
   armourAt(zone) { return this.armour[zone] || 0; }
 
@@ -152,7 +154,7 @@ export class Enemy {
       // robot bodies burst into metal, not meat: flash, sparks, smoke, scorch; body removed
       this.fx.explosion(this.hitCenter.clone(), 1.6, 'drone'); this.fx.sparksBurst?.(this.hitCenter.clone(), dir, 40, '#ffb36b'); this.fx.sparksBurst?.(this.hitCenter.clone(), UP, 24, '#7fe9ff'); this.fx.smokeColumn?.(this.position.clone(), 1.2, 4);
       audio.play('drone_explode', { pos: this.position, volume: 0.8 }); if (this.weaponModel) this.weaponModel.visible = false; this.removeModel();
-    } else if (this.model.robot) {
+    } else if (this.model.robot && !this.model.hollow) {
       // Legion frames come apart: parts fly, sparks, smoke, the wreck is gone
       this.fx.shatterFrame(this.model, dir, { max: 22 }); this.fx.smokeColumn?.(this.position.clone(), 0.6, 4); audio.play('drone_explode', { pos: this.position, volume: 0.6, pitch: 0.8 });
       if (this.weaponModel) { const wm = this.weaponModel; const wp = wm.getWorldPosition(new THREE.Vector3()); wm.parent?.remove(wm); this.fx.gibs?.(wp, dir, { armour: true, count: 3 }); }
@@ -168,7 +170,7 @@ export class Enemy {
       if (ev?.explosive) impulse.y += 4;
       if (this.model.custom) { this.ragdoll = null; this.deadT = 0; this.deadImpulse = impulse.clone(); }
       else this.ragdoll = this.fx.ragdoll(this.model, { position: this.position.clone(), yaw: this.yaw + Math.PI, impulse, hitPoint, hitLimb: ev?.zone });
-      if (this.weaponModel) { this.weaponModel.visible = false; }
+      if (this.weaponModel && !this.model.integratedWeapon) { this.weaponModel.visible = false; }
       if (settings.goreLevel > 0 && !this.model.robot) this.fx.bloodPool?.(this.position.clone(), 1 + Math.random() * 0.6);
       audio.play('body_fall', { pos: this.position, volume: 0.7, delay: 0.5 });
       if (this.ragdoll) this.ragdoll.onRemove = () => this.removeModel();
@@ -202,13 +204,13 @@ export class Enemy {
     const dir = _v3.subVectors(aim, eye); const dist = dir.length(); dir.divideScalar(dist || 1);
     // FOV check unless alerted
     const fwd = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const inFov = this.alert || fwd.dot(dir) > 0.25 || dist < 6;
-    const maxRange = this.alert ? 140 : (this.target.sprinting ? 70 : this.target.crouching ? 30 : 50);
+    const inFov = this.alert || fwd.dot(dir) > 0.4 || dist < 4;
+    const maxRange = (this.alert ? 95 : (this.target.sprinting ? 55 : this.target.crouching ? 24 : 40)) * (this.game.difficulty?.perception ?? .9);
     let see = false;
     if (inFov && dist < maxRange) see = this.world.hasLOS(eye, aim, { terrainStep: 2 });
     if (see) {
       this.seeT += dt;
-      if (this.seeT > this.type.reactionTime * (this.alert ? 0.4 : 1)) { this.canSee = true; this.lastSeen = (this.lastSeen || new THREE.Vector3()).copy(this.target.position); this.lastSeenT = this.game.time; if (!this.alert) this.onAlert(true); }
+      if (this.seeT > this.type.reactionTime * (this.alert ? 0.65 : 1) * (this.game.difficulty?.reaction ?? 1.15)) { this.canSee = true; this.lastSeen = (this.lastSeen || new THREE.Vector3()).copy(this.target.position); this.lastSeenT = this.game.time; if (!this.alert) this.onAlert(true); }
     } else { this.seeT = Math.max(0, this.seeT - dt * 2); if (this.canSee) this.acquiredT = null; this.canSee = false; }
   }
   onAlert(first) {
@@ -221,7 +223,7 @@ export class Enemy {
   hearNoise(pos, loud = 1) {
     if (this.dead || this.alert || this.type.ally) return;
     const d = pos.distanceTo(this.position);
-    if (d < 25 * loud) { this.investigatePos = pos.clone(); if (this.state === 'patrol' || this.state === 'idle') this.setState('investigate'); }
+    if (d < 21 * loud * (this.game.difficulty?.perception ?? .9)) { this.investigatePos = pos.clone(); if (this.state === 'patrol' || this.state === 'idle') this.setState('investigate'); }
   }
   setState(s) { if (this.state === s) return; this.state = s; this.stateT = 0; this.path = null; this.pathGoal = null; if (s !== 'cover' && this.coverPoint) { this.coverPoint.occupant = null; this.coverPoint = null; this.inCover = false; } }
 
@@ -467,6 +469,7 @@ export class Enemy {
         this.deadT = (this.deadT || 0) + dt;
         if (this.deadImpulse && this.deadT < 0.6) { this.position.addScaledVector(this.deadImpulse, dt * 0.35 * (1 - this.deadT / 0.6)); this.position.y = this.world.groundHeight(this.position.x, this.position.z); this.model.root.position.copy(this.position); }
         this.anim.update(dt, { speed: 0, sprint: 0, crouch: 0, aim: 0, cover: null, dead: true, weaponLow: 0 });
+        this.model.motion?.(0, 0, dt, 0, this.model.root.rotation.y);
         if (this.deadT > 9) this.removeModel();
       }
       return;

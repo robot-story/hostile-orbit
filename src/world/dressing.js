@@ -12,7 +12,7 @@ import {
 import { buildWallSegment, buildGate, buildWatchtower, buildPylon } from '../models/buildings.js';
 import { blackGlassTree, glowPool, boneArch, sporeField, membranePlant } from '../models/alien.js';
 import { rand, pick } from '../core/mathx.js';
-import { giantHolo, skyTether } from '../models/city.js';
+import { giantHolo, skyTether, buildTower } from '../models/city.js';
 import { supplyPickup } from './pickups.js';
 
 // ---------------------------------------------------------------- shared decal materials (cached, batch-friendly)
@@ -145,16 +145,21 @@ export function launchPad(world, info, pos, color = COLORS.cyan) {
 /** Grind rail: a tube along a curve on posts, registered with the world so a rolled frame can ride it. */
 export function grindRail(world, mapPts, opts = {}) {
   const h = opts.height ?? 1.4, color = opts.color || COLORS.cyan;
-  const pts = mapPts.map(([mx, my, dy]) => { const p = M(mx, my); p.y = world.terrain.getHeight(p.x, p.z) + h + (dy || 0); return p; });
+  const pts = mapPts.map(([mx, my, dy]) => { const p = M(mx, my); p.y = (opts.baseY ?? world.terrain.getHeight(p.x, p.z)) + h + (dy || 0); return p; });
   const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
   const length = curve.getLength(); const samples = curve.getSpacedPoints(Math.max(8, Math.round(length / 1.2)));
   const g = new THREE.Group(); g.userData.noMerge = true;
   const rail = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(16, Math.round(length / 0.8)), 0.07, 8, false), new THREE.MeshStandardMaterial({ color: '#c8ced8', roughness: 0.35, metalness: 0.9 })); rail.castShadow = true; g.add(rail);
   const glow = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(16, Math.round(length / 0.8)), 0.022, 6, false), Mat.neon(color, 1.8)); glow.position.y = 0.09; glow.castShadow = false; g.add(glow);
   const postMat = Mat.darkMetal();
-  for (let i = 0; i < samples.length; i += 3) { const s = samples[i]; const gy = world.terrain.getHeight(s.x, s.z); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, s.y - gy, 8), postMat); post.position.set(s.x, (s.y + gy) / 2, s.z); post.castShadow = true; g.add(post); const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.08, 10), postMat); foot.position.set(s.x, gy + 0.04, s.z); g.add(foot); }
+  for (let i = 0; i < samples.length; i += opts.elevated ? 11 : 3) {
+    const s=samples[i],gy=world.terrain.getHeight(s.x,s.z),height=Math.max(.1,s.y-gy),wide=opts.elevated&&height>4;
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(wide?.18:.05,wide?.28:.07,height,8),postMat);post.position.set(s.x,(s.y+gy)/2,s.z);post.castShadow=true;g.add(post);
+    const foot=new THREE.Mesh(new THREE.CylinderGeometry(wide?.55:.22,wide?.65:.26,.12,10),postMat);foot.position.set(s.x,gy+.06,s.z);g.add(foot);
+    if(wide){const beam=new THREE.Mesh(new THREE.BoxGeometry(1.4,.15,.24),postMat);beam.position.set(s.x,s.y-.35,s.z);g.add(beam);for(const side of [-1,1]){const brace=new THREE.Mesh(new THREE.BoxGeometry(.08,1.1,.08),postMat);brace.position.set(s.x+side*.26,s.y-.8,s.z);brace.rotation.z=side*-.5;g.add(brace);}}
+  }
   world.props.add(g);
-  world.rails.push({ curve, samples, length });
+  world.rails.push({ curve, samples, length, name:opts.name, elevated:!!opts.elevated });
   return { group: g, curve };
 }
 
@@ -334,15 +339,20 @@ export function dressLantern(world, info, cityFns) {
   launchPad(world, info, at(world, 214, 170), '#ff3fd8'); launchPad(world, info, at(world, 150, 300), '#00e5ff'); launchPad(world, info, at(world, 300, 284), '#ff3fd8'); launchPad(world, info, at(world, 100, 262), '#00e5ff');
   // Traversal: rails down the avenue and around the square
   grindRail(world, [[188, 88], [186, 120], [190, 150], [188, 180], [190, 214]], { height: 1.5, color: '#ff3fd8' });
-  grindRail(world, [[214, 96], [216, 130], [212, 160], [214, 190], [212, 226]], { height: 1.5, color: '#00e5ff' });
+  grindRail(world, [[214, 96], [216, 130], [212, 158]], { height: 1.5, color: '#00e5ff' });
   grindRail(world, [[186, 300], [196, 312], [212, 314], [222, 302]], { height: 1.6, color: '#ff3fd8' });
   grindRail(world, [[84, 232], [76, 248], [80, 266]], { height: 1.3, color: '#00e5ff' });
-  grindRail(world, [[196, 60], [200, 80], [204, 100]], { height: 1.4, color: '#ff3fd8' });                   // out of the transit plaza
+  grindRail(world, [[209, 79], [209, 88], [212, 101]], { height: 1.4, color: '#ff3fd8' });                   // clear the plaza's central exit
   grindRail(world, [[300, 290], [312, 306], [322, 326], [316, 346]], { height: 1.5, color: '#ff3fd8' });     // around the substation
   grindRail(world, [[150, 350], [166, 358], [184, 356]], { height: 1.4, color: '#00e5ff' });                 // holding block
   grindRail(world, [[176, 106], [188, 116, 0.6], [200, 124, 1.5]], { height: 1.8, color: '#ff3fd8' });         // into the square pile-up
   grindRail(world, [[290, 300], [306, 310, 0.8], [320, 318, 1.6]], { height: 2.0, color: '#ff3fd8' });         // onto the substation yard
   grindRail(world, [[176, 322], [186, 332, 0.6], [196, 338, 1.4]], { height: 1.8, color: '#00e5ff' });         // into the comms pit
+  // Two exceptional high routes. Broad arcs wrap authored towers and return to street-level catches.
+  buildTower(world,at(world,226,205),0,{width:10,depth:14,height:32,color:'#00e5ff',railLandmark:true});
+  buildTower(world,at(world,167,250),0,{width:10,depth:13,height:25,color:'#ffb347',railLandmark:true});
+  grindRail(world,[[212,160,0],[214,174,5],[216,184,14],[226,186,23],[238,198,23],[237,216,23],[222,224,21],[213,235,10],[211,253,0]],{height:1.5,baseY:at(world,212,160).y,color:'#00e5ff',elevated:true,name:'Relay spiral / 24 m'});
+  grindRail(world,[[190,229,0],[187,240,7],[176,238,17],[161,238,19],[156,251,19],[163,264,19],[176,268,14],[189,277,0]],{height:1.5,baseY:at(world,190,229).y,color:'#ffb347',elevated:true,name:'Lantern block / 20 m'});
   for (const [mx, my, k] of [[200, 258, 'both'], [214, 128, 'health'], [340, 300, 'health'], [196, 360, 'both'], [64, 240, 'health'], [76, 268, 'both']]) { const p = at(world, mx, my); if (onFloor(world, p.x, p.z, -0.5)) supplyPickup(world, p, k); }
   // Second content pass: the avenue is lined with screens; every block has something to say.
   {
