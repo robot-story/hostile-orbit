@@ -146,6 +146,62 @@
     "duration": 3.091,
     "priority": 3
   },
+  "voss_lantern_briefing": {
+    "file": "vo/voss_lantern_briefing.mp3",
+    "speaker": "voss",
+    "text": "Vanguard, Erebus Colony has gone dark and loud at the same time. The Legion is broadcasting from our own towers. Relight it.",
+    "duration": 8.567,
+    "priority": 3
+  },
+  "voss_lantern_substation": {
+    "file": "vo/voss_lantern_substation.mp3",
+    "speaker": "voss",
+    "text": "The substation spire is feeding their signal. Overload it and the sky opens.",
+    "duration": 5.176,
+    "priority": 3
+  },
+  "voss_lantern_spire_down": {
+    "file": "vo/voss_lantern_spire_down.mp3",
+    "speaker": "voss",
+    "text": "Spire is down. Orbital support is yours. Now take the broadcast tower.",
+    "duration": 7.052,
+    "priority": 3
+  },
+  "voss_lantern_broadcast": {
+    "file": "vo/voss_lantern_broadcast.mp3",
+    "speaker": "voss",
+    "text": "The broadcast compound is ahead. Get into the control room and start the counter-broadcast.",
+    "duration": 5.482,
+    "priority": 3
+  },
+  "voss_lantern_reeducation": {
+    "file": "vo/voss_lantern_reeducation.mp3",
+    "speaker": "voss",
+    "text": "There is a re-education block on the west side. Two citizens are inside. Optional, but the paperwork is easier if they live.",
+    "duration": 7.987,
+    "priority": 2
+  },
+  "voss_lantern_upload": {
+    "file": "vo/voss_lantern_upload.mp3",
+    "speaker": "voss",
+    "text": "Upload started. Hold the control room until the city hears us.",
+    "duration": 4.49,
+    "priority": 3
+  },
+  "voss_lantern_rooftop": {
+    "file": "vo/voss_lantern_rooftop.mp3",
+    "speaker": "voss",
+    "text": "Rooftop pad, north-west. Get up there and call the ship.",
+    "duration": 4.714,
+    "priority": 3
+  },
+  "voss_lantern_complete": {
+    "file": "vo/voss_lantern_complete.mp3",
+    "speaker": "voss",
+    "text": "Erebus is relit. Every window in that city belongs to us again.",
+    "duration": 5.26,
+    "priority": 3
+  },
   "voss_death": {
     "file": "vo/voss_death.mp3",
     "speaker": "voss",
