@@ -8,3 +8,5 @@ screenshot/auto/
 release/
 
 .deploy-pages/
+
+.runtime/

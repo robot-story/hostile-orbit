@@ -57,3 +57,7 @@ Deploy: build with `npm run build`, then publish the contents of `dist/` to the 
 Local network: run **Host HOSTILE ORBIT on LAN.cmd** and keep its window open. It prints the Network URL. Internet access is required for the public signalling service. The public HTTPS game link is the easiest way for both players to use the same version. Invite links created on localhost use the public game URL.
 
 Original character restore: `node tools/restore-characters.mjs` verifies the backup; add `--apply` to restore it after saving current files.
+
+## Online session relay
+
+For a shared HTTPS session without WebRTC/NAT issues, run **Host HOSTILE ORBIT online.cmd**. Both players open the generated URL, then host/join a lobby normally. It serves only `dist/` and relays game messages through Cloudflare. Keep this PC awake and connected; **Stop HOSTILE ORBIT online.cmd** shuts it down. Restarting generates a new URL. This free temporary tunnel is for play sessions, not permanent hosting. The GitHub Pages build remains available with PeerJS transport.

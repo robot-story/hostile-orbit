@@ -1,5 +1,6 @@
 // WebRTC transport via PeerJS public signalling. Host owns the lobby; clients connect by room code / invite link.
 import Peer from 'peerjs';
+import { RelayPeer, findRelayServer } from './relayPeer.js';
 import { net } from './net.js';
 import { MSG, MAX_PLAYERS, PROTOCOL_VERSION, SQUAD_COLORS, SQUAD_NAMES } from './protocol.js';
 import { events } from '../core/events.js';
@@ -54,9 +55,10 @@ export class Transport {
     });
     return { code: this.code, link: this.link };
   }
-  _openPeer(id) {
+  async _openPeer(id) {
+    const relay = await findRelayServer();
     return new Promise((resolve, reject) => {
-      const peer = id ? new Peer(id, { debug: 0 }) : new Peer({ debug: 0 });
+      const peer = relay ? new RelayPeer(id) : id ? new Peer(id, { debug: 0 }) : new Peer({ debug: 0 });
       this.peer = peer;
       const timer = setTimeout(() => reject(new Error('Signalling server timeout')), 15000);
       peer.on('open', () => { clearTimeout(timer); resolve(); });

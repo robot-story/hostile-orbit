@@ -1,4 +1,4 @@
-// Real PeerJS/WebRTC integration check. Each iframe has its own net singleton.
+// Real multiplayer transport integration check. Each iframe has its own net singleton.
 import { Transport } from '../net/transport.js';
 import { net, MSG } from '../net/net.js';
 import { events } from '../core/events.js';
@@ -28,7 +28,7 @@ export function startNetCheck(){
   }
   document.title='Co-op connection test';document.getElementById('ui').innerHTML='';
   const panel=document.createElement('div');panel.style.cssText='position:fixed;inset:0;z-index:999;padding:28px;overflow:auto;background:#101820;color:#deeff3;font:16px monospace';
-  panel.innerHTML='<h2>Co-op / real connection test</h2><p>Three independent peers use the same public signalling and WebRTC transport as the game.</p><button>Run online checks</button><pre></pre>';document.body.append(panel);
+  panel.innerHTML='<h2>Co-op / real connection test</h2><p>Three independent players use the same active connection transport as the game.</p><button>Run online checks</button><pre></pre>';document.body.append(panel);
   const out=panel.querySelector('pre'),button=panel.querySelector('button');let serial=0;
   button.onclick=async()=>{
     button.disabled=true;out.textContent='Opening isolated peers…\n';const frames=[];
