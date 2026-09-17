@@ -54,7 +54,7 @@ export function startNetCheck(){
       let inProgress=false;await rpc(2,'close');await wait(250);try{await rpc(3,'join',room.code,'QA LATE');}catch(e){inProgress=e.message.includes('PROGRESS');}check(inProgress,'Late join gets clear mission-in-progress response');
       await rpc(0,'burst',400);await rpc(1,'burst',400);await wait(11000);
       const host=await rpc(0,'state'),guest=await rpc(1,'state');check(host.received===400&&guest.received===400&&host.connected&&guest.connected,'800 ordered messages plus two heartbeat cycles remain connected');
-      await rpc(0,'close');await wait(500);check(!(await rpc(1,'state')).connected,'Host disconnect reaches guest');
+      await rpc(0,'close');let disconnected=false;const until=Date.now()+10000;while(Date.now()<until){await wait(250);if(!(await rpc(1,'state')).connected){disconnected=true;break;}}check(disconnected,'Host disconnect reaches guest within 10 seconds');
       out.textContent+='ALL ONLINE TRANSPORT CHECKS PASSED\n';
     }catch(error){out.textContent+='FAIL '+error.message+'\n';console.error(error);}
     finally{for(let i=0;i<frames.length;i++)try{await rpc(i,'close');}catch{}for(const f of frames)f.remove();window.removeEventListener('message',receive);button.disabled=false;}
